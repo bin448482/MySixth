@@ -7,7 +7,6 @@ import { DatabaseService } from '../lib/services/DatabaseService';
 import { CardService } from '../lib/services/CardService';
 import { DatabaseSeeder } from '../lib/database/seeder';
 import { DatabaseMigrations } from '../lib/database/migrations';
-import { getCardStatistics } from '../lib/database/seed/cards';
 
 async function testCards() {
   console.log('🃏 Testing Card data functionality (78张塔罗牌)...\n');
@@ -138,17 +137,18 @@ async function testCards() {
     }
     console.log('');
     
-    // 9. 验证数据统计
-    const stats = getCardStatistics();
-    console.log('📊 Card statistics:');
-    console.log(`✅ Total: ${stats.total}`);
-    console.log(`✅ Major Arcana: ${stats.majorArcana}`);
-    console.log(`✅ Minor Arcana: ${stats.minorArcana}`);
+    // 9. 验证数据统计（从数据库计算）
+    console.log('📊 Card statistics (from database):');
+    console.log(`✅ Total cards: ${totalCards}`);
+    console.log(`✅ Major Arcana: ${majorCards.length}`);
+    console.log(`✅ Minor Arcana: ${minorCards.length}`);
     console.log('✅ Suits:');
-    console.log(`   - 权杖: ${stats.suits.wands}`);
-    console.log(`   - 圣杯: ${stats.suits.cups}`);
-    console.log(`   - 宝剑: ${stats.suits.swords}`);
-    console.log(`   - 钱币: ${stats.suits.pentacles}`);
+    
+    for (const suit of suits) {
+      const suitResult = await cardService.getMinorArcana(suit);
+      const suitCount = suitResult.success && suitResult.data ? suitResult.data.length : 0;
+      console.log(`   - ${suit}: ${suitCount}`);
+    }
     console.log('');
     
     // 10. 测试原始SQL查询

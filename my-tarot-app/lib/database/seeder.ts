@@ -3,46 +3,43 @@
  * Database seed data population script
  */
 
-import { DatabaseService } from '../services/DatabaseService';
-import { getSpreadInsertStatements } from './seed/spreads';
-import { getCardStyleInsertStatements } from './seed/cardStyles';
-import { getCardInsertStatements } from './seed/cards';
+import { DataImporter } from '../data/DataImporter';
 import type { ServiceResponse } from '../types/database';
+import type { ImportSession } from '../data/types';
 
 export class DatabaseSeeder {
-  private dbService: DatabaseService;
+  private dataImporter: DataImporter;
 
   constructor() {
-    this.dbService = DatabaseService.getInstance();
+    this.dataImporter = DataImporter.getInstance();
   }
 
   /**
-   * 填充所有种子数据
+   * 填充所有种子数据（基于JSON导入）
    */
   async seedAll(): Promise<ServiceResponse<void>> {
     try {
-      console.log('Starting database seeding...');
+      console.log('Starting database seeding from JSON data...');
 
-      // 填充卡牌风格数据（必须优先，因为card表依赖它）
-      const cardStyleResult = await this.seedCardStyles();
-      if (!cardStyleResult.success) {
-        throw new Error(`Failed to seed card styles: ${cardStyleResult.error}`);
+      const importSession = await this.dataImporter.importAll();
+
+      if (importSession.isCompleted) {
+        const successCount = importSession.tables.filter(t => t.status === 'completed').length;
+        const errorCount = importSession.tables.filter(t => t.status === 'error').length;
+        
+        if (errorCount === 0) {
+          console.log(`Database seeding completed successfully: ${successCount}/${importSession.tables.length} tables imported`);
+          return { success: true };
+        } else {
+          const errors = importSession.tables
+            .filter(t => t.status === 'error')
+            .map(t => `${t.table}: ${t.error}`)
+            .join('; ');
+          throw new Error(`Partial seeding failure: ${errors}`);
+        }
+      } else {
+        throw new Error('Import session did not complete properly');
       }
-
-      // 填充卡牌数据
-      const cardResult = await this.seedCards();
-      if (!cardResult.success) {
-        throw new Error(`Failed to seed cards: ${cardResult.error}`);
-      }
-
-      // 填充牌阵数据
-      const spreadResult = await this.seedSpreads();
-      if (!spreadResult.success) {
-        throw new Error(`Failed to seed spreads: ${spreadResult.error}`);
-      }
-
-      console.log('Database seeding completed successfully');
-      return { success: true };
 
     } catch (error) {
       console.error('Database seeding failed:', error);
@@ -54,134 +51,21 @@ export class DatabaseSeeder {
   }
 
   /**
-   * 填充卡牌数据
-   */
-  async seedCards(): Promise<ServiceResponse<void>> {
-    try {
-      // 检查是否已经有数据
-      const existingResult = await this.dbService.queryFirst<{count: number}>(
-        'SELECT COUNT(*) as count FROM card'
-      );
-
-      if (existingResult.success && existingResult.data && existingResult.data.count > 0) {
-        console.log('Cards already exist, skipping...');
-        return { success: true };
-      }
-
-      // 插入卡牌数据
-      const insertStatements = getCardInsertStatements();
-      console.log(`Inserting ${insertStatements.length} cards...`);
-      
-      const result = await this.dbService.executeBatch(insertStatements);
-
-      if (result.success) {
-        console.log(`Successfully inserted ${insertStatements.length} card(s)`);
-        
-        // 验证插入结果
-        const verifyResult = await this.dbService.queryFirst<{count: number}>(
-          'SELECT COUNT(*) as count FROM card'
-        );
-        const actualCount = verifyResult.success && verifyResult.data ? verifyResult.data.count : 0;
-        console.log(`Verification: ${actualCount} cards in database`);
-        
-        return { success: true };
-      } else {
-        throw new Error(result.error);
-      }
-
-    } catch (error) {
-      console.error('Failed to seed cards:', error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
-      };
-    }
-  }
-
-  /**
-   * 填充卡牌风格数据
-   */
-  async seedCardStyles(): Promise<ServiceResponse<void>> {
-    try {
-      // 检查是否已经有数据
-      const existingResult = await this.dbService.queryFirst<{count: number}>(
-        'SELECT COUNT(*) as count FROM card_style'
-      );
-
-      if (existingResult.success && existingResult.data && existingResult.data.count > 0) {
-        console.log('Card styles already exist, skipping...');
-        return { success: true };
-      }
-
-      // 插入卡牌风格数据
-      const insertStatements = getCardStyleInsertStatements();
-      const result = await this.dbService.executeBatch(insertStatements);
-
-      if (result.success) {
-        console.log(`Successfully inserted ${insertStatements.length} card style(s)`);
-        return { success: true };
-      } else {
-        throw new Error(result.error);
-      }
-
-    } catch (error) {
-      console.error('Failed to seed card styles:', error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
-      };
-    }
-  }
-
-  /**
-   * 填充牌阵数据
-   */
-  async seedSpreads(): Promise<ServiceResponse<void>> {
-    try {
-      // 检查是否已经有数据
-      const existingResult = await this.dbService.queryFirst<{count: number}>(
-        'SELECT COUNT(*) as count FROM spread'
-      );
-
-      if (existingResult.success && existingResult.data && existingResult.data.count > 0) {
-        console.log('Spreads already exist, skipping...');
-        return { success: true };
-      }
-
-      // 插入牌阵数据
-      const insertStatements = getSpreadInsertStatements();
-      const result = await this.dbService.executeBatch(insertStatements);
-
-      if (result.success) {
-        console.log(`Successfully inserted ${insertStatements.length} spreads`);
-        return { success: true };
-      } else {
-        throw new Error(result.error);
-      }
-
-    } catch (error) {
-      console.error('Failed to seed spreads:', error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
-      };
-    }
-  }
-
-  /**
    * 检查是否需要填充数据
    */
   async needsSeeding(): Promise<boolean> {
     try {
-      const cardStyleResult = await this.dbService.queryFirst<{count: number}>(
+      const dbService = (this.dataImporter as any).dbService; // Access private dbService
+      
+      const cardStyleResult = await dbService.queryFirst<{count: number}>(
         'SELECT COUNT(*) as count FROM card_style'
       );
       
-      const cardResult = await this.dbService.queryFirst<{count: number}>(
+      const cardResult = await dbService.queryFirst<{count: number}>(
         'SELECT COUNT(*) as count FROM card'
       );
       
-      const spreadResult = await this.dbService.queryFirst<{count: number}>(
+      const spreadResult = await dbService.queryFirst<{count: number}>(
         'SELECT COUNT(*) as count FROM spread'
       );
 
@@ -203,15 +87,15 @@ export class DatabaseSeeder {
    */
   async clearAll(): Promise<ServiceResponse<void>> {
     try {
-      // 注意删除顺序：先删除依赖表，再删除被依赖表
-      const tables = ['user_history', 'card_interpretation_dimension', 'card_interpretation', 'card', 'spread', 'card_style'];
+      const result = await this.dataImporter.clearAllTables();
       
-      for (const table of tables) {
-        await this.dbService.execute(`DELETE FROM ${table}`);
-        console.log(`Cleared table: ${table}`);
+      if (result.success) {
+        console.log('All data cleared successfully');
+      } else {
+        console.error('Failed to clear data:', result.error);
       }
-
-      return { success: true };
+      
+      return result;
     } catch (error) {
       console.error('Failed to clear data:', error);
       return {
