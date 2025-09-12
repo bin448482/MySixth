@@ -35,10 +35,40 @@ export interface JsonSpread {
   card_count: number;
 }
 
+// JSON中的解读维度数据（无ID）
+export interface JsonDimension {
+  name: string;
+  category: string;
+  description: string;
+  aspect?: string;
+  aspect_type?: string;
+}
+
+// JSON中的卡牌解读数据（card_name代替card_id）
+export interface JsonCardInterpretation {
+  card_name: string;      // 注意：JSON中使用卡牌名称，不是id
+  direction: '正位' | '逆位';
+  summary: string;
+  detail?: string;
+}
+
+// JSON中的卡牌解读维度关联数据（使用名称代替ID）
+export interface JsonCardInterpretationDimension {
+  card_name: string;          // 关联的卡牌名称
+  direction: '正位' | '逆位';   // 正位/逆位
+  dimension_name: string;     // 关联的维度名称
+  aspect?: string;            // 具体维度子项
+  aspect_type?: string;       // 子项的类型或分类
+  content: string;            // 该维度下的解读文字
+}
+
 // 完整的JSON数据文件类型
 export type CardStylesJson = JsonDataFile<JsonCardStyle>;
 export type CardsJson = JsonDataFile<JsonCard>;
 export type SpreadsJson = JsonDataFile<JsonSpread>;
+export type DimensionsJson = JsonDataFile<JsonDimension>;
+export type CardInterpretationsJson = JsonDataFile<JsonCardInterpretation>;
+export type CardInterpretationDimensionsJson = JsonDataFile<JsonCardInterpretationDimension>;
 
 // 数据导入结果
 export interface ImportResult {
