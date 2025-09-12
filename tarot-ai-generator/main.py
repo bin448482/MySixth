@@ -161,7 +161,7 @@ class TarotAIGenerator:
                     results.append(result)
                 
                 progress.advance(task)
-                time.sleep(60 / self.config.RATE_LIMIT_PER_MINUTE)
+                # time.sleep(60 / self.config.RATE_LIMIT_PER_MINUTE)
         
         self.save_results(results, f"dimension_{dimension_name}")
         console.print(f"[green]完成！生成了 {len(results)} 条解读[/green]")
