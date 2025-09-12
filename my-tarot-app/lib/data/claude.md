@@ -141,43 +141,69 @@ interface JsonDataFile<T> {
 
 ### 5. 解读维度数据 (dimensions.json)
 
-定义塔罗牌解读的不同维度和类别：
+定义塔罗牌解读的不同维度和类别。此处引入严格规则以保证数据一致性（尤其针对三张牌阵的映射）。
 
+规则（必须遵守）：
+- name: 维度唯一标识，字符串，不可重复（例如 "情感-时间线-现在"）。
+- category: 该维度所属的大类（例如 情感、事业、健康、人际 等）。category 与 name 的前缀应一致（比如 "情感-时间线" 的 category 为 "情感-时间线"）。
+- description: 对该维度的文字描述（中文或多语言文本）。
+- aspect: 与三牌阵（过去/现在/将来）直接关联时，取固定值之一："过去"、"现在"、"将来"。对于非三牌阵的子维度（例如互动、角色、状态等），aspect 可为描述性文本。
+- aspect_type: 字段；用于表示牌在牌阵中的“位次”。规则如下：
+  - 三牌阵（3张）：使用数字 1|2|3 分别表示牌在三牌阵中的位置（1=过去，2=现在，3=将来）。三牌阵的 aspect_type 只能为 1、2、3。
+  - 凯尔特十字（10张）：使用整数 1..10 表示牌位（1=第1位 ... 10=第10位）。凯尔特十字的 aspect_type 只能为 1..10。
+  - 非牌位关联的维度条目可省略该字段或设为 null。
+说明：当前系统仅支持三牌阵（3张）和凯尔特十字阵（10张）。不考虑其他自定义牌阵；若将来需要新增牌阵，需在 `spreads.json` 中登记并更新导入/映射逻辑与校验规则。
+
+示例（包含三牌阵 & 凯尔特十字映射的规范示例）：
 ```json
 {
   "version": "1.0.0",
-  "updated_at": "2024-01-15T10:00:00Z",
-  "description": "塔罗牌解读维度定义数据",
+  "updated_at": "2025-09-12T00:00:00Z",
+  "description": "塔罗牌解读维度定义数据（含三牌阵与凯尔特十字位置规则）",
   "data": [
     {
-      "name": "情感-时间线",
+      "name": "情感-时间线-过去",
       "category": "情感",
-      "description": "情感发展的时间线解读",
+      "description": "情感发展的过去方向",
       "aspect": "过去",
-      "aspect_type": "时间线"
+      "aspect_type": 1
     },
     {
-      "name": "情感-现状",
+      "name": "情感-时间线-现在",
       "category": "情感",
-      "description": "当前情感状态分析",
+      "description": "情感发展的当前状态",
       "aspect": "现在",
-      "aspect_type": "时间线"
+      "aspect_type": 2
     },
     {
-      "name": "事业-发展趋势",
-      "category": "事业",
-      "description": "事业发展方向和趋势",
-      "aspect": "发展",
-      "aspect_type": "趋势"
+      "name": "情感-时间线-将来",
+      "category": "情感",
+      "description": "情感发展的未来展望",
+      "aspect": "将来",
+      "aspect_type": 3
     },
     {
-      "name": "健康-身体状况",
-      "category": "健康",
-      "description": "身体健康状况评估"
+      "name": "凯尔特十字-位置1",
+      "category": "情感",
+      "description": "凯尔特十字 第1位（读者/状况）",
+      "aspect": "位置1",
+      "aspect_type": 1
+    },
+    {
+      "name": "凯尔特十字-位置10",
+      "category": "情感",
+      "description": "凯尔特十字 第10位（最终结果）",
+      "aspect": "位置10",
+      "aspect_type": 10
     }
   ]
 }
 ```
+
+说明：
+- 对于“三牌阵”，aspect 必须取 "过去" / "现在" / "将来"，并且 aspect_type 必须使用数字 1|2|3 对应位置。
+- 对于“凯尔特十字”，aspect_type 必须使用 1 到 10 的整数来表示牌位（1..10）。示例中展示了第1位和第10位的写法；其余 2..9 同理。
+- 当前系统仅支持三牌阵（3张）和凯尔特十字（10张）。其他自定义牌阵暂不考虑；若将来添加新阵，需要在 `spreads.json` 中登记并扩展导入/映射逻辑。
 
 **字段说明：**
 - `name`: 维度名称（如：情感-时间线）
@@ -226,28 +252,29 @@ interface JsonDataFile<T> {
 
 ### 7. 卡牌解读维度关联数据 (card_interpretation_dimensions.json)
 
-将卡牌解读与具体维度关联，提供细粒度的解读内容：
+将卡牌解读与具体维度关联，提供细粒度的解读内容。遵循上文维度规则时，请注意三牌阵映射的一致性（aspect 与 aspect_type 必须匹配）。
 
+示例（使用三牌阵位置数字化的规范示例）：
 ```json
 {
   "version": "1.0.0",
-  "updated_at": "2024-01-15T10:00:00Z",
-  "description": "塔罗牌解读维度关联数据",
+  "updated_at": "2025-09-12T00:00:00Z",
+  "description": "塔罗牌解读维度关联数据（与 dimensions.json 一致）",
   "data": [
     {
       "card_name": "愚者",
       "direction": "正位",
-      "dimension_name": "情感-时间线",
+      "dimension_name": "情感-时间线-过去",
       "aspect": "过去",
-      "aspect_type": "时间线",
+      "aspect_type": 1,
       "content": "在情感过去中，你曾经很天真纯洁，对爱情充满美好期待。"
     },
     {
       "card_name": "愚者",
       "direction": "正位",
-      "dimension_name": "情感-现状",
+      "dimension_name": "情感-时间线-现在",
       "aspect": "现在",
-      "aspect_type": "时间线",
+      "aspect_type": 2,
       "content": "目前的情感状态充满新鲜感，准备开始一段新的感情历程。"
     },
     {
@@ -255,7 +282,6 @@ interface JsonDataFile<T> {
       "direction": "逆位",
       "dimension_name": "事业-发展趋势",
       "aspect": "发展",
-      "aspect_type": "趋势",
       "content": "在事业发展上需要更加谨慎，避免盲目投资或冲动决策。"
     },
     {
@@ -267,6 +293,17 @@ interface JsonDataFile<T> {
   ]
 }
 ```
+
+字段说明（更新）：
+- `card_name`: 关联的卡牌名称（JSON 使用名称；导入时转换为 card.id）。
+- `direction`: 正位或逆位。
+- `dimension_name`: 关联的维度名称（必须与 dimensions.json 中的 name 一致；三牌阵建议使用带后缀的细化名称，如 "情感-时间线-过去"）。
+- `aspect`: 具体维度子项；对于三牌阵必须是 "过去"/"现在"/"将来" 之一（从 dimension 复制，可选但建议保持一致）。对于凯尔特十字，aspect 可写为描述性的 "位置X"（例如 "位置1"、"位置10"）以便可读性，但必须与 `aspect_type` 保持一致。
+- `aspect_type`: 字段；表示牌在牌阵中的位次：
+  - 三牌阵：1|2|3（1=过去,2=现在,3=将来）
+  - 凯尔特十字：1..10（1=第1位 ... 10=第10位）
+  当前系统仅支持三牌阵和凯尔特十字阵；请勿使用超出上述范围的数字。非牌位关联的维度条目可省略或将该字段设为 null。
+- `content`: 该维度下的具体解读文字。
 
 **字段说明：**
 - `card_name`: 关联的卡牌名称
