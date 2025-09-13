@@ -7,6 +7,7 @@
 import json
 import os
 import time
+import asyncio
 import argparse
 from datetime import datetime
 from pathlib import Path
@@ -124,8 +125,8 @@ class TarotAIGenerator:
         return None
     
     def generate_for_card(self, card_name: str, direction: str, force: bool = False) -> None:
-        """为指定卡牌生成所有维度解读"""
-        card = next((c for c in self.cards_data 
+        """为指定卡牌生成所有维度解读（使用协程并发）"""
+        card = next((c for c in self.cards_data
                     if c['card_name'] == card_name and c['direction'] == direction), None)
         
         if not card:
@@ -138,50 +139,127 @@ class TarotAIGenerator:
         if not force and not Confirm.ask(f"预估成本: ~{total_dimensions * 500} tokens，继续？"):
             return
         
-        results = []
+        results: List[Dict] = []
         
         with Progress() as progress:
             task = progress.add_task(f"生成解读中...", total=total_dimensions)
-            
-            for dimension in self.dimensions_data:
-                result = self.generate_single_interpretation(card, dimension)
-                if result:
-                    results.append(result)
-                
-                progress.advance(task)
-                time.sleep(60 / self.config.RATE_LIMIT_PER_MINUTE)  # 控制API调用频率
+
+            async def run_all():
+                # 并发上限（批大小）
+                sem = asyncio.Semaphore(self.config.BATCH_SIZE)
+                # 简单速率限制：控制两次调用之间的最小时间间隔
+                min_interval = 60 / self.config.RATE_LIMIT_PER_MINUTE if self.config.RATE_LIMIT_PER_MINUTE > 0 else 0.0
+                rate_lock = asyncio.Lock()
+                next_allowed = 0.0  # event loop 时间（秒）
+
+                async def worker(dimension: Dict) -> Optional[Dict]:
+                    nonlocal next_allowed
+                    async with sem:
+                        # 在调用API前进行节流，避免超过每分钟限制
+                        if min_interval > 0:
+                            async with rate_lock:
+                                now = asyncio.get_running_loop().time()
+                                wait = max(0.0, next_allowed - now)
+                                if wait > 0:
+                                    await asyncio.sleep(wait)
+                                next_allowed = asyncio.get_running_loop().time() + min_interval
+                        # 将阻塞的网络调用丢到线程池中，避免阻塞事件循环
+                        return await asyncio.to_thread(self.generate_single_interpretation, card, dimension)
+
+                tasks = [asyncio.create_task(worker(dimension)) for dimension in self.dimensions_data]
+                for coro in asyncio.as_completed(tasks):
+                    res = await coro
+                    if res:
+                        results.append(res)
+                    progress.advance(task)
+
+            # 在同步方法中运行协程
+            asyncio.run(run_all())
         
         self.save_results(results, f"card_{card_name}_{direction}")
         console.print(f"[green]完成！生成了 {len(results)} 条解读[/green]")
     
     def generate_for_dimension(self, dimension_name: str) -> None:
-        """为指定维度生成所有卡牌解读"""
-        dimension = next((d for d in self.dimensions_data 
+        """为指定维度生成所有卡牌解读（使用协程并发）"""
+        dimension = next((d for d in self.dimensions_data
                          if d['name'] == dimension_name), None)
-        
+
         if not dimension:
             console.print(f"[red]未找到维度: {dimension_name}[/red]")
             return
-        
+
         total_cards = len(self.cards_data)
         console.print(f"[blue]为维度 '{dimension_name}' 生成 {total_cards} 张卡牌解读[/blue]")
-        
+
         if not Confirm.ask(f"预估成本: ~{total_cards * 500} tokens，继续？"):
             return
-        
-        results = []
-        
+
+        results: List[Dict] = []
+
         with Progress() as progress:
             task = progress.add_task(f"生成解读中...", total=total_cards)
-            
-            for card in self.cards_data:
-                result = self.generate_single_interpretation(card, dimension)
-                if result:
-                    results.append(result)
-                
-                progress.advance(task)
-                # time.sleep(60 / self.config.RATE_LIMIT_PER_MINUTE)
-        
+
+            async def run_all():
+                # 并发上限（批大小）
+                sem = asyncio.Semaphore(self.config.BATCH_SIZE)
+                # 简单的速率限制：控制两次调用之间的最小时间间隔
+                min_interval = 60 / self.config.RATE_LIMIT_PER_MINUTE if self.config.RATE_LIMIT_PER_MINUTE > 0 else 0.0
+                rate_lock = asyncio.Lock()
+                next_allowed = 0.0  # 单位：event loop 时间（秒）
+
+                async def worker(card: Dict) -> Optional[Dict]:
+                    nonlocal next_allowed
+                    async with sem:
+                        # 在调用API前进行节流，避免超过每分钟限制
+                        if min_interval > 0:
+                            async with rate_lock:
+                                now = asyncio.get_running_loop().time()
+                                wait = max(0.0, next_allowed - now)
+                                if wait > 0:
+                                    await asyncio.sleep(wait)
+                                next_allowed = asyncio.get_running_loop().time() + min_interval
+                        # 重试机制
+                        for attempt in range(3):
+                            try:
+                                res = await asyncio.to_thread(self.generate_single_interpretation, card, dimension)
+                                if res:
+                                    return res
+                            except Exception as e:
+                                console.print(f"[red]Error generating for card {card['card_name']} ({card['direction']}) attempt {attempt+1}: {e}[/red]")
+                            await asyncio.sleep(2 * (attempt + 1))  # 简单退避
+                        console.print(f"[yellow]Failed to generate after retries: {card['card_name']} ({card['direction']})[/yellow]")
+                        return None
+
+                async def run_batch(cards: List[Dict]) -> List[Dict]:
+                    tasks = [asyncio.create_task(worker(card)) for card in cards]
+                    completed_results = []
+                    for coro in asyncio.as_completed(tasks):
+                        try:
+                            res = await coro
+                            if res:
+                                completed_results.append(res)
+                        except Exception as e:
+                            console.print(f"[red]Unhandled task error: {e}[/red]")
+                        progress.advance(task)
+                    return completed_results
+
+                # 初次运行
+                completed = await run_batch(self.cards_data)
+
+                # 检查缺失并补发
+                if len(completed) < total_cards:
+                    done_keys = {(r['card_name'], r['direction']) for r in completed}
+                    missing_cards = [c for c in self.cards_data if (c['card_name'], c['direction']) not in done_keys]
+                    if missing_cards:
+                        console.print(f"[yellow]Retrying {len(missing_cards)} missing cards...[/yellow]")
+                        retries = await run_batch(missing_cards)
+                        completed.extend(retries)
+
+                results.extend(completed)
+
+            # 在同步方法中运行协程
+            asyncio.run(run_all())
+
         self.save_results(results, f"dimension_{dimension_name}")
         console.print(f"[green]完成！生成了 {len(results)} 条解读[/green]")
     
