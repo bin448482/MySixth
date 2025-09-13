@@ -2,8 +2,9 @@ import json
 from pathlib import Path
 
 def main():
-    output_path = Path("tarot-ai-generator/output/card_interpretation_dimensions_dimension_决策-时间线-过去.json")
-    cards_path = Path("my-tarot-app/assets/data/card_interpretations.json")
+    output_path = Path("tarot-ai-generator/output/card_interpretation_dimensions_dimension_健康-身体状况-如何改善.json")
+    # 使用平台无关的 Path 组合，避免反斜杠引起的转义问题
+    cards_path = Path("my-tarot-app") / "assets" / "data" / "card_interpretations.json"
 
     if not output_path.exists():
         print(f"[ERROR] Output file not found: {output_path}")
