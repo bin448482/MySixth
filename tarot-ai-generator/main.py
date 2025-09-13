@@ -18,6 +18,7 @@ from rich.progress import Progress, TaskID
 from rich.table import Table
 from rich.prompt import Confirm
 from zhipuai import ZhipuAI
+from openai import OpenAI
 
 from config import Config
 
@@ -28,7 +29,15 @@ class TarotAIGenerator:
         self.config = Config()
         self.config.validate()
         
-        self.client = ZhipuAI(api_key=self.config.ZHIPUAI_API_KEY)
+        # 根据配置选择API客户端
+        if self.config.API_PROVIDER == 'zhipu':
+            self.client = ZhipuAI(api_key=self.config.ZHIPUAI_API_KEY)
+        elif self.config.API_PROVIDER == 'openai':
+            self.client = OpenAI(
+                api_key=self.config.OPENAI_API_KEY,
+                base_url=self.config.OPENAI_BASE_URL
+            )
+        
         self.cards_data = self.load_cards_data()
         self.dimensions_data = self.load_dimensions_data()
         self.prompt_template = self.load_prompt_template()
@@ -67,30 +76,40 @@ class TarotAIGenerator:
             aspect_type=dimension.get('aspect_type', '')
         )
     
-    def call_zhipu_ai(self, prompt: str) -> Optional[str]:
-        """调用智谱AI生成内容"""
+    def call_ai_api(self, prompt: str) -> Optional[str]:
+        """调用AI API生成内容"""
         try:
-            response = self.client.chat.completions.create(
-                model=self.config.MODEL_NAME,
-                messages=[
-                    {"role": "user", "content": prompt}
-                ],
-                temperature=self.config.TEMPERATURE,
-                max_tokens=self.config.MAX_TOKENS
-            )
+            if self.config.API_PROVIDER == 'zhipu':
+                response = self.client.chat.completions.create(
+                    model=self.config.MODEL_NAME,
+                    messages=[
+                        {"role": "user", "content": prompt}
+                    ],
+                    temperature=self.config.TEMPERATURE,
+                    max_tokens=self.config.MAX_TOKENS
+                )
+            elif self.config.API_PROVIDER == 'openai':
+                response = self.client.chat.completions.create(
+                    model=self.config.MODEL_NAME,
+                    messages=[
+                        {"role": "user", "content": prompt}
+                    ],
+                    temperature=self.config.TEMPERATURE,
+                    max_tokens=self.config.MAX_TOKENS
+                )
             
             if response.choices:
                 return response.choices[0].message.content.strip()
             return None
             
         except Exception as e:
-            console.print(f"[red]API调用错误: {str(e)}[/red]")
+            console.print(f"[red]API调用错误 ({self.config.API_PROVIDER}): {str(e)}[/red]")
             return None
     
     def generate_single_interpretation(self, card: Dict, dimension: Dict) -> Optional[Dict]:
         """生成单个解读"""
         prompt = self.create_prompt(card, dimension)
-        content = self.call_zhipu_ai(prompt)
+        content = self.call_ai_api(prompt)
         
         if content:
             return {
