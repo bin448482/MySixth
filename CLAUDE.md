@@ -45,6 +45,115 @@ MySixth/
 - **定时任务**: APScheduler
 - **部署**: 单体服务器 + Nginx
 
+## 🌐 多语言与国际化
+
+### 字体方案
+
+#### 推荐字体配置
+- **中文字体**: 思源宋体（Noto Serif SC）
+  - 开源免费，支持完整中文字符集
+  - 版权友好，适合商业使用
+  - 多平台兼容性良好
+
+- **英文字体**: Source Serif Pro
+  - 与思源字体系列搭配协调
+  - 优秀的可读性和美观性
+  - 支持多种字重
+
+#### 技术实现
+```typescript
+// 跨平台字体配置
+fontFamily: Platform.select({
+  ios: 'Noto Serif SC',
+  android: 'Noto Serif SC',
+  web: '"Source Serif Pro", "Noto Serif SC", serif'
+})
+
+// 字体加载策略
+import {
+  NotoSerifSC_400Regular,
+  NotoSerifSC_700Bold,
+} from '@expo-google-fonts/noto-serif-sc';
+
+export function useFonts() {
+  const [fontsLoaded] = useFonts({
+    NotoSerifSC_400Regular,
+    NotoSerifSC_700Bold,
+  });
+  return fontsLoaded;
+}
+```
+
+#### 多语言排版优化
+- **字间距调整**: `letterSpacing: 1-2`
+- **行高优化**: `lineHeight: 1.4-1.6`
+- **响应式字号**: 根据平台和屏幕尺寸调整
+- **字重映射**: 确保中英文字重视觉一致性
+
+### 国际化支持
+
+#### 语言支持计划
+1. **第一阶段**: 简体中文（zh-CN）
+2. **第二阶段**: 繁体中文（zh-TW）
+3. **第三阶段**: 英语（en-US）
+4. **扩展阶段**: 日语（ja-JP）、韩语（ko-KR）
+
+#### 技术实现
+```typescript
+// i18n 配置示例
+import { I18n } from 'i18n-js';
+
+const i18n = new I18n({
+  'zh-CN': require('./locales/zh-CN.json'),
+  'zh-TW': require('./locales/zh-TW.json'),
+  'en-US': require('./locales/en-US.json'),
+});
+
+// 字体回退策略
+const getFontFamily = (locale: string) => {
+  switch (locale) {
+    case 'zh-CN':
+    case 'zh-TW':
+      return 'Noto Serif SC';
+    case 'ja-JP':
+      return 'Noto Serif JP';
+    default:
+      return 'Source Serif Pro';
+  }
+};
+```
+
+#### 本地化内容
+- **卡牌名称**: 支持多语言卡牌名称
+- **解读内容**: 多语言解读文本
+- **界面文案**: 完整的UI文案本地化
+- **日期格式**: 符合各地区习惯的日期显示
+
+### 性能优化
+
+#### 字体加载优化
+- **预加载**: 应用启动时预加载核心字体
+- **按需加载**: 根据语言按需加载对应字体
+- **缓存机制**: 字体文件本地缓存
+- **回退策略**: 字体加载失败时的降级方案
+
+#### 内容优化
+- **文本压缩**: 多语言文本资源压缩
+- **懒加载**: 非核心语言内容懒加载
+- **增量更新**: 语言包增量更新机制
+
+### 文化适配
+
+#### 视觉设计适配
+- **阅读方向**: 支持从右到左的语言（阿拉伯语等）
+- **色彩文化**: 考虑不同文化对颜色的理解
+- **图标语义**: 确保图标在不同文化中的含义一致
+
+#### 功能适配
+- **占卜文化**: 适应不同地区的占卜文化差异
+- **支付方式**: 支持各地区主流支付方式
+- **法律合规**: 符合各地区相关法律法规
+
 ## 🏗️ 整体架构
 
 ```

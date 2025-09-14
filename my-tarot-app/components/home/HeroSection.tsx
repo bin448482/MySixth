@@ -10,9 +10,26 @@ import Animated, {
   Easing
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
+import { FontStyles, FontColors } from '@/constants/Fonts';
+import { useCustomFonts } from '@/hooks/useCustomFonts';
 
 export const HeroSection: React.FC = () => {
+  const { fontsLoaded } = useCustomFonts();
   const shimmerOpacity = useSharedValue(0.3);
+
+  // 如果字体未加载完成，返回空组件或加载占位符
+  if (!fontsLoaded) {
+    return (
+      <View style={styles.container}>
+        <LinearGradient
+          colors={['#0a0a1a', '#1a1a2e', '#16213e']}
+          style={styles.background}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        />
+      </View>
+    );
+  }
 
   React.useEffect(() => {
     shimmerOpacity.value = withRepeat(
@@ -75,14 +92,12 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   mainTitle: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: '#ffd700',
+    ...FontStyles.heroTitle,
+    color: FontColors.primary,
     textAlign: 'center',
-    fontFamily: 'serif',
-    textShadowColor: 'rgba(255, 215, 0, 0.5)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
+    textShadowColor: 'rgba(255, 215, 144, 0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
   shimmer: {
     position: 'absolute',
@@ -97,16 +112,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   subtitle: {
-    fontSize: 18,
-    color: '#e6e6fa',
+    ...FontStyles.heroSubtitle,
+    color: FontColors.secondary,
     textAlign: 'center',
     marginBottom: 4,
-    fontWeight: '300',
   },
   description: {
-    fontSize: 14,
-    color: '#b19cd9',
+    ...FontStyles.subtitle,
+    color: FontColors.muted,
     textAlign: 'center',
-    fontStyle: 'italic',
   },
 });
