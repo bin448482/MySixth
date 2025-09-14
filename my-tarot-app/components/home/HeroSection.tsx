@@ -17,7 +17,15 @@ export const HeroSection: React.FC = () => {
   const { fontsLoaded } = useCustomFonts();
   const shimmerOpacity = useSharedValue(0.3);
 
-  // 如果字体未加载完成，返回空组件或加载占位符
+  React.useEffect(() => {
+    shimmerOpacity.value = withRepeat(
+      withTiming(1, { duration: 2000, easing: Easing.inOut(Easing.ease) }),
+      -1,
+      true
+    );
+  }, []);
+
+  // 如果字体未加载完成，显示加载状态但保持相同的组件结构
   if (!fontsLoaded) {
     return (
       <View style={styles.container}>
@@ -27,17 +35,16 @@ export const HeroSection: React.FC = () => {
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
         />
+        <View style={styles.titleContainer}>
+          <Text style={[styles.mainTitle, { opacity: 0.5 }]}>神秘塔罗牌</Text>
+        </View>
+        <View style={styles.subtitleContainer}>
+          <Text style={[styles.subtitle, { opacity: 0.5 }]}>探索命运的奥秘</Text>
+          <Text style={[styles.description, { opacity: 0.5 }]}>聆听内心的声音</Text>
+        </View>
       </View>
     );
   }
-
-  React.useEffect(() => {
-    shimmerOpacity.value = withRepeat(
-      withTiming(1, { duration: 2000, easing: Easing.inOut(Easing.ease) }),
-      -1,
-      true
-    );
-  }, []);
 
   const shimmerStyle = useAnimatedStyle(() => ({
     opacity: shimmerOpacity.value,

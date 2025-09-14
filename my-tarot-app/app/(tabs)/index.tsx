@@ -1,5 +1,6 @@
 import React from 'react';
-import { StyleSheet, ScrollView, StatusBar, SafeAreaView } from 'react-native';
+import { StyleSheet, ScrollView, StatusBar } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { GradientBackground } from '@/components/common/GradientBackground';
 import { HeroSection } from '@/components/home/HeroSection';
 import { DeclarationCard } from '@/components/home/DeclarationCard';
