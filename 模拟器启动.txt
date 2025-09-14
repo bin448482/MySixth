@@ -12,3 +12,10 @@ cmd /c "cd tarotAI && .\start-emulator.bat && npm run android"
 
 cmd /c "cd tarotAI && .\start-emulator.bat && npm run android -- --no-install"
 
+查进程：
+netstat -ano | findstr :8081
+tasklist | findstr 27620
+
+杀进程：
+taskkill /PID 27620 /F
+
