@@ -37,21 +37,27 @@ export function CardFlipAnimation({
   const [animatedValue] = useState(new Animated.Value(0));
   const [isFlipped, setIsFlipped] = useState(false);
 
-  // 翻转动画
-  const flipCard = () => {
+  // 根据card.revealed状态自动翻转
+  useEffect(() => {
+    if (card.revealed && !isFlipped) {
+      // 自动翻转到正面
+      Animated.spring(animatedValue, {
+        toValue: 1,
+        friction: 8,
+        tension: 40,
+        useNativeDriver: true,
+      }).start(() => {
+        setIsFlipped(true);
+      });
+    }
+  }, [card.revealed, isFlipped, animatedValue]);
+
+  // 点击处理 - 只在已翻开时触发onPress
+  const handlePress = () => {
     if (disabled) return;
-
-    const toValue = isFlipped ? 0 : 1;
-    Animated.spring(animatedValue, {
-      toValue,
-      friction: 8,
-      tension: 40,
-      useNativeDriver: true,
-    }).start(() => {
-      setIsFlipped(!isFlipped);
-    });
-
-    if (onPress) {
+    
+    // 如果卡牌已经翻开，直接调用onPress显示牌意
+    if (card.revealed && onPress) {
       onPress();
     }
   };
@@ -89,7 +95,7 @@ export function CardFlipAnimation({
   return (
     <TouchableOpacity
       style={styles.container}
-      onPress={flipCard}
+      onPress={handlePress}
       disabled={disabled}
       activeOpacity={0.9}
     >
@@ -131,7 +137,7 @@ export function CardFlipAnimation({
               <Image
                 source={cardImageSource}
                 style={styles.cardImage}
-                resizeMode="contain"
+                resizeMode="cover"
               />
             </View>
             {showName && (
@@ -207,10 +213,11 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    minHeight: 120,
   },
   cardImage: {
-    width: '100%',
-    height: '70%',
+    width: CARD_WIDTH - 16,
+    height: CARD_HEIGHT - 40,
     borderRadius: 8,
   },
   cardName: {
