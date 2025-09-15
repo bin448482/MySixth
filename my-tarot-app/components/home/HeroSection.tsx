@@ -17,6 +17,11 @@ export const HeroSection: React.FC = () => {
   const { fontsLoaded } = useCustomFonts();
   const shimmerOpacity = useSharedValue(0.3);
 
+  // 确保 useAnimatedStyle 总是被调用，不管字体是否加载
+  const shimmerStyle = useAnimatedStyle(() => ({
+    opacity: shimmerOpacity.value,
+  }));
+
   React.useEffect(() => {
     shimmerOpacity.value = withRepeat(
       withTiming(1, { duration: 2000, easing: Easing.inOut(Easing.ease) }),
@@ -45,10 +50,6 @@ export const HeroSection: React.FC = () => {
       </View>
     );
   }
-
-  const shimmerStyle = useAnimatedStyle(() => ({
-    opacity: shimmerOpacity.value,
-  }));
 
   return (
     <View style={styles.container}>

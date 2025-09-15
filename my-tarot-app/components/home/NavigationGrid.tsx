@@ -24,7 +24,7 @@ const navigationItems: NavigationItem[] = [
     id: 'reading',
     title: '开始占卜',
     icon: '🔮',
-    route: '/reading/type',
+    route: '/(reading)/type',
     color: '#9b59b6',
   },
   {
@@ -78,8 +78,12 @@ export const NavigationGrid: React.FC = () => {
     };
 
     const handlePress = () => {
-      // TODO: Navigation will be implemented later
-      console.log(`Navigate to: ${item.route}`);
+      console.log('NavigationGrid: Navigating to:', item.route);
+      try {
+        router.push(item.route as any);
+      } catch (error) {
+        console.error('Navigation error:', error);
+      }
     };
 
     return (

@@ -4,14 +4,31 @@
  */
 
 import { DatabaseService } from './DatabaseService';
-import type { 
-  Card, 
-  CardStyle, 
+import type {
+  Card,
+  CardStyle,
   CardInterpretation,
   CardWithInterpretation,
   CardQuery,
-  ServiceResponse 
+  ServiceResponse
 } from '../types/database';
+
+export interface CardData {
+  id: number;
+  name: string;
+  arcana: string;
+  suit: string | null;
+  number: number;
+  image_url: string;
+  style_id: number;
+  deck: string;
+}
+
+export interface CardStyleData {
+  id: number;
+  name: string;
+  image_base_url: string;
+}
 
 export class CardService {
   private static instance: CardService;

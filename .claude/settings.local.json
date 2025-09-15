@@ -5,7 +5,9 @@
       "Bash(find:*)",
       "Bash(venvScripts:*)",
       "Bash(pip install:*)",
-      "Bash(.venvScriptsactivate)"
+      "Bash(.venvScriptsactivate)",
+      "Bash(npx ts-node:*)",
+      "Bash(npx tsx:*)"
     ],
     "deny": [],
     "ask": []

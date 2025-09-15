@@ -19,3 +19,7 @@ tasklist | findstr 27620
 杀进程：
 taskkill /PID 27620 /F
 
+cd my-tarot-app
+npm run start
+
+
