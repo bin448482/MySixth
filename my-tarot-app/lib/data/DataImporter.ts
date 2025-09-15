@@ -63,7 +63,7 @@ export class DataImporter {
 
       // 按依赖顺序导入：card_style, dimension, spread -> card -> card_interpretation -> card_interpretation_dimension
       session.tables[0] = await this.importCardStyles(jsonData.cardStyles.data);
-      session.tables[1] = await this.importDimensions(jsonData.dimensions.data);
+      session.tables[1] = await this.importDimensionsData(jsonData.dimensions.data);
       session.tables[2] = await this.importSpreads(jsonData.spreads.data);
       session.tables[3] = await this.importCards(jsonData.cards.data, jsonData.cardStyles.data);
       session.tables[4] = await this.importCardInterpretations(jsonData.cardInterpretations.data);
@@ -166,7 +166,7 @@ export class DataImporter {
   /**
    * 导入解读维度数据
    */
-  private async importDimensions(dimensions: JsonDimension[]): Promise<ImportStatus> {
+  private async importDimensionsData(dimensions: JsonDimension[]): Promise<ImportStatus> {
     const status: ImportStatus = {
       table: 'dimension',
       status: 'importing'
@@ -616,6 +616,29 @@ export class DataImporter {
     });
 
     return map;
+  }
+
+  /**
+   * 单独导入维度数据（公共方法）
+   */
+  async importDimensions(): Promise<ImportStatus> {
+    try {
+      const dimensionsData = await this.jsonLoader.loadDimensions();
+      return await this.importDimensionsData(dimensionsData.data);
+    } catch (error) {
+      console.error('❌ Failed to import dimensions:', error);
+      return {
+        table: 'dimension',
+        status: 'error',
+        error: error instanceof Error ? error.message : 'Unknown error',
+        result: {
+          success: false,
+          imported: 0,
+          skipped: 0,
+          errors: [error instanceof Error ? error.message : 'Unknown error']
+        }
+      };
+    }
   }
 
   /**
