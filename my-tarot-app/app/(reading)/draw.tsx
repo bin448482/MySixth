@@ -45,11 +45,13 @@ export default function DrawCardsScreen() {
 
   const loadDimensions = async () => {
     try {
-      const result = await dimensionService.getDimensionsByCategory(state.category);
-      if (result.success && result.data) {
+      // 使用从步骤2传递过来的dimensions数据，而不是重新查询数据库
+      if (state.dimensions && state.dimensions.length > 0) {
         // 按aspect_type排序：1(过去), 2(现在), 3(将来)
-        const sortedDimensions = result.data.sort((a, b) => a.aspect_type - b.aspect_type);
+        const sortedDimensions = [...state.dimensions].sort((a, b) => a.aspect_type - b.aspect_type);
         setDimensions(sortedDimensions.slice(0, 3)); // 取前3个维度
+      } else {
+        console.warn('No dimensions found in reading state');
       }
     } catch (error) {
       console.error('Error loading dimensions:', error);
