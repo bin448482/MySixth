@@ -10,123 +10,130 @@ import {
 import { useRouter } from 'expo-router';
 import { useReadingFlow } from '@/lib/contexts/ReadingContext';
 import { DimensionService } from '@/lib/services/DimensionService';
+import { DatabaseInitializer } from '@/lib/database/initializer';
 
-interface Category {
+interface GroupItem {
   id: string;
-  name: string;
+  category: string;
+  description: string;
   displayName: string;
   icon: string;
   color: string;
+  dimensions: any[];
 }
 
 export default function CategorySelectionScreen() {
   const router = useRouter();
   const { updateStep, updateCategory, updateDimensions } = useReadingFlow();
-  const [categories, setCategories] = useState<Category[]>([]);
+  const [groups, setGroups] = useState<GroupItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
 
   const dimensionService = DimensionService.getInstance();
 
   useEffect(() => {
-    loadCategories();
+    loadDimensions();
   }, []);
 
-  const loadCategories = async () => {
+  // const initializeDatabase = async () => {
+  //   try {
+  //     console.log('[Category] Manually initializing database...');
+  //     const initializer = new DatabaseInitializer();
+  //     const success = await initializer.initialize();
+      
+  //     if (success) {
+  //       console.log('[Category] Database initialization successful, reloading dimensions...');
+  //       await loadDimensions();
+  //     } else {
+  //       console.error('[Category] Database initialization failed');
+  //     }
+  //   } catch (error) {
+  //     console.error('[Category] Database initialization error:', error);
+  //   }
+  // };
+
+  const loadDimensions = async () => {
     try {
       setLoading(true);
-      console.log('[Category] Loading categories from DB...');
-      const result = await dimensionService.getUniqueCategories();
+      const res = await dimensionService.getAllDimensions();
+      console.log('[Category] getAllDimensions result:', res);
+      let dims: any[] = [];
+      if (res && res.success && res.data && res.data.length > 0) {
+        dims = res.data;
+        console.log('[Category] Using database data, count:', dims.length);
+      }
+      // else {
+      //   console.log('[Category] Database empty or failed, loading from JSON file');
+      //   const json = require('../../assets/data/dimensions.json');
+      //   dims = json?.data || [];
+      //   console.log('[Category] JSON data loaded, count:', dims.length);
+      //   console.log('[Category] First JSON item:', dims[0]);
+      // }
 
-      let sourceCategories: string[] = [];
+      console.log('[Category] Total dimensions loaded:', dims.length);
+      if (dims.length === 0) {
+        console.warn('[Category] No dimensions data found!');
+        setGroups([]);
+        return;
+      }
 
-      if (result.success && result.data && result.data.length > 0) {
-        sourceCategories = result.data;
-        console.log(`[Category] Loaded ${sourceCategories.length} categories from DB`);
-      } else {
-        // DB 没有数据时，回退到本地 JSON
-        console.warn('[Category] No categories from DB. Falling back to local JSON');
-        try {
-          const json = require('../../assets/data/dimensions.json');
-          const mains = new Set<string>();
-          for (const d of (json?.data || [])) {
-            if (typeof d?.category === 'string') {
-              const main = d.category.split('-')[0].trim();
-              if (main) mains.add(main);
-            }
-          }
-          sourceCategories = Array.from(mains);
-          console.log(`[Category] Fallback JSON main categories: ${sourceCategories.length}`);
-        } catch (jsonErr) {
-          console.error('[Category] Failed to load fallback JSON:', jsonErr);
+      // group by category + description (fix: use description as key instead of non-existent id)
+      const map = new Map<string, GroupItem>();
+      for (const d of dims) {
+        console.log('[Category] Processing dimension:', d);
+        // Fix: use description as the grouping key since id doesn't exist in JSON
+        const key = `${d.category}-${d.description}`;
+        if (!map.has(key)) {
+          map.set(key, {
+            id: d.id,
+            category: d.category,
+            description: d.description || d.name || key,
+            displayName: d.category,
+            icon: dimensionService.getCategoryIcon(d.category),
+            color: dimensionService.getCategoryColor(d.category),
+            dimensions: [d],
+          });
+        } 
+        else {
+          map.get(key)!.dimensions.push(d);
         }
       }
 
-      if (sourceCategories.length > 0) {
-        const formattedCategories = sourceCategories.map((category) => ({
-          id: category,
-          name: category,
-          displayName: dimensionService.getCategoryDisplayName(category),
-          icon: dimensionService.getCategoryIcon(category),
-          color: dimensionService.getCategoryColor(category),
-        }));
-        setCategories(formattedCategories);
-      } else {
-        console.warn('[Category] No categories available after DB and JSON fallback');
-        setCategories([]);
+      console.log('[Category] Groups created:', map.size);
+
+      // normalize: ensure each group's dimensions sorted by aspect_type
+      const result: GroupItem[] = [];
+      for (const g of map.values()) {
+        g.dimensions.sort((a, b) => (a.aspect_type || 0) - (b.aspect_type || 0));
+        result.push(g);
+        console.log('[Category] Group added:', g.id, 'with', g.dimensions.length, 'dimensions');
       }
+
+      console.log('[Category] Final result count:', result.length);
+      setGroups(result);
     } catch (error) {
-      console.error('Error loading categories:', error);
-      setCategories([]);
+      console.error('[Category] loadDimensions error', error);
+      setGroups([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleCategorySelect = async (category: string) => {
-    setSelectedCategory(category);
-    // 选中后立即预取并存储对应维度，供后续步骤匹配解读
-    try {
-      const preferred = dimensionService.getPreferredGroupCategory(category);
-
-      // 先尝试从数据库获取
-      const dimsFromDb = await dimensionService.getDimensionsByCategory(preferred);
-      if (dimsFromDb.success && dimsFromDb.data && dimsFromDb.data.length > 0) {
-        updateCategory(category);
-        // 将“数据库行”直接保存为 DimensionData[]
-        // 注意：部分字段可能是文本类型，后续使用时注意转换
-        updateDimensions(dimsFromDb.data as any);
-        return;
-      }
-
-      // DB 没有则回退到本地 JSON
-      const json = require('../../assets/data/dimensions.json');
-      const allDims: any[] = json?.data || [];
-      const fallback = allDims
-        .filter((d) => d.category === preferred)
-        .map((d, idx) => ({
-          id: idx + 1, // 本地回退无ID，给个临时ID
-          name: d.name,
-          category: d.category,
-          description: d.description,
-          aspect: d.aspect ?? '',
-          aspect_type: Number(d.aspect_type ?? 0),
-        }));
-
-      if (fallback.length > 0) {
-        updateCategory(category);
-        updateDimensions(fallback as any);
-      } else {
-        console.warn('[Category] No dimensions found for category:', preferred);
-      }
-    } catch (e) {
-      console.error('[Category] Failed to preload dimensions:', e);
-    }
+  const handleSelect = (group: GroupItem) => {
+    setSelectedGroup(group.id);
+    updateCategory(group.category);
+    updateDimensions(group.dimensions.map((d) => ({
+      id: d.id || 0,
+      name: d.name,
+      category: d.category,
+      description: d.description,
+      aspect: d.aspect,
+      aspect_type: Number(d.aspect_type || 0),
+    })));
   };
 
   const handleConfirm = () => {
-    if (selectedCategory) {
-      updateCategory(selectedCategory);
+    if (selectedGroup) {
       updateStep(3);
       router.push('/(reading)/draw');
     }
@@ -136,7 +143,7 @@ export default function CategorySelectionScreen() {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#FFD700" />
-        <Text style={styles.loadingText}>正在加载占卜类别...</Text>
+        <Text style={styles.loadingText}>正在加载主题...</Text>
       </View>
     );
   }
@@ -148,50 +155,52 @@ export default function CategorySelectionScreen() {
     >
       <View style={styles.header}>
         <Text style={styles.title}>选择占卜主题</Text>
-        <Text style={styles.subtitle}>
-          请选择您希望占卜的主题领域
-        </Text>
+        <Text style={styles.subtitle}>请选择您希望占卜的主题（按主题分组）</Text>
+        
+        {/* 临时调试按钮 */}
+        {/* <TouchableOpacity
+          style={styles.debugButton}
+          onPress={initializeDatabase}
+        >
+          <Text style={styles.debugButtonText}>初始化数据库</Text>
+        </TouchableOpacity> */}
       </View>
 
       <View style={styles.categoriesContainer}>
-        {categories.map((category) => (
+        {groups.map((group) => (
           <TouchableOpacity
-            key={category.id}
+            key={group.id}
             style={[
               styles.categoryCard,
               {
-                borderColor: category.color,
-                backgroundColor: selectedCategory === category.id
-                  ? `${category.color}20`
-                  : '#16213E',
+                borderColor: group.color,
+                backgroundColor: selectedGroup === group.id ? `${group.color}20` : '#16213E',
               },
             ]}
-            onPress={() => handleCategorySelect(category.id)}
+            onPress={() => handleSelect(group)}
             activeOpacity={0.8}
           >
             <View style={styles.iconContainer}>
-              <Text style={[styles.icon, { color: category.color }]}>{category.icon}</Text>
+              <Text style={[styles.icon, { color: group.color }]}>{group.icon}</Text>
             </View>
             <View style={styles.textContainer}>
-              <Text style={[styles.categoryName, { color: category.color }]}>{category.displayName}</Text>
-              <Text style={styles.categoryDescription}>{category.name}</Text>
+              <Text style={[styles.categoryName, { color: group.color }]}>{group.description}</Text>
+              <Text style={styles.categoryDescription}>{group.displayName}</Text>
             </View>
             <View style={[
               styles.selectionIndicator,
               {
-                backgroundColor: selectedCategory === category.id
-                  ? category.color
-                  : 'transparent',
-                borderColor: category.color,
+                backgroundColor: selectedGroup === group.id ? group.color : 'transparent',
+                borderColor: group.color,
               },
             ]}>
-              {selectedCategory === category.id && <Text style={styles.checkmark}>✓</Text>}
+              {selectedGroup === group.id && <Text style={styles.checkmark}>✓</Text>}
             </View>
           </TouchableOpacity>
         ))}
       </View>
 
-      {selectedCategory && (
+      {selectedGroup && (
         <View style={styles.confirmContainer}>
           <TouchableOpacity
             style={[styles.confirmButton, { backgroundColor: '#FFD700' }]}
@@ -325,5 +334,18 @@ const styles = StyleSheet.create({
   footerText: {
     fontSize: 14,
     color: '#888888',
+  },
+  debugButton: {
+    backgroundColor: '#FF6B6B',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    marginTop: 16,
+  },
+  debugButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: 'bold',
+    textAlign: 'center',
   },
 });

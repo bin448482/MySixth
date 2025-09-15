@@ -28,12 +28,7 @@ export class JsonLoader {
    */
   async loadCardStyles(): Promise<CardStylesJson> {
     try {
-      const response = await fetch('/assets/data/card_styles.json');
-      if (!response.ok) {
-        throw new Error(`Failed to load card_styles.json: ${response.status}`);
-      }
-      
-      const data: CardStylesJson = await response.json();
+      const data: CardStylesJson = require('../../assets/data/card_styles.json');
       this.validateJsonStructure(data, 'card_styles');
       
       console.log(`✅ Loaded ${data.data.length} card style(s) from JSON`);
@@ -50,12 +45,7 @@ export class JsonLoader {
    */
   async loadCards(): Promise<CardsJson> {
     try {
-      const response = await fetch('/assets/data/cards.json');
-      if (!response.ok) {
-        throw new Error(`Failed to load cards.json: ${response.status}`);
-      }
-      
-      const data: CardsJson = await response.json();
+      const data: CardsJson = require('../../assets/data/cards.json');
       this.validateJsonStructure(data, 'cards');
       
       // 验证卡牌数据完整性
@@ -75,12 +65,7 @@ export class JsonLoader {
    */
   async loadSpreads(): Promise<SpreadsJson> {
     try {
-      const response = await fetch('/assets/data/spreads.json');
-      if (!response.ok) {
-        throw new Error(`Failed to load spreads.json: ${response.status}`);
-      }
-      
-      const data: SpreadsJson = await response.json();
+      const data: SpreadsJson = require('../../assets/data/spreads.json');
       this.validateJsonStructure(data, 'spreads');
       
       console.log(`✅ Loaded ${data.data.length} spread(s) from JSON`);
@@ -97,12 +82,8 @@ export class JsonLoader {
    */
   async loadDimensions(): Promise<DimensionsJson> {
     try {
-      const response = await fetch('/assets/data/dimensions.json');
-      if (!response.ok) {
-        throw new Error(`Failed to load dimensions.json: ${response.status}`);
-      }
-      
-      const data: DimensionsJson = await response.json();
+      // 在web环境中使用require直接加载JSON文件
+      const data: DimensionsJson = require('../../assets/data/dimensions.json');
       this.validateJsonStructure(data, 'dimensions');
       
       console.log(`✅ Loaded ${data.data.length} dimension(s) from JSON`);
@@ -119,12 +100,7 @@ export class JsonLoader {
    */
   async loadCardInterpretations(): Promise<CardInterpretationsJson> {
     try {
-      const response = await fetch('/assets/data/card_interpretations.json');
-      if (!response.ok) {
-        throw new Error(`Failed to load card_interpretations.json: ${response.status}`);
-      }
-      
-      const data: CardInterpretationsJson = await response.json();
+      const data: CardInterpretationsJson = require('../../assets/data/card_interpretations.json');
       this.validateJsonStructure(data, 'card_interpretations');
       
       // 验证解读数据完整性
@@ -144,12 +120,7 @@ export class JsonLoader {
    */
   async loadCardInterpretationDimensions(): Promise<CardInterpretationDimensionsJson> {
     try {
-      const response = await fetch('/assets/data/card_interpretation_dimensions.json');
-      if (!response.ok) {
-        throw new Error(`Failed to load card_interpretation_dimensions.json: ${response.status}`);
-      }
-      
-      const data: CardInterpretationDimensionsJson = await response.json();
+      const data: CardInterpretationDimensionsJson = require('../../assets/data/card_interpretation_dimensions.json');
       this.validateJsonStructure(data, 'card_interpretation_dimensions');
       
       console.log(`✅ Loaded ${data.data.length} card interpretation dimension(s) from JSON`);

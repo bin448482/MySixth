@@ -128,34 +128,22 @@ const handleAIClick = () => {
 }
 ```
 
-### 步骤2：选择占卜类别 (category.tsx)
+### 步骤2：选择占卜主题（按主题分组）
 
-#### 数据来源
-从数据库表 `dimension` 中提取不同的 categories：
-- 情感 (Emotional)
-- 事业 (Career)
-- 健康 (Health)
-- 学业 (Academic)
-- 人际关系 (Relationships)
-- 其他类别
+#### 数据来源与分组
+- 从数据库表 `dimension` 读取所有维度（使用 DimensionService.getAllDimensions()）。
+- 以每条维度的 `description` 字段作为“主题”（UI 显示的主标签），以 `category` 作为分类（不变）。
+- 将同一 `category` 且 `description` 相同的维度分为一组（每组通常包含三条 aspect_type 分别为 1/2/3 的维度）。
+- 示例：
+  - description: “情感互动与交流方式” → 包含：情感-互动-我、情感-互动-对象、情感-互动-如何发展
 
-#### 类别获取逻辑
+#### 加载逻辑（loadDimensions）
 ```typescript
-const getAvailableCategories = async () => {
-  const dimensions = await loadDimensionsFromDB()
-
-  // 从维度数据中提取唯一的categories
-  const uniqueCategories = [...new Set(dimensions.map(d => d.category))]
-
-  // 过滤出主要类别（排除带"-"的子类别）
-  const mainCategories = uniqueCategories.filter(cat => !cat.includes('-'))
-
-  return mainCategories.map(category => ({
-    id: category,
-    name: getCategoryDisplayName(category),
-    icon: getCategoryIcon(category),
-    color: getCategoryColor(category)
-  }))
+const loadDimensions = async () => {
+  const res = await dimensionService.getAllDimensions();
+  // 按 (category, description) 分组，生成 items:
+  // { id: `${category}|${description}`, category, description, displayName, icon, color, dimensions: [dim1,dim2,dim3] }
+  // 显示主标签 = description，副标签显示 displayName（或 category）
 }
 ```
 
@@ -164,18 +152,21 @@ const getAvailableCategories = async () => {
 ┌─────────────────────────────────────┐
 │  进度指示器 (步骤2/4) ●●○○           │
 ├─────────────────────────────────────┤
-│  标题：选择占卜主题                  │
+│  标题：选择占卜主题（示例以主题分组显示）  │
 ├─────────────────────────────────────┤
-│  ┌─────┐ ┌─────┐ ┌─────┐ ┌─────┐   │
-│  │情感 │ │事业 │ │健康 │ │学业 │   │
-│  │💗  │ │💼  │ │🏥  │ │📚  │   │
-│  └─────┘ └─────┘ └─────┘ └─────┘   │
-│  ┌─────┐ ┌─────┐                   │
-│  │人际 │ │其他 │                   │
-│  │🤝  │ │🔮  │                   │
-│  └─────┘ └─────┘                   │
+│  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐   │
+│  │ 情感互动与交流方式 │ 事业发展的影响 │ 健康-身体状况 │   │
+│  │     (情感)      │   (事业)     │   (健康)    │   │
+│  │     💗         │   💼        │   🏥       │   │
+│  └─────────────┘ └─────────────┘ └─────────────┘   │
 └─────────────────────────────────────┘
 ```
+
+#### 选择语义
+- 选中某个主题项表示选中对应组下的 3 个维度（按 `aspect_type` 排序分别映射为过去/现在/将来）。
+- 选中后调用 `updateCategory(group.category)` 保持 `category` 不变；调用 `updateDimensions(group.dimensions)` 将 3 个维度保存到阅读流程状态，随后进入抽牌页（draw）。
+
+
 
 ### 步骤3：抽牌页面 (draw.tsx)
 

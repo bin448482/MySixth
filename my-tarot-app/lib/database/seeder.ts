@@ -57,24 +57,31 @@ export class DatabaseSeeder {
     try {
       const dbService = (this.dataImporter as any).dbService; // Access private dbService
       
-      const cardStyleResult = await dbService.queryFirst<{count: number}>(
+      const cardStyleResult = await dbService.queryFirst(
         'SELECT COUNT(*) as count FROM card_style'
       );
       
-      const cardResult = await dbService.queryFirst<{count: number}>(
+      const cardResult = await dbService.queryFirst(
         'SELECT COUNT(*) as count FROM card'
       );
       
-      const spreadResult = await dbService.queryFirst<{count: number}>(
+      const spreadResult = await dbService.queryFirst(
         'SELECT COUNT(*) as count FROM spread'
+      );
+
+      const dimensionResult = await dbService.queryFirst(
+        'SELECT COUNT(*) as count FROM dimension'
       );
 
       const cardStyleCount = cardStyleResult.success && cardStyleResult.data ? cardStyleResult.data.count : 0;
       const cardCount = cardResult.success && cardResult.data ? cardResult.data.count : 0;
       const spreadCount = spreadResult.success && spreadResult.data ? spreadResult.data.count : 0;
+      const dimensionCount = dimensionResult.success && dimensionResult.data ? dimensionResult.data.count : 0;
+      
+      console.log(`Seeding check - card_style: ${cardStyleCount}, card: ${cardCount}, spread: ${spreadCount}, dimension: ${dimensionCount}`);
       
       // 如果任何基础表为空，则需要填充数据
-      return cardStyleCount === 0 || cardCount === 0 || spreadCount === 0;
+      return cardStyleCount === 0 || cardCount === 0 || spreadCount === 0 || dimensionCount === 0;
 
     } catch (error) {
       console.error('Error checking seeding status:', error);

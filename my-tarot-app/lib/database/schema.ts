@@ -41,7 +41,7 @@ export const CREATE_TABLES = {
       category TEXT NOT NULL,
       description TEXT NOT NULL,
       aspect TEXT,
-      aspect_type TEXT
+      aspect_type INTEGER
     );
   `,
 

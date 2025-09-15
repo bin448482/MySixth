@@ -38,14 +38,21 @@ export class DatabaseService {
    */
   async initialize(): Promise<ServiceResponse<DatabaseStatus>> {
     try {
+      console.log('[DatabaseService] Starting database initialization...');
+      
       const isInitialized = await this.migrations.isDatabaseInitialized();
+      console.log('[DatabaseService] Database initialized status:', isInitialized);
       
       if (!isInitialized) {
-        console.log('Database not initialized. Creating tables...');
+        console.log('[DatabaseService] Database not initialized. Creating tables...');
         await this.migrations.initialize();
+        console.log('[DatabaseService] Tables created successfully');
+      } else {
+        console.log('[DatabaseService] Database already initialized');
       }
 
       this.isInitialized = true;
+      console.log('[DatabaseService] Database initialization completed');
       
       return {
         success: true,
@@ -56,7 +63,7 @@ export class DatabaseService {
         }
       };
     } catch (error) {
-      console.error('Database initialization failed:', error);
+      console.error('[DatabaseService] Database initialization failed:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error'

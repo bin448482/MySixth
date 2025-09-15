@@ -4,8 +4,10 @@ import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 import { TamaguiProvider } from 'tamagui';
 import tamaguiConfig from '../tamagui.config';
+import { useEffect } from 'react';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { DatabaseInitializer } from '@/lib/database/initializer';
 
 export const unstable_settings = {
   anchor: '(tabs)',
@@ -13,6 +15,27 @@ export const unstable_settings = {
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
+
+  useEffect(() => {
+    // 初始化数据库
+    const initializeDatabase = async () => {
+      try {
+        console.log('🚀 Starting database initialization...');
+        const initializer = new DatabaseInitializer();
+        const success = await initializer.initialize();
+        
+        if (success) {
+          console.log('✅ Database initialization completed successfully');
+        } else {
+          console.error('❌ Database initialization failed');
+        }
+      } catch (error) {
+        console.error('❌ Database initialization error:', error);
+      }
+    };
+
+    initializeDatabase();
+  }, []);
 
   return (
     <TamaguiProvider config={tamaguiConfig}>

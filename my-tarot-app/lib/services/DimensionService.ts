@@ -75,16 +75,23 @@ export class DimensionService {
    */
   async getAllDimensions(): Promise<ServiceResponse<DimensionData[]>> {
     try {
+      console.log('[DimensionService] Querying all dimensions from database...');
+      
       const result = await this.dbService.query<DimensionData>(
         'SELECT * FROM dimension ORDER BY category, aspect_type ASC'
       );
 
+      console.log('[DimensionService] Database query result:', result);
+
       if (result.success && result.data) {
+        console.log(`[DimensionService] Successfully retrieved ${result.data.length} dimensions from database`);
         return { success: true, data: result.data };
       }
 
+      console.log('[DimensionService] Database query failed or returned no data:', result.error);
       return { success: false, error: result.error || 'Failed to get all dimensions' };
     } catch (error) {
+      console.error('[DimensionService] Error in getAllDimensions:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error getting dimensions'
@@ -95,15 +102,31 @@ export class DimensionService {
   /**
    * 获取类别显示名称映射
    */
-  getCategoryDisplayName(category: string): string {
-    // 与数据库维度命名保持一致的“组名”显示：
-    // 规则：默认使用 “<主类>-时间线”，特殊类单独定义
-    const special: Record<string, string> = {
-      '健康': '健康-身体状况',
-      '类比': '类比-生命周期',
-    };
-    if (special[category]) return special[category];
-    // 常见主类：情感/事业/精神/决策/人际关系 等
+  async getCategoryDisplayName(category: string): Promise<string> {
+    // 动态从数据库中读取显示名称，优先使用首个匹配的维度的 description/name
+    try {
+      const preferred = this.getPreferredGroupCategory(category);
+      const res = await this.dbService.query<{ description?: string; name?: string; aspect_type?: number }>(
+        'SELECT description, name, aspect_type FROM dimension WHERE category = ? ORDER BY aspect_type ASC LIMIT 1',
+        [preferred]
+      );
+      if (res.success && res.data && res.data.length > 0) {
+        const row = res.data[0] as any;
+        return row.description || row.name || `${category}-时间线`;
+      }
+
+      // 回退：尝试模糊匹配任何以主类开头的 category
+      const res2 = await this.dbService.query<{ description?: string; name?: string }>(
+        'SELECT description, name FROM dimension WHERE category LIKE ? LIMIT 1',
+        [`${category}%`]
+      );
+      if (res2.success && res2.data && res2.data.length > 0) {
+        return (res2.data[0] as any).description || (res2.data[0] as any).name || `${category}-时间线`;
+      }
+    } catch (error) {
+      // ignore and fallback
+    }
+
     return `${category}-时间线`;
   }
 

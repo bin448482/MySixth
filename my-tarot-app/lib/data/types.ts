@@ -41,7 +41,7 @@ export interface JsonDimension {
   category: string;
   description: string;
   aspect?: string;
-  aspect_type?: string;
+  aspect_type?: number;
 }
 
 // JSON中的卡牌解读数据（card_name代替card_id）

@@ -14,6 +14,8 @@
     "validate-images": "node scripts/validate-images.js",
     "test-reading": "npx ts-node scripts/test-reading-flow.ts",
     "test-reading-basic": "node scripts/test-basic-reading-flow.js",
+    "init-dimensions": "npx tsx scripts/run-dimensions-import.ts",
+    "validate-dimensions": "npx tsx scripts/validate-dimensions.ts",
     "validate-reading": "npm run test-import && npm run test-reading-basic",
     "validate-all": "npm run validate-json && npm run validate-images && npm run validate-reading"
   },
