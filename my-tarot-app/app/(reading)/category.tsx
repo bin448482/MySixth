@@ -35,23 +35,6 @@ export default function CategorySelectionScreen() {
     loadDimensions();
   }, []);
 
-  // const initializeDatabase = async () => {
-  //   try {
-  //     console.log('[Category] Manually initializing database...');
-  //     const initializer = new DatabaseInitializer();
-  //     const success = await initializer.initialize();
-      
-  //     if (success) {
-  //       console.log('[Category] Database initialization successful, reloading dimensions...');
-  //       await loadDimensions();
-  //     } else {
-  //       console.error('[Category] Database initialization failed');
-  //     }
-  //   } catch (error) {
-  //     console.error('[Category] Database initialization error:', error);
-  //   }
-  // };
-
   const loadDimensions = async () => {
     try {
       setLoading(true);
@@ -157,13 +140,6 @@ export default function CategorySelectionScreen() {
         <Text style={styles.title}>选择占卜主题</Text>
         <Text style={styles.subtitle}>请选择您希望占卜的主题（按主题分组）</Text>
         
-        {/* 临时调试按钮 */}
-        {/* <TouchableOpacity
-          style={styles.debugButton}
-          onPress={initializeDatabase}
-        >
-          <Text style={styles.debugButtonText}>初始化数据库</Text>
-        </TouchableOpacity> */}
       </View>
 
       <View style={styles.categoriesContainer}>
