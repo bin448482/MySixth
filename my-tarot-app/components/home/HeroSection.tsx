@@ -30,27 +30,7 @@ export const HeroSection: React.FC = () => {
     );
   }, []);
 
-  // 如果字体未加载完成，显示加载状态但保持相同的组件结构
-  if (!fontsLoaded) {
-    return (
-      <View style={styles.container}>
-        <LinearGradient
-          colors={['#0a0a1a', '#1a1a2e', '#16213e']}
-          style={styles.background}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-        />
-        <View style={styles.titleContainer}>
-          <Text style={[styles.mainTitle, { opacity: 0.5 }]}>神秘塔罗牌</Text>
-        </View>
-        <View style={styles.subtitleContainer}>
-          <Text style={[styles.subtitle, { opacity: 0.5 }]}>探索命运的奥秘</Text>
-          <Text style={[styles.description, { opacity: 0.5 }]}>聆听内心的声音</Text>
-        </View>
-      </View>
-    );
-  }
-
+  // 始终使用动画组件，避免切换导致的闪烁
   return (
     <View style={styles.container}>
       <LinearGradient
@@ -64,16 +44,16 @@ export const HeroSection: React.FC = () => {
         entering={FadeInUp.delay(200).duration(800)}
         style={styles.titleContainer}
       >
-        <Text style={styles.mainTitle}>神秘塔罗牌</Text>
-        <Animated.View style={[styles.shimmer, shimmerStyle]} />
+        <Text style={[styles.mainTitle, !fontsLoaded && styles.fallbackFont]}>神秘塔罗牌</Text>
+        {fontsLoaded && <Animated.View style={[styles.shimmer, shimmerStyle]} />}
       </Animated.View>
 
       <Animated.View
         entering={FadeInDown.delay(400).duration(600)}
         style={styles.subtitleContainer}
       >
-        <Text style={styles.subtitle}>探索命运的奥秘</Text>
-        <Text style={styles.description}>聆听内心的声音</Text>
+        <Text style={[styles.subtitle, !fontsLoaded && styles.fallbackFont]}>探索命运的奥秘</Text>
+        <Text style={[styles.description, !fontsLoaded && styles.fallbackFont]}>聆听内心的声音</Text>
       </Animated.View>
     </View>
   );
@@ -129,5 +109,8 @@ const styles = StyleSheet.create({
     ...FontStyles.subtitle,
     color: FontColors.muted,
     textAlign: 'center',
+  },
+  fallbackFont: {
+    fontFamily: 'System',
   },
 });
