@@ -14,6 +14,8 @@ import { CardService } from '@/lib/services/CardService';
 import { DimensionService } from '@/lib/services/DimensionService';
 import { CardInterpretationService } from '@/lib/services/CardInterpretationService';
 import { CardFlipAnimation } from '@/components/reading/CardFlipAnimation';
+import { DragDropContainer } from '@/components/reading/DragDropContainer';
+import { SimpleTestCard } from '@/components/reading/SimpleTestCard';
 
 interface DrawnCard {
   cardId: number;
@@ -34,6 +36,8 @@ export default function DrawCardsScreen() {
   const [loading, setLoading] = useState(true);
   const [isDrawing, setIsDrawing] = useState(false);
   const [allCardsRevealed, setAllCardsRevealed] = useState(false);
+  const [dragDropEnabled, setDragDropEnabled] = useState(false);
+  const [allCardsPlaced, setAllCardsPlaced] = useState(false);
 
   const cardService = CardService.getInstance();
   const dimensionService = DimensionService.getInstance();
@@ -119,12 +123,36 @@ export default function DrawCardsScreen() {
     const revealedCards = drawnCards.map(card => ({ ...card, revealed: true }));
     setDrawnCards(revealedCards);
     setAllCardsRevealed(true);
+    setDragDropEnabled(true); // 启用拖拽模式
   };
 
   const handleContinue = () => {
     updateCards(drawnCards);
     updateStep(4);
     router.push('/(reading)/basic');
+  };
+
+  const handleCardPlacement = (cardId: number, slotIndex: number) => {
+    // 更新drawnCards中的dimension绑定
+    setDrawnCards(prev => prev.map(card =>
+      card.cardId === cardId
+        ? { ...card, dimension: dimensions[slotIndex], position: dimensions[slotIndex].aspect }
+        : card
+    ));
+  };
+
+  const handleAllCardsPlaced = () => {
+    setAllCardsPlaced(true);
+  };
+
+  const handleCardPress = (card: DrawnCard) => {
+    if (card.basicSummary) {
+      Alert.alert(
+        `${card.name} (${card.direction})`,
+        card.basicSummary,
+        [{ text: '了解', style: 'default' }]
+      );
+    }
   };
 
   if (loading) {
@@ -144,50 +172,75 @@ export default function DrawCardsScreen() {
       <View style={styles.header}>
         <Text style={styles.title}>抽取塔罗牌</Text>
         <Text style={styles.subtitle}>
-          请选择{state.category}相关的三个位置
+          {dragDropEnabled ? '将卡牌拖拽到对应位置' : `请选择${state.category}相关的三个位置`}
         </Text>
       </View>
 
-      <View style={styles.dimensionsContainer}>
-        {dimensions.map((dimension, index) => (
-          <View key={dimension.id} style={styles.dimensionCard}>
-            <Text style={styles.dimensionName}>{dimension.name}</Text>
-            <Text style={styles.dimensionDescription}>{dimension.description}</Text>
-            <Text style={styles.dimensionPosition}>位置 {index + 1}: {dimension.aspect}</Text>
-          </View>
-        ))}
-      </View>
+      {/* 维度显示区域 - 仅在非拖拽模式下显示 */}
+      {!dragDropEnabled && (
+        <View style={styles.dimensionsContainer}>
+          {dimensions.map((dimension, index) => (
+            <View key={dimension.id} style={styles.dimensionCard}>
+              <Text style={styles.dimensionName}>{dimension.name}</Text>
+              <Text style={styles.dimensionDescription}>{dimension.description}</Text>
+              <Text style={styles.dimensionPosition}>位置 {index + 1}: {dimension.aspect}</Text>
+            </View>
+          ))}
+        </View>
+      )}
 
-      <View style={styles.cardsContainer}>
-        {drawnCards.length > 0 ? (
-          <View style={styles.cardsRow}>
-            {drawnCards.map((card, index) => (
-              <View key={index} style={styles.cardWrapper}>
-                <CardFlipAnimation
-                  card={{
-                    id: card.cardId,
-                    name: card.name,
-                    imageUrl: card.imageUrl,
-                    direction: card.direction,
-                    revealed: card.revealed,
-                  }}
-                  onPress={() => handleCardClick(index)}
-                  disabled={!card.revealed}
-                  showName={true}
-                />
-                <View style={styles.cardInfo}>
-                  <Text style={styles.cardPosition}>{card.position}</Text>
-                  <Text style={styles.cardDirection}>{card.direction}</Text>
+      {/* 拖拽界面 - 仅在拖拽模式下显示 */}
+      {dragDropEnabled && (
+        <View style={styles.dragDropContainer}>
+          {/* 添加测试卡片 */}
+          <View style={styles.testCardContainer}>
+            <Text style={styles.testLabel}>测试拖拽 (如果这个能拖动，说明手势系统正常):</Text>
+            <SimpleTestCard onDrag={(id, x, y) => console.log('Test drag:', x, y)} />
+          </View>
+
+          <DragDropContainer
+            dimensions={dimensions}
+            drawnCards={drawnCards}
+            onCardPlacement={handleCardPlacement}
+            onAllCardsPlaced={handleAllCardsPlaced}
+            onCardPress={handleCardPress}
+          />
+        </View>
+      )}
+
+      {/* 原有卡牌显示区域 - 仅在非拖拽模式下显示 */}
+      {!dragDropEnabled && (
+        <View style={styles.cardsContainer}>
+          {drawnCards.length > 0 ? (
+            <View style={styles.cardsRow}>
+              {drawnCards.map((card, index) => (
+                <View key={index} style={styles.cardWrapper}>
+                  <CardFlipAnimation
+                    card={{
+                      id: card.cardId,
+                      name: card.name,
+                      imageUrl: card.imageUrl,
+                      direction: card.direction,
+                      revealed: card.revealed,
+                    }}
+                    onPress={() => handleCardClick(index)}
+                    disabled={!card.revealed}
+                    showName={true}
+                  />
+                  <View style={styles.cardInfo}>
+                    <Text style={styles.cardPosition}>{card.position}</Text>
+                    <Text style={styles.cardDirection}>{card.direction}</Text>
+                  </View>
                 </View>
-              </View>
-            ))}
-          </View>
-        ) : (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyText}>点击下方按钮开始抽牌</Text>
-          </View>
-        )}
-      </View>
+              ))}
+            </View>
+          ) : (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyText}>点击下方按钮开始抽牌</Text>
+            </View>
+          )}
+        </View>
+      )}
 
       <View style={styles.actionsContainer}>
         {drawnCards.length === 0 ? (
@@ -211,7 +264,7 @@ export default function DrawCardsScreen() {
           >
             <Text style={styles.revealButtonText}>全部翻开</Text>
           </TouchableOpacity>
-        ) : (
+        ) : allCardsPlaced ? (
           <TouchableOpacity
             style={[styles.actionButton, styles.continueButton]}
             onPress={handleContinue}
@@ -219,7 +272,11 @@ export default function DrawCardsScreen() {
           >
             <Text style={styles.continueButtonText}>查看解读</Text>
           </TouchableOpacity>
-        )}
+        ) : dragDropEnabled ? (
+          <View style={styles.dragHintContainer}>
+            <Text style={styles.dragHintText}>请将卡牌拖拽到对应的位置</Text>
+          </View>
+        ) : null}
       </View>
 
       <View style={styles.footer}>
@@ -377,5 +434,36 @@ const styles = StyleSheet.create({
   footerText: {
     fontSize: 14,
     color: '#888888',
+  },
+  dragDropContainer: {
+    flex: 1,
+    minHeight: 400,
+  },
+  dragHintContainer: {
+    paddingVertical: 20,
+    paddingHorizontal: 16,
+    backgroundColor: 'rgba(255, 215, 0, 0.1)',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 215, 0, 0.3)',
+  },
+  dragHintText: {
+    fontSize: 16,
+    color: '#FFD700',
+    textAlign: 'center',
+    fontWeight: '500',
+  },
+  testCardContainer: {
+    alignItems: 'center',
+    marginBottom: 20,
+    padding: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 12,
+  },
+  testLabel: {
+    fontSize: 12,
+    color: '#CCCCCC',
+    textAlign: 'center',
+    marginBottom: 10,
   },
 });
