@@ -54,7 +54,12 @@ export default function BasicReadingScreen() {
       setLoading(true);
       const detailedReadings: DetailedReading[] = [];
 
-      for (const selectedCard of state.selectedCards) {
+      // 按 aspect_type 排序选择的卡牌 (1=过去, 2=现在, 3=将来)
+      const sortedSelectedCards = [...state.selectedCards].sort((a, b) =>
+        a.dimension.aspect_type - b.dimension.aspect_type
+      );
+
+      for (const selectedCard of sortedSelectedCards) {
         // 获取详细维度解读
         const interpretation = await interpretationService.getCardInterpretationForDimension(
           selectedCard.name,
