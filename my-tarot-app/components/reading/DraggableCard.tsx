@@ -127,6 +127,7 @@ export function DraggableCard({
             <DraggableCardView
               card={card}
               showName={true}
+              isInSlot={isInSlot}
             />
           ) : (
             // 非拖拽模式：使用正常的CardFlipAnimation
@@ -155,9 +156,12 @@ export function DraggableCard({
 const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
+    justifyContent: 'center',
   },
   cardWrapper: {
     position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   dragIndicator: {
     position: 'absolute',

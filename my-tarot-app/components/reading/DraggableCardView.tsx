@@ -18,6 +18,7 @@ interface DraggableCardViewProps {
     revealed: boolean;
   };
   showName?: boolean;
+  isInSlot?: boolean;
 }
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -27,6 +28,7 @@ const CARD_HEIGHT = CARD_WIDTH * 1.7;
 export function DraggableCardView({
   card,
   showName = false,
+  isInSlot = false,
 }: DraggableCardViewProps) {
   // 逆位旋转
   const cardRotation = card.direction === 'reversed' ? '180deg' : '0deg';
@@ -40,7 +42,7 @@ export function DraggableCardView({
       <View
         style={[
           styles.card,
-          styles.cardFront,
+          isInSlot ? styles.cardFrontInSlot : styles.cardFront,
           { transform: [{ rotate: cardRotation }] },
         ]}
       >
@@ -70,6 +72,8 @@ export function DraggableCardView({
 const styles = StyleSheet.create({
   cardContainer: {
     position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   card: {
     position: 'absolute',
@@ -89,6 +93,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#16213E',
     borderWidth: 1,
     borderColor: '#FFD700',
+  },
+  cardFrontInSlot: {
+    backgroundColor: '#16213E',
+    borderWidth: 0,
+    borderColor: 'transparent',
   },
   cardFrontGradient: {
     flex: 1,

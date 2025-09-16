@@ -161,7 +161,7 @@ export function DragDropContainer({
           {dimensions.map((dimension, index) => (
             <View
               key={dimension.id}
-              ref={ref => (slotRefs.current[index] = ref)}
+              ref={ref => { slotRefs.current[index] = ref; }}
             >
               <CardSlot
                 dimension={dimension}
@@ -219,12 +219,14 @@ const styles = StyleSheet.create({
   // slotWrapper 样式已移除 - CardSlot自己处理居中
   cardsContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    justifyContent: 'center',
     alignItems: 'center',
     paddingVertical: 20,
+    gap: 16,
   },
   cardWrapper: {
     alignItems: 'center',
-    marginHorizontal: 8,
+    justifyContent: 'center',
+    flex: 1,
   },
 });

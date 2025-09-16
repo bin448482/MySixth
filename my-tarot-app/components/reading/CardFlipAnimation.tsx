@@ -22,6 +22,7 @@ interface CardFlipAnimationProps {
   onPress?: () => void;
   disabled?: boolean;
   showName?: boolean;
+  isInSlot?: boolean;
 }
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -33,6 +34,7 @@ export function CardFlipAnimation({
   onPress,
   disabled = false,
   showName = false,
+  isInSlot = false,
 }: CardFlipAnimationProps) {
   const [animatedValue] = useState(new Animated.Value(0));
   const [isFlipped, setIsFlipped] = useState(false);
@@ -104,7 +106,7 @@ export function CardFlipAnimation({
         <Animated.View
           style={[
             styles.card,
-            styles.cardBack,
+            isInSlot ? styles.cardBackInSlot : styles.cardBack,
             frontAnimatedStyle,
             { backfaceVisibility: 'hidden' },
           ]}
@@ -123,7 +125,7 @@ export function CardFlipAnimation({
         <Animated.View
           style={[
             styles.card,
-            styles.cardFront,
+            isInSlot ? styles.cardFrontInSlot : styles.cardFront,
             backAnimatedStyle,
             { transform: [...backAnimatedStyle.transform, { rotate: cardRotation }] },
             { backfaceVisibility: 'hidden' },
@@ -179,6 +181,11 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#FFD700',
   },
+  cardBackInSlot: {
+    backgroundColor: '#1A1A2E',
+    borderWidth: 0,
+    borderColor: 'transparent',
+  },
   cardBackGradient: {
     flex: 1,
     borderRadius: 12,
@@ -201,6 +208,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#16213E',
     borderWidth: 1,
     borderColor: '#FFD700',
+  },
+  cardFrontInSlot: {
+    backgroundColor: '#16213E',
+    borderWidth: 0,
+    borderColor: 'transparent',
   },
   cardFrontGradient: {
     flex: 1,

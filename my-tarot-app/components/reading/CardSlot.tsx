@@ -84,6 +84,7 @@ export function CardSlot({
         }}
         onPress={() => onCardPress?.(droppedCard!)}
         showName={true}
+        isInSlot={true}
       />
       <View style={styles.slotLabel}>
         <Text style={styles.slotLabelText}>{dimension.aspect}</Text>
