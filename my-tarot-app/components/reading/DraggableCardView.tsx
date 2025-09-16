@@ -35,36 +35,60 @@ export function DraggableCardView({
 
   // 获取卡牌图片资源
   const cardImageSource = getCardImage(card.imageUrl);
+  const cardBackSource = getCardImage('card-back.jpg'); // 卡牌背面图片
 
   return (
     <View style={[styles.cardContainer, { width: CARD_WIDTH, height: CARD_HEIGHT }]}>
-      {/* 卡牌正面 */}
-      <View
-        style={[
-          styles.card,
-          isInSlot ? styles.cardFrontInSlot : styles.cardFront,
-          { transform: [{ rotate: cardRotation }] },
-        ]}
-      >
-        <LinearGradient
-          colors={['#16213E', '#0F0F1A']}
-          style={styles.cardFrontGradient}
+      {card.revealed ? (
+        /* 卡牌正面 */
+        <View
+          style={[
+            styles.card,
+            isInSlot ? styles.cardFrontInSlot : styles.cardFront,
+            { transform: [{ rotate: cardRotation }] },
+          ]}
         >
-          <View style={styles.cardImageContainer}>
-            <Image
-              source={cardImageSource}
-              style={styles.cardImage}
-              resizeMode="cover"
-            />
-          </View>
-          {showName && (
-            <Text style={styles.cardTitle} numberOfLines={2}>{card.name}</Text>
-          )}
-          {card.direction === 'reversed' && (
-            <Text style={styles.directionLabel}>逆位</Text>
-          )}
-        </LinearGradient>
-      </View>
+          <LinearGradient
+            colors={['#16213E', '#0F0F1A']}
+            style={styles.cardFrontGradient}
+          >
+            <View style={styles.cardImageContainer}>
+              <Image
+                source={cardImageSource}
+                style={styles.cardImage}
+                resizeMode="cover"
+              />
+            </View>
+            {showName && (
+              <Text style={styles.cardTitle} numberOfLines={2}>{card.name}</Text>
+            )}
+            {card.direction === 'reversed' && (
+              <Text style={styles.directionLabel}>逆位</Text>
+            )}
+          </LinearGradient>
+        </View>
+      ) : (
+        /* 卡牌背面 */
+        <View
+          style={[
+            styles.card,
+            styles.cardBack,
+          ]}
+        >
+          <LinearGradient
+            colors={['#1A1A2E', '#16213E']}
+            style={styles.cardBackGradient}
+          >
+            <View style={styles.cardImageContainer}>
+              <Image
+                source={cardBackSource}
+                style={styles.cardImage}
+                resizeMode="cover"
+              />
+            </View>
+          </LinearGradient>
+        </View>
+      )}
     </View>
   );
 }
@@ -99,11 +123,23 @@ const styles = StyleSheet.create({
     borderWidth: 0,
     borderColor: 'transparent',
   },
+  cardBack: {
+    backgroundColor: '#1A1A2E',
+    borderWidth: 1,
+    borderColor: '#4A5568',
+  },
   cardFrontGradient: {
     flex: 1,
     borderRadius: 12,
     padding: 8,
     justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  cardBackGradient: {
+    flex: 1,
+    borderRadius: 12,
+    padding: 8,
+    justifyContent: 'center',
     alignItems: 'center',
   },
   cardImageContainer: {

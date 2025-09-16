@@ -113,12 +113,20 @@ const cardImages = {
 // 默认图片（使用第一张大阿卡纳作为占位符）
 const defaultCardImage = require('../../assets/images/major/00-fool.jpg');
 
+// 卡牌背面图片
+const cardBackImage = require('../../assets/images/major/cardback.png');
+
 /**
  * 获取塔罗牌图片资源
- * @param imageUrl 图片路径，如 'major/00-fool.jpg'
+ * @param imageUrl 图片路径，如 'major/00-fool.jpg' 或 'card-back.jpg'
  * @returns 图片资源或默认图片
  */
 export const getCardImage = (imageUrl: string) => {
+  // 特殊处理卡牌背面
+  if (imageUrl === 'card-back.jpg' || imageUrl === 'cardback.png' || imageUrl === 'major/cardback.png') {
+    return cardBackImage;
+  }
+
   const image = cardImages[imageUrl as keyof typeof cardImages];
   if (image) {
     return image;
@@ -150,4 +158,5 @@ export default {
   hasCardImage,
   getAvailableImagePaths,
   defaultCardImage,
+  cardBackImage,
 };

@@ -92,7 +92,7 @@ export default function DrawCardsScreen() {
             position: dimensions[index]?.aspect || `位置${index + 1}`,
             dimension: dimensions[index],
             direction,
-            revealed: true,  // 直接显示翻开的卡牌
+            revealed: false, // 初始状态显示牌背，只有放入卡槽才翻牌
             basicSummary: interpretation.success ? interpretation.data?.summary : undefined,
           };
         })
@@ -129,10 +129,15 @@ export default function DrawCardsScreen() {
   };
 
   const handleCardPlacement = (cardId: number, slotIndex: number) => {
-    // 更新drawnCards中的dimension绑定
+    // 更新drawnCards中的dimension绑定，并且设置为revealed状态
     setDrawnCards(prev => prev.map(card =>
       card.cardId === cardId
-        ? { ...card, dimension: dimensions[slotIndex], position: dimensions[slotIndex].aspect }
+        ? {
+            ...card,
+            dimension: dimensions[slotIndex],
+            position: dimensions[slotIndex].aspect,
+            revealed: true // 放入卡槽时自动翻牌
+          }
         : card
     ));
   };
