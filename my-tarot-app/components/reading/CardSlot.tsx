@@ -37,8 +37,9 @@ interface CardSlotProps {
 }
 
 const { width: screenWidth } = Dimensions.get('window');
-const SLOT_WIDTH = Math.min(screenWidth * 0.28, 110);
-const SLOT_HEIGHT = SLOT_WIDTH * 1.6;
+// 确保所有卡槽宽度一致
+const SLOT_WIDTH = 100; // 固定宽度确保一致性
+const SLOT_HEIGHT = 160; // 固定高度
 
 export function CardSlot({
   dimension,
@@ -60,9 +61,7 @@ export function CardSlot({
       ]}
     >
       <View style={styles.slotInfo}>
-        <Text style={[styles.dimensionName, isHighlighted && styles.highlightedText]} numberOfLines={2}>
-          {dimension.name}
-        </Text>
+        {/* 移除维度名称，只显示aspect */}
         <Text style={[styles.dimensionAspect, isHighlighted && styles.highlightedAspect]}>
           {dimension.aspect}
         </Text>
@@ -93,8 +92,8 @@ export function CardSlot({
   );
 
   return (
-    <View style={[styles.container, { width: SLOT_WIDTH }]}>
-      <View style={[styles.slot, { height: SLOT_HEIGHT }]}>
+    <View style={styles.container}>
+      <View style={styles.slot}>
         {droppedCard ? renderFilledSlot() : renderEmptySlot()}
       </View>
     </View>
@@ -104,9 +103,13 @@ export function CardSlot({
 const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
-    marginHorizontal: 4,
+    justifyContent: 'center',
+    width: SLOT_WIDTH,  // 固定宽度
+    marginHorizontal: 8, // 增加间距确保居中
   },
   slot: {
+    width: SLOT_WIDTH,
+    height: SLOT_HEIGHT,
     borderRadius: 12,
     overflow: 'hidden',
     borderWidth: 2,
@@ -132,24 +135,20 @@ const styles = StyleSheet.create({
   slotInfo: {
     alignItems: 'center',
   },
-  dimensionName: {
-    fontSize: 11,
-    fontWeight: 'bold',
-    color: '#FFD700',
-    textAlign: 'center',
-    marginBottom: 4,
-  },
+  // dimensionName 样式已移除 - 不再显示维度名称
   dimensionAspect: {
-    fontSize: 10,
-    color: '#CCCCCC',
+    fontSize: 14,  // 增大字体因为现在是主要文字
+    color: '#FFD700',
+    fontWeight: 'bold',
     textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: 12,
   },
   dragHint: {
-    fontSize: 8,
+    fontSize: 9,
     color: '#888888',
     textAlign: 'center',
     fontStyle: 'italic',
+    lineHeight: 12,
   },
   filledSlotContainer: {
     flex: 1,

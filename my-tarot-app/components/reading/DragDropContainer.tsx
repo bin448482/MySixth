@@ -162,7 +162,6 @@ export function DragDropContainer({
             <View
               key={dimension.id}
               ref={ref => (slotRefs.current[index] = ref)}
-              style={styles.slotWrapper}
             >
               <CardSlot
                 dimension={dimension}
@@ -211,14 +210,13 @@ const styles = StyleSheet.create({
   },
   slotsContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    justifyContent: 'center',  // 改为center确保居中
     alignItems: 'center',
     paddingVertical: 20,
     marginBottom: 40,
+    gap: 16,  // 使用gap确保一致的间距
   },
-  slotWrapper: {
-    alignItems: 'center',
-  },
+  // slotWrapper 样式已移除 - CardSlot自己处理居中
   cardsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-around',
