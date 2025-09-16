@@ -9,7 +9,6 @@ import { useEffect } from 'react';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { DatabaseInitializer } from '@/lib/database/initializer';
-// import { DebugMenu } from '@/components/debug/DebugMenu';
 
 export const unstable_settings = {
   anchor: '(tabs)',
@@ -48,7 +47,6 @@ export default function RootLayout() {
             <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
           </Stack>
           <StatusBar style="auto" />
-          <DebugMenu />
         </ThemeProvider>
       </TamaguiProvider>
     </GestureHandlerRootView>

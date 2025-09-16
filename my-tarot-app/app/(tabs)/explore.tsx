@@ -9,7 +9,6 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Fonts } from '@/constants/theme';
-import { DataImporter } from '@/lib/data/DataImporter';
 import { DatabaseService } from '@/lib/services/DatabaseService';
 
 export default function TabTwoScreen() {
@@ -19,7 +18,6 @@ export default function TabTwoScreen() {
     setIsReloading(true);
     try {
       const dbService = DatabaseService.getInstance();
-      const dataImporter = DataImporter.getInstance();
 
       // 初始化数据库连接
       const initResult = await dbService.initialize();
@@ -27,28 +25,19 @@ export default function TabTwoScreen() {
         throw new Error(`Database initialization failed: ${initResult.error}`);
       }
 
-      // 清空dimensions表
-      const clearResult = await dataImporter.clearTable('dimension');
-      if (!clearResult.success) {
-        throw new Error(`Failed to clear dimensions table: ${clearResult.error}`);
-      }
-
-      // 重新导入dimensions
-      const importResult = await dataImporter.importDimensions();
-      if (importResult.status !== 'completed') {
-        throw new Error(`Failed to import dimensions: ${importResult.error}`);
-      }
-
+      // 检查数据库状态
+      const status = await dbService.getStatus();
+      
       Alert.alert(
-        '成功',
-        `已成功重新加载 ${importResult.result?.imported || 0} 个解读维度`,
+        '数据库状态',
+        `数据库已初始化: ${status.isInitialized ? '是' : '否'}\n版本: ${status.version}`,
         [{ text: '确定' }]
       );
     } catch (error) {
-      console.error('Error reloading dimensions:', error);
+      console.error('Error checking database:', error);
       Alert.alert(
         '错误',
-        `重新加载失败: ${error instanceof Error ? error.message : '未知错误'}`,
+        `数据库检查失败: ${error instanceof Error ? error.message : '未知错误'}`,
         [{ text: '确定' }]
       );
     } finally {
@@ -86,7 +75,7 @@ export default function TabTwoScreen() {
           disabled={isReloading}
         >
           <ThemedText style={styles.reloadButtonText}>
-            {isReloading ? '正在重新加载...' : '重新加载解读维度数据'}
+            {isReloading ? '正在检查...' : '检查数据库状态'}
           </ThemedText>
         </TouchableOpacity>
       </Collapsible>
