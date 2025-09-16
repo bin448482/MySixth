@@ -36,10 +36,10 @@ interface CardSlotProps {
   onCardPress?: (card: DrawnCard) => void;
 }
 
-const { width: screenWidth } = Dimensions.get('window');
-// 确保所有卡槽宽度一致
-const SLOT_WIDTH = 100; // 固定宽度确保一致性
-const SLOT_HEIGHT = 160; // 固定高度
+const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+// 根据屏幕尺寸动态调整卡槽大小，考虑多个卡槽的布局
+const SLOT_WIDTH = Math.min(screenWidth * 0.28, 120); // 调整为更合适的比例
+const SLOT_HEIGHT = SLOT_WIDTH * 1.6; // 稍微调整宽高比
 
 export function CardSlot({
   dimension,
@@ -105,16 +105,21 @@ const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
     justifyContent: 'center',
-    width: SLOT_WIDTH,  // 固定宽度
-    marginHorizontal: 8, // 增加间距确保居中
+    width: SLOT_WIDTH,
+    marginHorizontal: 4, // 缩小卡槽间距
   },
   slot: {
     width: SLOT_WIDTH,
     height: SLOT_HEIGHT,
-    borderRadius: 12,
+    borderRadius: 16, // 稍微增大圆角
     overflow: 'hidden',
     borderWidth: 2,
     borderColor: '#FFD700',
+    elevation: 5, // 增加阴影效果
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
   },
   slotContent: {
     flex: 1,
@@ -155,20 +160,28 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 4,
+    padding: 6, // 进一步缩小内边距
+    paddingTop: 8, // 缩小顶部间距
+    paddingBottom: 6,
   },
   slotLabel: {
-    marginTop: 4,
-    paddingHorizontal: 8,
+    marginTop: 4, // 缩小标签与卡牌的间距
+    paddingHorizontal: 6,
     paddingVertical: 2,
-    backgroundColor: 'rgba(255, 215, 0, 0.2)',
-    borderRadius: 8,
+    backgroundColor: 'rgba(255, 215, 0, 0.3)',
+    borderRadius: 6,
+    minWidth: '70%', // 进一步适应紧凑布局
+    alignItems: 'center',
   },
   slotLabelText: {
-    fontSize: 9,
-    color: '#FFD700',
+    fontSize: 10, // 适应较小尺寸的字体
+    color: '#FFFFFF',
     fontWeight: 'bold',
     textAlign: 'center',
+    letterSpacing: 0.3, // 适中的字母间距
+    textShadowColor: '#FFD700',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 2, // 稍小的阴影半径
   },
   highlightedText: {
     color: '#FFFFFF',
