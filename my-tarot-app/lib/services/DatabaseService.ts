@@ -4,7 +4,7 @@
  */
 
 import * as SQLite from 'expo-sqlite';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { Asset } from 'expo-asset';
 import { DatabaseMigrations } from '../database/migrations';
 import { DATABASE_NAME } from '../database/schema';
@@ -16,7 +16,7 @@ import type {
 
 export class DatabaseService {
   private static instance: DatabaseService;
-  private db: SQLite.SQLiteDatabase;
+  private db!: SQLite.SQLiteDatabase;
   private migrations: DatabaseMigrations;
   private isInitialized: boolean = false;
 
@@ -47,7 +47,9 @@ export class DatabaseService {
       
       // 2. 打开数据库连接
       if (!this.db) {
-        this.db = SQLite.openDatabaseSync(DATABASE_NAME);
+        const dbPath = `${FileSystem.documentDirectory}SQLite/${DATABASE_NAME}`;
+        console.log(`[DatabaseService] Opening database at: ${dbPath}`);
+        this.db = SQLite.openDatabaseSync(dbPath);
         this.migrations = new DatabaseMigrations(this.db);
       }
       
@@ -117,7 +119,7 @@ export class DatabaseService {
   private async ensureUserTablesExist(): Promise<void> {
     try {
       // 检查user_history表是否存在
-      const result = await this.db.getFirstAsync<{count: number}>(
+      const result = this.db.getFirstSync<{count: number}>(
         "SELECT COUNT(*) as count FROM sqlite_master WHERE type='table' AND name='user_history'"
       );
       
@@ -138,10 +140,10 @@ export class DatabaseService {
           );
         `;
         
-        await this.db.execAsync(userHistorySQL);
+        this.db.execSync(userHistorySQL);
         
         // 创建用户历史索引
-        await this.db.execAsync(
+        this.db.execSync(
           'CREATE INDEX IF NOT EXISTS idx_user_history_user_timestamp ON user_history (user_id, timestamp);'
         );
         
@@ -176,7 +178,7 @@ export class DatabaseService {
         await this.initialize();
       }
 
-      const result = await this.db.getAllAsync<T>(sql, params);
+      const result = this.db.getAllSync<T>(sql, params);
       return {
         success: true,
         data: result
@@ -199,7 +201,7 @@ export class DatabaseService {
         await this.initialize();
       }
 
-      const result = await this.db.getFirstAsync<T>(sql, params);
+      const result = this.db.getFirstSync<T>(sql, params);
       return {
         success: true,
         data: result || null
@@ -222,7 +224,7 @@ export class DatabaseService {
         await this.initialize();
       }
 
-      const result = await this.db.runAsync(sql, params);
+      const result = this.db.runSync(sql, params);
       
       return {
         success: true,
@@ -254,7 +256,7 @@ export class DatabaseService {
       let lastInsertId: number | undefined;
 
       for (const statement of statements) {
-        const result = await this.db.runAsync(statement.sql, statement.params || []);
+        const result = this.db.runSync(statement.sql, statement.params || []);
         totalAffectedRows += result.changes;
         if (result.lastInsertRowId !== undefined) {
           lastInsertId = result.lastInsertRowId;
@@ -281,13 +283,13 @@ export class DatabaseService {
   /**
    * 事务执行
    */
-  async transaction(callback: () => Promise<void>): Promise<ServiceResponse<void>> {
+  async transaction(callback: () => void): Promise<ServiceResponse<void>> {
     try {
       if (!this.isInitialized) {
         await this.initialize();
       }
 
-      await this.db.withTransactionAsync(callback);
+      this.db.withTransactionSync(callback);
       
       return {
         success: true
