@@ -88,6 +88,8 @@ export default function CategorySelectionScreen() {
       const result: GroupItem[] = [];
       for (const g of map.values()) {
         g.dimensions.sort((a, b) => (a.aspect_type || 0) - (b.aspect_type || 0));
+        // Generate displayName from aspects sorted by aspect_type
+        g.displayName = g.dimensions.map(d => d.aspect).join(' - ');
         result.push(g);
         console.log('[Category] Group added:', g.id, 'with', g.dimensions.length, 'dimensions');
       }
