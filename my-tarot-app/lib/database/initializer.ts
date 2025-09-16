@@ -22,34 +22,22 @@ export class DatabaseInitializer {
   }
 
   /**
-   * 完整的数据库初始化流程
+   * 完整的数据库初始化流程 - 使用预置数据库
    */
   async initialize(): Promise<boolean> {
     try {
       console.log('🚀 Starting database initialization...');
 
-      // 1. 初始化数据库表结构
-      console.log('📋 Initializing database schema...');
+      // 1. 初始化数据库（复制预置数据库并创建用户表）
+      console.log('📋 Initializing database from bundled assets...');
       const initResult = await this.dbService.initialize();
       if (!initResult.success) {
         throw new Error(`Database initialization failed: ${initResult.error}`);
       }
-      console.log('✅ Database schema initialized');
+      console.log('✅ Database initialized from bundled assets');
 
-      // 2. 检查是否需要填充数据
-      console.log('🔍 Checking if seeding is needed...');
-      const needsSeeding = await this.seeder.needsSeeding();
-      
-      if (needsSeeding) {
-        console.log('🌱 Seeding database with initial data...');
-        const seedResult = await this.seeder.seedAll();
-        if (!seedResult.success) {
-          throw new Error(`Database seeding failed: ${seedResult.error}`);
-        }
-        console.log('✅ Database seeded successfully');
-      } else {
-        console.log('✅ Database already contains data, skipping seeding');
-      }
+      // 2. 跳过数据填充 - 静态数据来自预置数据库
+      console.log('⏭️ Skipping seeding - static data comes from bundled database');
 
       // 3. 验证数据完整性
       console.log('🔬 Verifying data integrity...');
@@ -142,24 +130,50 @@ export class DatabaseInitializer {
   }
 
   /**
-   * 重置数据库（开发用）
+   * 重置用户数据（保留静态数据）
    */
   async reset(): Promise<boolean> {
     try {
-      console.log('🔄 Resetting database...');
+      console.log('🔄 Resetting user data (preserving static data)...');
+      
+      // 仅清空用户数据，保留静态数据
+      const clearResult = await this.seeder.clearUserData();
+      if (!clearResult.success) {
+        throw new Error(`User data reset failed: ${clearResult.error}`);
+      }
+
+      console.log('✅ User data reset completed');
+      
+      // 重新初始化（主要是确保用户表存在）
+      return await this.initialize();
+      
+    } catch (error) {
+      console.error('❌ User data reset failed:', error);
+      return false;
+    }
+  }
+
+  /**
+   * 完全重置数据库（包括静态数据） - 仅用于开发调试
+   * @deprecated Use reset() instead to preserve static data
+   */
+  async fullReset(): Promise<boolean> {
+    try {
+      console.log('🔄 Full database reset (including static data)...');
+      console.warn('⚠️ This will remove the bundled database and require re-copying from assets');
       
       const resetResult = await this.dbService.reset();
       if (!resetResult.success) {
         throw new Error(`Database reset failed: ${resetResult.error}`);
       }
 
-      console.log('✅ Database reset completed');
+      console.log('✅ Full database reset completed');
       
       // 重新初始化
       return await this.initialize();
       
     } catch (error) {
-      console.error('❌ Database reset failed:', error);
+      console.error('❌ Full database reset failed:', error);
       return false;
     }
   }

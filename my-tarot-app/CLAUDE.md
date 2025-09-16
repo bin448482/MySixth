@@ -538,3 +538,144 @@ describe('CardComponent', () => {
 ---
 
 *此文档专门针对 my-tarot-app 前端开发，与根级别 CLAUDE.md 配合使用。*
+## ⚙️ 数据源切换计划: 从 JSON 导入改为使用预置 SQLite 数据库
+
+本次改动目标
+- 将核心静态数据表 card, card_style, dimension, card_interpretation, card_interpretation_dimension, spread 的读取来源，从设备内初始化后的本地数据库与 JSON 导入流程，切换为直接读取预置数据库文件 [my-tarot-app/assets/db/tarot_config.db](my-tarot-app/assets/db/tarot_config.db)。
+- 保留用户运行时写入表 user_history 等客户端专用表的读写能力。
+- 删除 [my-tarot-app/assets/data](my-tarot-app/assets/data) 下的 JSON 文件及相关导入代码路径，转为以 DB 文件为唯一权威数据源。
+
+受影响与不变部分
+- 受影响读取路径的服务层
+  - [CardService](my-tarot-app/lib/services/CardService.ts) 读取 card 与关联解读表
+  - [DimensionService](my-tarot-app/lib/services/DimensionService.ts) 读取 dimension
+  - [SpreadService](my-tarot-app/lib/services/SpreadService.ts) 读取 spread
+  - [CardInterpretationService](my-tarot-app/lib/services/CardInterpretationService.ts) 读取 card_interpretation 与 card_interpretation_dimension
+- 数据库底层
+  - [DatabaseService](my-tarot-app/lib/services/DatabaseService.ts) 当前通过 [SQLite.openDatabaseSync()](my-tarot-app/lib/services/DatabaseService.ts:22) 打开数据库，需要支持从预置 db 启动的引导流程
+  - [schema.ts](my-tarot-app/lib/database/schema.ts) 当前定义了本地建表 SQL 与 DATABASE_NAME，需要调整为兼容预置 db 的策略
+  - [migrations.ts](my-tarot-app/lib/database/migrations.ts) 与 [seeder.ts](my-tarot-app/lib/database/seeder.ts) 将不再为上述 6 张静态数据表执行导入，仅保留客户端专用表初始化
+- 不变
+  - 服务层 SQL 查询语句可以原样工作，因为表结构与字段保持一致
+  - 运行时使用的 user_history 表依旧在本地可写数据库中读写
+
+新架构概览
+- 启动时引导逻辑
+  1) 首次启动: 将预置的 [my-tarot-app/assets/db/tarot_config.db](my-tarot-app/assets/db/tarot_config.db) 复制到应用可写目录作为运行库文件，例如重命名为 tarot_config.db 或沿用同名
+  2) 后续启动: 直接打开此前复制到可写目录的数据库进行查询
+  3) 若需要 user_history 表: 在首次复制后，检测该表是否存在，不存在则仅为该表执行建表 SQL
+- Web 端兼容
+  - [DatabaseService.web.ts](my-tarot-app/lib/services/DatabaseService.web.ts) 按当前实现策略调整为使用内存或 IndexedDB 版本，或在 Web 模式下提供降级的只读演示数据
+
+数据流与职责
+- 预置只读数据
+  - 源自资产: [my-tarot-app/assets/db/tarot_config.db](my-tarot-app/assets/db/tarot_config.db)
+  - 表: card, card_style, dimension, card_interpretation, card_interpretation_dimension, spread
+- 客户端可写数据
+  - 表: user_history
+  - 初始化: 仅在可写数据库中缺失时创建
+
+Mermaid 流程图
+```mermaid
+flowchart LR
+  A[Bundled DB assets/db/tarot_config.db] --> B[First launch copy to app writable dir]
+  B --> C[DatabaseService opens copied tarot_config.db]
+  C --> D[Services query card card_style dimension interpretation tables]
+  C --> E[user_history table ensured and writable]
+```
+
+实施步骤与详细计划
+
+1. 文档与结构更新
+- 在本文档中新增本节说明并明确数据源切换
+- 项目结构中将 assets/data 标注为移除, 使用 assets/db
+- 标注 JSON 导入工具为 Legacy, 后续从构建链路中去除
+  - Legacy 组件: [JsonLoader](my-tarot-app/lib/data/JsonLoader.ts), [DataImporter](my-tarot-app/lib/data/DataImporter.ts), [DatabaseInitializer](my-tarot-app/lib/database/initializer.ts) 中与 JSON 种子导入相关路径
+
+2. 预置数据库接入
+- 在 [DatabaseService](my-tarot-app/lib/services/DatabaseService.ts) 增加启动引导逻辑
+  - 通过 Expo SQLite 的能力, 实现从 assets 复制 DB 到可写目录的流程
+  - 成功复制后, 统一用同一名称打开, 例如 tarot_config.db
+  - 将 [SQLite.openDatabaseSync()](my-tarot-app/lib/services/DatabaseService.ts:22) 的 name 与路径策略调整为指向复制后的文件
+- 在 [schema.ts](my-tarot-app/lib/database/schema.ts) 中:
+  - DATABASE_NAME 改为与预置库一致的名称, 如 tarot_config.db
+  - 保留 CREATE TABLE 语句, 但在迁移逻辑中仅对 user_history 执行存在性检测与创建, 其他 6 张静态数据表不再由客户端创建
+
+3. 迁移与初始化策略
+- [migrations.ts](my-tarot-app/lib/database/migrations.ts)
+  - 移除对 6 张静态数据表的创建与迁移职责, 或在运行时检测到表已存在时直接跳过
+  - 增加仅 user_history 的存在性检测与按需创建
+- [seeder.ts](my-tarot-app/lib/database/seeder.ts)
+  - 停止任何对静态表的数据插入
+  - 仅保留与客户端专用表相关的初始化工作, 如无则可标记为废弃
+- [initializer.ts](my-tarot-app/lib/database/initializer.ts)
+  - initialize 中取消 JSON 导入流程
+  - 验证逻辑仍可复用, 但数据来源已是预置 DB
+  - 需要时保留 reset 能力仅用于清空 user_history, 避免误删预置数据
+
+4. 服务层适配核验
+- [CardService](my-tarot-app/lib/services/CardService.ts)
+- [DimensionService](my-tarot-app/lib/services/DimensionService.ts)
+- [SpreadService](my-tarot-app/lib/services/SpreadService.ts)
+- [CardInterpretationService](my-tarot-app/lib/services/CardInterpretationService.ts)
+以上服务层 SQL 依赖表结构保持一致, 无需改动查询语句; 重点是确保底层 DatabaseService 成功打开预置 DB
+
+5. 资产与清理
+- 删除以下目录与脚本中的强依赖
+  - 资产 JSON: [my-tarot-app/assets/data](my-tarot-app/assets/data)
+  - JSON 导入和验证脚本: 可将 test-import 与 validate-json 标记为 Legacy 或替换为 DB 完整性校验脚本
+- 保留图片资源目录不变
+
+6. 测试与验证
+- 增加 DB 完整性检查脚本, 覆盖数据量与关键约束
+  - 期望值示例
+    - card 78
+    - card_style 至少 1
+    - dimension N 按预期
+    - card_interpretation 156
+    - card_interpretation_dimension 4056
+    - spread 至少 1 且包含三张牌配置
+- 在 [DatabaseInitializer](my-tarot-app/lib/database/initializer.ts) 的 verifyData 流程中复用上述检查, 但数据来源为预置 DB
+
+7. Web 适配策略
+- 在 [DatabaseService.web.ts](my-tarot-app/lib/services/DatabaseService.web.ts) 中
+  - 方案 A: 提供只读的内存数据快照, 以便 Web 演示
+  - 方案 B: 使用 sql.js 或 expo 兼容层加载 DB, 若成本过高则先落地 A
+
+变更清单与代码修改点
+
+- 配置与常量
+  - [schema.ts](my-tarot-app/lib/database/schema.ts): 修改 DATABASE_NAME 为 tarot_config.db, 并在文档注释中标注静态数据来自预置库
+- 数据库服务
+  - [DatabaseService](my-tarot-app/lib/services/DatabaseService.ts): 引导复制预置 DB, 并在 initialize 时跳过静态表建表和种子导入
+- 迁移与种子
+  - [migrations.ts](my-tarot-app/lib/database/migrations.ts): 仅确保 user_history 存在
+  - [seeder.ts](my-tarot-app/lib/database/seeder.ts): 停用静态数据导入
+  - [initializer.ts](my-tarot-app/lib/database/initializer.ts): 移除 JSON 导入调用, 保留与 DB 完整性验证
+- 清理
+  - 移除 [my-tarot-app/assets/data](my-tarot-app/assets/data) 下 JSON 文件
+  - 标记 [JsonLoader](my-tarot-app/lib/data/JsonLoader.ts) 与 [DataImporter](my-tarot-app/lib/data/DataImporter.ts) 为 Legacy, 后续删除
+
+里程碑与验收标准
+
+- M1 文档与结构
+  - 本文档添加数据切换计划
+  - 仓库存在 [my-tarot-app/assets/db/tarot_config.db](my-tarot-app/assets/db/tarot_config.db)
+- M2 底层接入
+  - App 首次启动自动复制并打开预置 DB
+  - 运行时能读出 card 78, spread 至少 1
+- M3 迁移层瘦身
+  - migrations 与 seeder 不再操作 6 张静态表
+  - 初始化与重置不破坏预置数据
+- M4 功能回归
+  - 阅读流程分类页可加载维度分组
+  - 抽牌页可随机抽取与查询基础解读
+  - 基础解读页可按维度精确匹配详细解读
+- M5 清理与测试
+  - 删除 assets/data JSON 文件
+  - 新的 DB 完整性测试脚本通过
+
+注意事项
+- 预置 DB 的版本管理: 如后续升级, 可采用文件名或内部 version 表管理; 客户端检测版本差异后执行覆盖式升级或迁移脚本
+- 覆盖升级策略: 更新时应先关闭连接, 备份旧库文件, 覆盖新库, 再恢复 user_history 等客户端数据
+- 调试手段: 使用 Flipper SQLite 插件或导出副本以检查移动端文件系统中的 DB 内容

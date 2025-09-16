@@ -1,106 +1,249 @@
 /**
- * 数据库功能测试脚本
- * Database functionality test script
+ * 数据库完整性检查脚本
+ * Database integrity check script
+ * 
+ * 验证预置数据库中的数据完整性和预期数量
  */
 
 import { DatabaseInitializer } from '../lib/database/initializer';
-import { SpreadService } from '../lib/services/SpreadService';
 import { CardService } from '../lib/services/CardService';
-import { DatabaseService } from '../lib/services/DatabaseService';
+import { DimensionService } from '../lib/services/DimensionService';
+import { SpreadService } from '../lib/services/SpreadService';
+import { CardInterpretationService } from '../lib/services/CardInterpretationService';
 
-async function testDatabase() {
-  console.log('🧪 Starting database functionality test...\n');
-  
-  try {
-    // 创建服务实例
-    const initializer = new DatabaseInitializer();
-    const spreadService = SpreadService.getInstance();
-    const cardService = CardService.getInstance();
-    const dbService = DatabaseService.getInstance();
-    
-    // 1. 测试数据库初始化
-    console.log('📋 Testing database initialization...');
-    const initSuccess = await initializer.initialize();
-    if (!initSuccess) {
-      throw new Error('Database initialization failed');
+interface IntegrityCheckResult {
+  table: string;
+  expected: number;
+  actual: number;
+  passed: boolean;
+  error?: string;
+}
+
+class DatabaseIntegrityChecker {
+  private initializer: DatabaseInitializer;
+  private cardService: CardService;
+  private dimensionService: DimensionService;
+  private spreadService: SpreadService;
+  private interpretationService: CardInterpretationService;
+
+  constructor() {
+    this.initializer = new DatabaseInitializer();
+    this.cardService = CardService.getInstance();
+    this.dimensionService = DimensionService.getInstance();
+    this.spreadService = SpreadService.getInstance();
+    this.interpretationService = CardInterpretationService.getInstance();
+  }
+
+  async runIntegrityChecks(): Promise<IntegrityCheckResult[]> {
+    const results: IntegrityCheckResult[] = [];
+
+    console.log('🔍 Starting database integrity checks...\n');
+
+    // 1. 检查卡牌数量 (78张)
+    results.push(await this.checkTableCount(
+      'card',
+      78,
+      async () => {
+        const result = await this.cardService.getAllCards();
+        return result.success ? result.data?.length || 0 : 0;
+      }
+    ));
+
+    // 2. 检查大阿卡纳数量 (22张)
+    results.push(await this.checkTableCount(
+      'card (Major Arcana)',
+      22,
+      async () => {
+        const result = await this.cardService.getMajorArcana();
+        return result.success ? result.data?.length || 0 : 0;
+      }
+    ));
+
+    // 3. 检查小阿卡纳数量 (56张)
+    results.push(await this.checkTableCount(
+      'card (Minor Arcana)',
+      56,
+      async () => {
+        const result = await this.cardService.getMinorArcana();
+        return result.success ? result.data?.length || 0 : 0;
+      }
+    ));
+
+    // 4. 检查卡牌风格数量 (至少1个)
+    results.push(await this.checkTableCount(
+      'card_style',
+      1,
+      async () => {
+        const result = await this.cardService.getAllCardStyles();
+        return result.success ? result.data?.length || 0 : 0;
+      },
+      'minimum'
+    ));
+
+    // 5. 检查维度数量 (预期数量根据实际数据调整)
+    results.push(await this.checkTableCount(
+      'dimension',
+      20, // 预期至少20个维度
+      async () => {
+        const result = await this.dimensionService.getAllDimensions();
+        return result.success ? result.data?.length || 0 : 0;
+      },
+      'minimum'
+    ));
+
+    // 6. 检查牌阵数量 (至少1个)
+    results.push(await this.checkTableCount(
+      'spread',
+      1,
+      async () => {
+        const result = await this.spreadService.getAllSpreads();
+        return result.success ? result.data?.length || 0 : 0;
+      },
+      'minimum'
+    ));
+
+    // 7. 检查卡牌解读数量 (78 * 2 = 156，正位+逆位)
+    results.push(await this.checkTableCount(
+      'card_interpretation',
+      156,
+      async () => {
+        // 通过数据库服务直接查询
+        const dbService = (this.cardService as any).dbService;
+        const result = await dbService.query('SELECT COUNT(*) as count FROM card_interpretation');
+        return result.success ? result.data?.[0]?.count || 0 : 0;
+      }
+    ));
+
+    // 8. 检查维度解读数量 (预期大量数据)
+    results.push(await this.checkTableCount(
+      'card_interpretation_dimension',
+      4000, // 预期至少4000条记录
+      async () => {
+        const dbService = (this.cardService as any).dbService;
+        const result = await dbService.query('SELECT COUNT(*) as count FROM card_interpretation_dimension');
+        return result.success ? result.data?.[0]?.count || 0 : 0;
+      },
+      'minimum'
+    ));
+
+    return results;
+  }
+
+  private async checkTableCount(
+    tableName: string,
+    expected: number,
+    countFunction: () => Promise<number>,
+    mode: 'exact' | 'minimum' = 'exact'
+  ): Promise<IntegrityCheckResult> {
+    try {
+      const actual = await countFunction();
+      const passed = mode === 'exact' ? actual === expected : actual >= expected;
+      
+      const result: IntegrityCheckResult = {
+        table: tableName,
+        expected,
+        actual,
+        passed
+      };
+
+      const status = passed ? '✅' : '❌';
+      const comparison = mode === 'exact' ? '==' : '>=';
+      console.log(`${status} ${tableName}: ${actual} ${comparison} ${expected} (${passed ? 'PASS' : 'FAIL'})`);
+
+      return result;
+    } catch (error) {
+      const result: IntegrityCheckResult = {
+        table: tableName,
+        expected,
+        actual: 0,
+        passed: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
+
+      console.log(`❌ ${tableName}: ERROR - ${result.error}`);
+      return result;
     }
-    console.log('✅ Database initialized successfully\n');
+  }
+
+  async checkDatabaseInitialization(): Promise<boolean> {
+    try {
+      console.log('🚀 Initializing database...');
+      const success = await this.initializer.initialize();
+      
+      if (success) {
+        console.log('✅ Database initialization successful\n');
+        return true;
+      } else {
+        console.log('❌ Database initialization failed\n');
+        return false;
+      }
+    } catch (error) {
+      console.error('❌ Database initialization error:', error);
+      return false;
+    }
+  }
+
+  printSummary(results: IntegrityCheckResult[]): void {
+    console.log('\n📊 Integrity Check Summary:');
+    console.log('=' .repeat(50));
     
-    // 2. 测试卡牌风格数据
-    console.log('🎨 Testing card style data...');
-    const cardStylesResult = await cardService.getAllCardStyles();
-    if (!cardStylesResult.success) {
-      throw new Error(`Failed to get card styles: ${cardStylesResult.error}`);
+    const passed = results.filter(r => r.passed).length;
+    const total = results.length;
+    const failed = results.filter(r => !r.passed);
+    
+    console.log(`Total checks: ${total}`);
+    console.log(`Passed: ${passed}`);
+    console.log(`Failed: ${total - passed}`);
+    
+    if (failed.length > 0) {
+      console.log('\n❌ Failed checks:');
+      failed.forEach(result => {
+        console.log(`  - ${result.table}: expected ${result.expected}, got ${result.actual}`);
+        if (result.error) {
+          console.log(`    Error: ${result.error}`);
+        }
+      });
     }
     
-    const cardStyles = cardStylesResult.data || [];
-    console.log(`✅ Found ${cardStyles.length} card style(s):`);
-    cardStyles.forEach((style, index) => {
-      console.log(`   ${index + 1}. ${style.name} (base URL: "${style.image_base_url || 'empty'}")`);
-    });
-    console.log('');
+    const overallSuccess = failed.length === 0;
+    console.log(`\n${overallSuccess ? '🎉' : '💥'} Overall result: ${overallSuccess ? 'PASS' : 'FAIL'}`);
     
-    // 3. 测试牌阵数据
-    console.log('🃏 Testing spread data...');
-    const spreadsResult = await spreadService.getAllSpreads();
-    if (!spreadsResult.success) {
-      throw new Error(`Failed to get spreads: ${spreadsResult.error}`);
+    if (!overallSuccess) {
+      process.exit(1);
     }
-    
-    const spreads = spreadsResult.data || [];
-    console.log(`✅ Found ${spreads.length} spread(s):`);
-    spreads.forEach((spread, index) => {
-      console.log(`   ${index + 1}. ${spread.name} (${spread.card_count} cards)`);
-      console.log(`      ${spread.description.substring(0, 100)}...`);
-    });
-    console.log('');
-    
-    // 3. 测试三张牌牌阵查询
-    console.log('🔍 Testing three-card spread query...');
-    const threeCardResult = await spreadService.getThreeCardSpread();
-    if (!threeCardResult.success || !threeCardResult.data) {
-      throw new Error('Failed to get three-card spread');
-    }
-    console.log(`✅ Three-card spread found: "${threeCardResult.data.name}"`);
-    console.log('');
-    
-    // 4. 测试数据库状态
-    console.log('📊 Testing database status...');
-    const status = await initializer.getStatus();
-    if (!status) {
-      throw new Error('Failed to get database status');
-    }
-    console.log('✅ Database status:');
-    console.log(`   Initialized: ${status.database.isInitialized}`);
-    console.log(`   Version: ${status.database.version}`);
-    console.log(`   Card styles count: ${status.cardStyles?.count || 0}`);
-    console.log(`   Spreads count: ${status.spreads.count}`);
-    console.log('');
-    
-    // 5. 测试原始SQL查询
-    console.log('🔧 Testing raw SQL query...');
-    const rawResult = await dbService.query('SELECT COUNT(*) as count FROM spread');
-    if (!rawResult.success) {
-      throw new Error(`Raw query failed: ${rawResult.error}`);
-    }
-    const count = (rawResult.data?.[0] as any)?.count || 0;
-    console.log(`✅ Raw query result: ${count} spreads in database`);
-    console.log('');
-    
-    console.log('🎉 All tests passed successfully!');
-    return true;
-    
-  } catch (error) {
-    console.error('❌ Test failed:', error);
-    return false;
   }
 }
 
-// 如果直接运行此文件则执行测试
+// 主执行函数
+async function main() {
+  const checker = new DatabaseIntegrityChecker();
+  
+  try {
+    // 1. 初始化数据库
+    const initSuccess = await checker.checkDatabaseInitialization();
+    if (!initSuccess) {
+      console.error('❌ Database initialization failed, aborting integrity checks');
+      process.exit(1);
+    }
+    
+    // 2. 运行完整性检查
+    const results = await checker.runIntegrityChecks();
+    
+    // 3. 打印总结
+    checker.printSummary(results);
+    
+  } catch (error) {
+    console.error('❌ Integrity check failed with error:', error);
+    process.exit(1);
+  }
+}
+
+// 运行检查
 if (require.main === module) {
-  testDatabase().then(success => {
-    process.exit(success ? 0 : 1);
+  main().catch(error => {
+    console.error('❌ Unhandled error:', error);
+    process.exit(1);
   });
 }
 
-export { testDatabase };
+export { DatabaseIntegrityChecker };

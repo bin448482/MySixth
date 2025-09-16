@@ -4,7 +4,7 @@
  * Based on tarot_db_design.md
  */
 
-export const DATABASE_NAME = 'tarot.db';
+export const DATABASE_NAME = 'tarot_config.db';
 export const DATABASE_VERSION = 1;
 
 // SQL statements for creating tables

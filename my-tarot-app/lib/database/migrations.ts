@@ -9,62 +9,88 @@ import { CREATE_TABLES, CREATE_INDEXES, DATABASE_NAME } from './schema';
 export class DatabaseMigrations {
   private db: SQLite.SQLiteDatabase;
 
-  constructor() {
-    this.db = SQLite.openDatabaseSync(DATABASE_NAME);
+  constructor(database?: SQLite.SQLiteDatabase) {
+    this.db = database || SQLite.openDatabaseSync(DATABASE_NAME);
   }
 
   /**
-   * 初始化数据库 - 创建所有表和索引
+   * 初始化数据库 - 仅创建用户表（静态数据表来自预置数据库）
    */
   async initialize(): Promise<void> {
     try {
-      // 创建表
-      for (const [tableName, createSQL] of Object.entries(CREATE_TABLES)) {
-        console.log(`Creating table: ${tableName}`);
-        await this.db.execAsync(createSQL);
+      // 仅创建用户相关表，跳过静态数据表
+      const userTables = ['user_history'];
+      
+      for (const tableName of userTables) {
+        if (CREATE_TABLES[tableName]) {
+          console.log(`Creating user table: ${tableName}`);
+          await this.db.execAsync(CREATE_TABLES[tableName]);
+        }
       }
 
-      // 创建索引
-      for (const indexSQL of CREATE_INDEXES) {
+      // 仅创建用户表相关的索引
+      const userIndexes = CREATE_INDEXES.filter(indexSQL =>
+        indexSQL.includes('user_history')
+      );
+      
+      for (const indexSQL of userIndexes) {
         await this.db.execAsync(indexSQL);
       }
 
-      console.log('Database initialized successfully');
+      console.log('User tables initialized successfully');
     } catch (error) {
-      console.error('Database initialization failed:', error);
+      console.error('User tables initialization failed:', error);
       throw error;
     }
   }
 
   /**
-   * 检查数据库是否已初始化
+   * 检查数据库是否已初始化（检查静态数据表是否存在）
    */
   async isDatabaseInitialized(): Promise<boolean> {
     try {
-      const result = await this.db.getFirstAsync<{count: number}>(
-        "SELECT COUNT(*) as count FROM sqlite_master WHERE type='table' AND name='card'"
-      );
-      return (result?.count || 0) > 0;
+      // 检查静态数据表是否存在（来自预置数据库）
+      const staticTables = ['card', 'card_style', 'dimension', 'spread'];
+      
+      for (const tableName of staticTables) {
+        const result = await this.db.getFirstAsync<{count: number}>(
+          `SELECT COUNT(*) as count FROM sqlite_master WHERE type='table' AND name='${tableName}'`
+        );
+        if ((result?.count || 0) === 0) {
+          return false;
+        }
+      }
+      
+      return true;
     } catch {
       return false;
     }
   }
 
   /**
-   * 清空数据库（用于重新初始化）
+   * 清空用户数据表（保留静态数据表）
    */
-  async dropAllTables(): Promise<void> {
-    const tableNames = Object.keys(CREATE_TABLES).reverse(); // 反向删除以避免外键约束问题
+  async dropUserTables(): Promise<void> {
+    const userTables = ['user_history']; // 仅删除用户表，保留静态数据表
     
     try {
-      for (const tableName of tableNames) {
+      for (const tableName of userTables) {
         await this.db.execAsync(`DROP TABLE IF EXISTS ${tableName}`);
       }
-      console.log('All tables dropped successfully');
+      console.log('User tables dropped successfully');
     } catch (error) {
-      console.error('Failed to drop tables:', error);
+      console.error('Failed to drop user tables:', error);
       throw error;
     }
+  }
+
+  /**
+   * 清空数据库（用于重新初始化） - 已废弃，使用dropUserTables代替
+   * @deprecated Use dropUserTables() instead to preserve static data
+   */
+  async dropAllTables(): Promise<void> {
+    console.warn('dropAllTables() is deprecated. Use dropUserTables() to preserve static data.');
+    await this.dropUserTables();
   }
 
   /**

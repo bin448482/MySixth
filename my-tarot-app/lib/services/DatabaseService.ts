@@ -4,12 +4,14 @@
  */
 
 import * as SQLite from 'expo-sqlite';
+import * as FileSystem from 'expo-file-system';
+import { Asset } from 'expo-asset';
 import { DatabaseMigrations } from '../database/migrations';
 import { DATABASE_NAME } from '../database/schema';
-import type { 
-  DatabaseOperationResult, 
-  ServiceResponse, 
-  DatabaseStatus 
+import type {
+  DatabaseOperationResult,
+  ServiceResponse,
+  DatabaseStatus
 } from '../types/database';
 
 export class DatabaseService {
@@ -19,7 +21,7 @@ export class DatabaseService {
   private isInitialized: boolean = false;
 
   private constructor() {
-    this.db = SQLite.openDatabaseSync(DATABASE_NAME);
+    // Database will be opened after asset copy in initialize()
     this.migrations = new DatabaseMigrations();
   }
 
@@ -34,23 +36,24 @@ export class DatabaseService {
   }
 
   /**
-   * 初始化数据库
+   * 初始化数据库 - 复制预置数据库并打开
    */
   async initialize(): Promise<ServiceResponse<DatabaseStatus>> {
     try {
       console.log('[DatabaseService] Starting database initialization...');
       
-      const isInitialized = await this.migrations.isDatabaseInitialized();
-      console.log('[DatabaseService] Database initialized status:', isInitialized);
+      // 1. 确保预置数据库已复制到可写目录
+      await this.ensureAssetDatabaseCopied();
       
-      if (!isInitialized) {
-        console.log('[DatabaseService] Database not initialized. Creating tables...');
-        await this.migrations.initialize();
-        console.log('[DatabaseService] Tables created successfully');
-      } else {
-        console.log('[DatabaseService] Database already initialized');
+      // 2. 打开数据库连接
+      if (!this.db) {
+        this.db = SQLite.openDatabaseSync(DATABASE_NAME);
+        this.migrations = new DatabaseMigrations(this.db);
       }
-
+      
+      // 3. 确保用户表存在（仅创建用户表，不创建静态数据表）
+      await this.ensureUserTablesExist();
+      
       this.isInitialized = true;
       console.log('[DatabaseService] Database initialization completed');
       
@@ -68,6 +71,87 @@ export class DatabaseService {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error'
       };
+    }
+  }
+
+  /**
+   * 确保预置数据库已复制到可写目录
+   */
+  private async ensureAssetDatabaseCopied(): Promise<void> {
+    const dbPath = `${FileSystem.documentDirectory}SQLite/${DATABASE_NAME}`;
+    
+    try {
+      // 检查数据库文件是否已存在
+      const fileInfo = await FileSystem.getInfoAsync(dbPath);
+      
+      if (!fileInfo.exists) {
+        console.log('[DatabaseService] Copying bundled database to writable directory...');
+        
+        // 确保SQLite目录存在
+        const sqliteDir = `${FileSystem.documentDirectory}SQLite`;
+        await FileSystem.makeDirectoryAsync(sqliteDir, { intermediates: true });
+        
+        // 加载预置数据库资产
+        const asset = Asset.fromModule(require('../../assets/db/tarot_config.db'));
+        await asset.downloadAsync();
+        
+        // 复制到可写目录
+        await FileSystem.copyAsync({
+          from: asset.localUri!,
+          to: dbPath
+        });
+        
+        console.log('[DatabaseService] Bundled database copied successfully');
+      } else {
+        console.log('[DatabaseService] Database already exists in writable directory');
+      }
+    } catch (error) {
+      console.error('[DatabaseService] Failed to copy bundled database:', error);
+      throw new Error(`Failed to copy bundled database: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * 确保用户表存在（仅创建用户相关表，不创建静态数据表）
+   */
+  private async ensureUserTablesExist(): Promise<void> {
+    try {
+      // 检查user_history表是否存在
+      const result = await this.db.getFirstAsync<{count: number}>(
+        "SELECT COUNT(*) as count FROM sqlite_master WHERE type='table' AND name='user_history'"
+      );
+      
+      if ((result?.count || 0) === 0) {
+        console.log('[DatabaseService] Creating user_history table...');
+        
+        // 仅创建user_history表
+        const userHistorySQL = `
+          CREATE TABLE IF NOT EXISTS user_history (
+            id INTEGER PRIMARY KEY,
+            user_id TEXT NOT NULL,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+            spread_id INTEGER NOT NULL,
+            card_ids TEXT NOT NULL,
+            interpretation_mode TEXT NOT NULL CHECK (interpretation_mode IN ('default', 'ai')),
+            result TEXT NOT NULL,
+            FOREIGN KEY (spread_id) REFERENCES spread (id)
+          );
+        `;
+        
+        await this.db.execAsync(userHistorySQL);
+        
+        // 创建用户历史索引
+        await this.db.execAsync(
+          'CREATE INDEX IF NOT EXISTS idx_user_history_user_timestamp ON user_history (user_id, timestamp);'
+        );
+        
+        console.log('[DatabaseService] User tables created successfully');
+      } else {
+        console.log('[DatabaseService] User tables already exist');
+      }
+    } catch (error) {
+      console.error('[DatabaseService] Failed to create user tables:', error);
+      throw error;
     }
   }
 

@@ -1,114 +1,68 @@
 /**
  * 数据库种子数据填充脚本
  * Database seed data population script
+ *
+ * NOTE: Static data seeding is now disabled as data comes from bundled SQLite database.
+ * This class is kept for compatibility but will no-op for static tables.
  */
 
-import { DataImporter } from '../data/DataImporter';
+import { DatabaseService } from '../services/DatabaseService';
 import type { ServiceResponse } from '../types/database';
-import type { ImportSession } from '../data/types';
 
 export class DatabaseSeeder {
-  private dataImporter: DataImporter;
+  private dbService: DatabaseService;
 
   constructor() {
-    this.dataImporter = DataImporter.getInstance();
+    this.dbService = DatabaseService.getInstance();
   }
 
   /**
-   * 填充所有种子数据（基于JSON导入）
+   * 填充所有种子数据 - 现在为空操作，因为静态数据来自预置数据库
+   * @deprecated Static data now comes from bundled SQLite database
    */
   async seedAll(): Promise<ServiceResponse<void>> {
-    try {
-      console.log('Starting database seeding from JSON data...');
-
-      const importSession = await this.dataImporter.importAll();
-
-      if (importSession.isCompleted) {
-        const successCount = importSession.tables.filter(t => t.status === 'completed').length;
-        const errorCount = importSession.tables.filter(t => t.status === 'error').length;
-        
-        if (errorCount === 0) {
-          console.log(`Database seeding completed successfully: ${successCount}/${importSession.tables.length} tables imported`);
-          return { success: true };
-        } else {
-          const errors = importSession.tables
-            .filter(t => t.status === 'error')
-            .map(t => `${t.table}: ${t.error}`)
-            .join('; ');
-          throw new Error(`Partial seeding failure: ${errors}`);
-        }
-      } else {
-        throw new Error('Import session did not complete properly');
-      }
-
-    } catch (error) {
-      console.error('Database seeding failed:', error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown seeding error'
-      };
-    }
+    console.log('[DatabaseSeeder] Seeding skipped - static data comes from bundled database');
+    return { success: true };
   }
 
   /**
-   * 检查是否需要填充数据
+   * 检查是否需要填充数据 - 静态数据来自预置数据库，不需要填充
    */
   async needsSeeding(): Promise<boolean> {
-    try {
-      const dbService = (this.dataImporter as any).dbService; // Access private dbService
-      
-      const cardStyleResult = await dbService.queryFirst(
-        'SELECT COUNT(*) as count FROM card_style'
-      );
-      
-      const cardResult = await dbService.queryFirst(
-        'SELECT COUNT(*) as count FROM card'
-      );
-      
-      const spreadResult = await dbService.queryFirst(
-        'SELECT COUNT(*) as count FROM spread'
-      );
-
-      const dimensionResult = await dbService.queryFirst(
-        'SELECT COUNT(*) as count FROM dimension'
-      );
-
-      const cardStyleCount = cardStyleResult.success && cardStyleResult.data ? cardStyleResult.data.count : 0;
-      const cardCount = cardResult.success && cardResult.data ? cardResult.data.count : 0;
-      const spreadCount = spreadResult.success && spreadResult.data ? spreadResult.data.count : 0;
-      const dimensionCount = dimensionResult.success && dimensionResult.data ? dimensionResult.data.count : 0;
-      
-      console.log(`Seeding check - card_style: ${cardStyleCount}, card: ${cardCount}, spread: ${spreadCount}, dimension: ${dimensionCount}`);
-      
-      // 如果任何基础表为空，则需要填充数据
-      return cardStyleCount === 0 || cardCount === 0 || spreadCount === 0 || dimensionCount === 0;
-
-    } catch (error) {
-      console.error('Error checking seeding status:', error);
-      return true; // 出错时假设需要填充
-    }
+    console.log('[DatabaseSeeder] Seeding not needed - static data comes from bundled database');
+    return false; // 静态数据来自预置数据库，不需要填充
   }
 
   /**
-   * 清空所有数据（用于重新填充）
+   * 清空用户数据（保留静态数据）
    */
-  async clearAll(): Promise<ServiceResponse<void>> {
+  async clearUserData(): Promise<ServiceResponse<void>> {
     try {
-      const result = await this.dataImporter.clearAllTables();
+      // 仅清空用户数据表，保留静态数据
+      const result = await this.dbService.execute('DELETE FROM user_history');
       
       if (result.success) {
-        console.log('All data cleared successfully');
+        console.log('User data cleared successfully');
+        return { success: true };
       } else {
-        console.error('Failed to clear data:', result.error);
+        console.error('Failed to clear user data:', result.error);
+        return result;
       }
-      
-      return result;
     } catch (error) {
-      console.error('Failed to clear data:', error);
+      console.error('Failed to clear user data:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Clear failed'
       };
     }
+  }
+
+  /**
+   * 清空所有数据 - 已废弃，使用clearUserData代替
+   * @deprecated Use clearUserData() instead to preserve static data
+   */
+  async clearAll(): Promise<ServiceResponse<void>> {
+    console.warn('clearAll() is deprecated. Use clearUserData() to preserve static data.');
+    return await this.clearUserData();
   }
 }
