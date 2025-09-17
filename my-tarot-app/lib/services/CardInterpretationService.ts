@@ -139,6 +139,12 @@ export class CardInterpretationService {
     aspectType?: string
   ): Promise<ServiceResponse<CardInterpretationDimensionData>> {
     try {
+      console.log('[CardInterpretationService] getCardInterpretationForDimension called with:');
+      console.log('  - cardName:', cardName);
+      console.log('  - direction:', direction);
+      console.log('  - dimensionName:', dimensionName);
+      console.log('  - aspectType:', aspectType);
+
       let query = `
         SELECT cid.*
         FROM card_interpretation_dimension cid
@@ -154,17 +160,25 @@ export class CardInterpretationService {
         params.push(aspectType);
       }
 
+      console.log('[CardInterpretationService] SQL query:', query);
+      console.log('[CardInterpretationService] SQL params:', params);
+
       const result = await this.dbService.queryFirst<CardInterpretationDimensionData>(
         query,
         params
       );
 
+      console.log('[CardInterpretationService] Query result:', result);
+
       if (result.success && result.data) {
+        console.log('[CardInterpretationService] Found interpretation:', result.data);
         return { success: true, data: result.data };
       }
 
+      console.log('[CardInterpretationService] No interpretation found');
       return { success: false, error: result.error || 'Card dimension interpretation not found' };
     } catch (error) {
+      console.error('[CardInterpretationService] Error in getCardInterpretationForDimension:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error getting card interpretation for dimension'
