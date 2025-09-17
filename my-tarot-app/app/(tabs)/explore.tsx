@@ -10,24 +10,22 @@ import { ThemedView } from '@/components/themed-view';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Fonts } from '@/constants/theme';
 import { DatabaseService } from '@/lib/services/DatabaseService';
+import { TestDataService } from '@/lib/services/TestDataService';
+import { UserDatabaseService } from '@/lib/database/user-db';
 
 export default function TabTwoScreen() {
   const [isReloading, setIsReloading] = useState(false);
+  const [isGeneratingData, setIsGeneratingData] = useState(false);
+  const [isClearingData, setIsClearingData] = useState(false);
 
-  const reloadDimensions = async () => {
+  const checkDatabaseStatus = async () => {
     setIsReloading(true);
     try {
       const dbService = DatabaseService.getInstance();
 
-      // 初始化数据库连接
-      const initResult = await dbService.initialize();
-      if (!initResult.success) {
-        throw new Error(`Database initialization failed: ${initResult.error}`);
-      }
-
-      // 检查数据库状态
+      // 检查数据库状态（不执行初始化）
       const status = await dbService.getStatus();
-      
+
       Alert.alert(
         '数据库状态',
         `数据库已初始化: ${status.isInitialized ? '是' : '否'}\n版本: ${status.version}`,
@@ -43,6 +41,96 @@ export default function TabTwoScreen() {
     } finally {
       setIsReloading(false);
     }
+  };
+
+  const viewRecentUserData = async () => {
+    setIsGeneratingData(true);
+    try {
+      const userDbService = UserDatabaseService.getInstance();
+
+      // 使用默认的测试用户ID来查看数据
+      const testUserId = 'test_user';
+
+      // 获取最近的用户数据
+      const recentDataResult = await userDbService.getRecentUserHistory(testUserId, 7); // 最近7天
+
+      if (recentDataResult.success && recentDataResult.data) {
+        const recentData = recentDataResult.data;
+
+        if (recentData.length === 0) {
+          Alert.alert(
+            '用户数据',
+            '没有找到最近的用户数据',
+            [{ text: '确定' }]
+          );
+        } else {
+          const offlineCount = recentData.filter(item => item.interpretation_mode === 'default').length;
+          const aiCount = recentData.filter(item => item.interpretation_mode === 'ai').length;
+
+          Alert.alert(
+            '最近用户数据',
+            `找到 ${recentData.length} 条记录（最近7天）\n` +
+            `离线解读: ${offlineCount} 条\n` +
+            `AI解读: ${aiCount} 条\n\n` +
+            `最新记录时间: ${recentData[0]?.timestamp || '无'}`,
+            [{ text: '确定' }]
+          );
+        }
+      } else {
+        throw new Error(recentDataResult.error || '获取用户数据失败');
+      }
+    } catch (error) {
+      console.error('Error viewing user data:', error);
+      Alert.alert(
+        '错误',
+        `查看用户数据失败: ${error instanceof Error ? error.message : '未知错误'}`,
+        [{ text: '确定' }]
+      );
+    } finally {
+      setIsGeneratingData(false);
+    }
+  };
+
+  const clearUserData = async () => {
+    Alert.alert(
+      '确认清除',
+      '确定要清除所有用户数据吗？此操作不可恢复。',
+      [
+        { text: '取消', style: 'cancel' },
+        {
+          text: '确定',
+          style: 'destructive',
+          onPress: async () => {
+            setIsClearingData(true);
+            try {
+              const userDbService = UserDatabaseService.getInstance();
+
+              // 清除所有用户数据
+              const clearResult = await userDbService.clearAllUserData();
+
+              if (clearResult.success) {
+                Alert.alert(
+                  '清除完成',
+                  '所有用户数据已清除',
+                  [{ text: '确定' }]
+                );
+              } else {
+                throw new Error(clearResult.error || '清除用户数据失败');
+              }
+            } catch (error) {
+              console.error('Error clearing user data:', error);
+              Alert.alert(
+                '错误',
+                `清除用户数据失败: ${error instanceof Error ? error.message : '未知错误'}`,
+                [{ text: '确定' }]
+              );
+            } finally {
+              setIsClearingData(false);
+            }
+          }
+        }
+      ]
+    );
   };
 
   return (
@@ -71,11 +159,29 @@ export default function TabTwoScreen() {
         <ThemedText>管理应用数据和设置。</ThemedText>
         <TouchableOpacity
           style={styles.reloadButton}
-          onPress={reloadDimensions}
+          onPress={checkDatabaseStatus}
           disabled={isReloading}
         >
           <ThemedText style={styles.reloadButtonText}>
             {isReloading ? '正在检查...' : '检查数据库状态'}
+          </ThemedText>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.reloadButton, styles.viewDataButton]}
+          onPress={viewRecentUserData}
+          disabled={isGeneratingData}
+        >
+          <ThemedText style={styles.reloadButtonText}>
+            {isGeneratingData ? '正在查看...' : '查看最近用户数据'}
+          </ThemedText>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.reloadButton, styles.clearDataButton]}
+          onPress={clearUserData}
+          disabled={isClearingData}
+        >
+          <ThemedText style={styles.reloadButtonText}>
+            {isClearingData ? '正在清除...' : '清除用户数据'}
           </ThemedText>
         </TouchableOpacity>
       </Collapsible>
@@ -168,5 +274,13 @@ const styles = StyleSheet.create({
   reloadButtonText: {
     color: '#FFFFFF',
     fontWeight: '600',
+  },
+  viewDataButton: {
+    backgroundColor: '#34C759',
+    marginTop: 8,
+  },
+  clearDataButton: {
+    backgroundColor: '#FF3B30',
+    marginTop: 8,
   },
 });

@@ -6,3 +6,6 @@
 export * from './schema';
 export * from './migrations';
 export * from './seeder';
+export * from './connection';
+export * from './config-db';
+export * from './user-db';
