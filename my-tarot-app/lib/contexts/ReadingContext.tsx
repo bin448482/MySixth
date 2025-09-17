@@ -41,6 +41,7 @@ interface ReadingContextType {
   updateCategory: (category: string) => void;
   updateDimensions: (dimensions: DimensionData[]) => void;
   updateCards: (cards: SelectedCard[]) => void;
+  updateInterpretations: (interpretations: any[]) => void;
   resetFlow: () => void;
   saveToHistory: () => Promise<number>;
   restoreState: () => Promise<void>;
@@ -63,6 +64,7 @@ type ReadingAction =
   | { type: 'UPDATE_CATEGORY'; payload: string }
   | { type: 'UPDATE_DIMENSIONS'; payload: DimensionData[] }
   | { type: 'UPDATE_CARDS'; payload: SelectedCard[] }
+  | { type: 'UPDATE_INTERPRETATIONS'; payload: any[] }
   | { type: 'SET_LOADING'; payload: boolean }
   | { type: 'SET_ERROR'; payload: string | null }
   | { type: 'RESET_STATE' }
@@ -78,6 +80,8 @@ function readingReducer(state: ReadingFlowState, action: ReadingAction): Reading
       return { ...state, selectedCards: action.payload };
     case 'UPDATE_DIMENSIONS':
       return { ...state, dimensions: action.payload };
+    case 'UPDATE_INTERPRETATIONS':
+      return { ...state, interpretations: action.payload };
     case 'SET_LOADING':
       return { ...state, isLoading: action.payload };
     case 'SET_ERROR':
@@ -110,6 +114,10 @@ export function ReadingProvider({ children }: { children: React.ReactNode }) {
 
   const updateDimensions = useCallback((dimensions: DimensionData[]) => {
     dispatch({ type: 'UPDATE_DIMENSIONS', payload: dimensions });
+  }, []);
+
+  const updateInterpretations = useCallback((interpretations: any[]) => {
+    dispatch({ type: 'UPDATE_INTERPRETATIONS', payload: interpretations });
   }, []);
 
   const resetFlow = useCallback(() => {
@@ -167,6 +175,7 @@ export function ReadingProvider({ children }: { children: React.ReactNode }) {
     updateCategory,
     updateDimensions,
     updateCards,
+    updateInterpretations,
     resetFlow,
     saveToHistory,
     restoreState,

@@ -37,7 +37,7 @@ interface DetailedReading {
 
 export default function BasicReadingScreen() {
   const router = useRouter();
-  const { state, resetFlow, saveToHistory } = useReadingFlow();
+  const { state, resetFlow, saveToHistory, updateInterpretations } = useReadingFlow();
   const [readings, setReadings] = useState<DetailedReading[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -105,6 +105,18 @@ export default function BasicReadingScreen() {
 
       // console.log('[BasicReading] Final detailedReadings:', detailedReadings);
       setReadings(detailedReadings);
+
+      // 将解读数据同步到ReadingContext中
+      const interpretationData = detailedReadings.map(reading => ({
+        cardId: reading.card.id,
+        position: reading.card.position,
+        direction: reading.card.direction,
+        summary: reading.interpretation.summary,
+        detail: reading.interpretation.detailedContent,
+      }));
+
+      updateInterpretations(interpretationData);
+      console.log('[BasicReading] Updated interpretations in context:', interpretationData);
     } catch (error) {
       console.error('[BasicReading] Error generating detailed reading:', error);
       Alert.alert('错误', '生成解读失败，请重试');
