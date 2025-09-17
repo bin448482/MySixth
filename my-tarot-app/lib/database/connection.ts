@@ -124,34 +124,37 @@ export class DatabaseConnectionManager {
 
   /**
    * 确保配置数据库已复制到可写目录
+   * 每次启动都会重新复制以确保配置数据最新
    */
   private async ensureConfigDatabaseCopied(): Promise<void> {
     const configDbPath = `${FileSystem.documentDirectory}SQLite/${CONFIG_DATABASE_NAME}`;
 
     try {
-      // 检查配置数据库文件是否已存在
-      const fileInfo = await FileSystem.getInfoAsync(configDbPath);
+      console.log('[ConnectionManager] Force copying bundled config database on every startup...');
 
-      if (!fileInfo.exists) {
-        console.log('[ConnectionManager] Copying bundled config database...');
+      // 确保SQLite目录存在
+      const sqliteDir = `${FileSystem.documentDirectory}SQLite`;
+      await FileSystem.makeDirectoryAsync(sqliteDir, { intermediates: true });
 
-        // 确保SQLite目录存在
-        const sqliteDir = `${FileSystem.documentDirectory}SQLite`;
-        await FileSystem.makeDirectoryAsync(sqliteDir, { intermediates: true });
-
+      try {
         // 加载预置配置数据库资产
         const asset = Asset.fromModule(require('../../assets/db/tarot_config.db'));
         await asset.downloadAsync();
 
-        // 复制到可写目录
+        if (!asset.localUri) {
+          throw new Error('Failed to download config database asset');
+        }
+
+        // 每次启动都复制，覆盖现有文件
         await FileSystem.copyAsync({
-          from: asset.localUri!,
+          from: asset.localUri,
           to: configDbPath
         });
 
-        console.log('[ConnectionManager] Config database copied successfully');
-      } else {
-        console.log('[ConnectionManager] Config database already exists');
+        console.log('[ConnectionManager] Config database force copied successfully');
+      } catch (assetError) {
+        console.error('[ConnectionManager] Asset loading failed:', assetError);
+        throw new Error(`Failed to load config database asset: ${assetError instanceof Error ? assetError.message : 'Unknown error'}`);
       }
     } catch (error) {
       console.error('[ConnectionManager] Failed to copy config database:', error);
@@ -190,22 +193,28 @@ export class DatabaseConnectionManager {
    */
   private async createUserTables(): Promise<void> {
     try {
-      // 创建用户历史表
+      // 创建用户历史表 - 使用TEXT类型的UUID主键
       const userHistorySQL = `
         CREATE TABLE IF NOT EXISTS user_history (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          id TEXT PRIMARY KEY,
           user_id TEXT NOT NULL,
-          timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+          timestamp DATETIME NOT NULL,
           spread_id INTEGER NOT NULL,
-          card_ids TEXT NOT NULL, -- JSON格式
+          card_ids TEXT NOT NULL,
           interpretation_mode TEXT NOT NULL CHECK (interpretation_mode IN ('default', 'ai')),
-          result TEXT NOT NULL, -- JSON格式
+          result TEXT NOT NULL,
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
         );
       `;
 
       this.userDb.execSync(userHistorySQL);
+
+      // 验证表结构
+      const tableInfo = this.userDb.getAllSync<{name: string, type: string}>(
+        "PRAGMA table_info(user_history)"
+      );
+      console.log('[ConnectionManager] User history table structure:', tableInfo);
 
       // 创建索引
       const indexSQL = `
@@ -220,6 +229,36 @@ export class DatabaseConnectionManager {
     } catch (error) {
       console.error('[ConnectionManager] Failed to create user tables:', error);
       throw error;
+    }
+  }
+
+  /**
+   * 重新创建用户数据表（修复表结构）
+   */
+  async recreateUserTables(): Promise<ServiceResponse<void>> {
+    try {
+      console.log('[ConnectionManager] Recreating user tables with correct schema...');
+
+      if (!this.isUserInitialized) {
+        await this.initialize();
+      }
+
+      // 删除现有表
+      this.userDb.execSync('DROP TABLE IF EXISTS user_history');
+
+      // 重新创建表
+      await this.createUserTables();
+
+      console.log('[ConnectionManager] User tables recreated successfully');
+      return {
+        success: true
+      };
+    } catch (error) {
+      console.error('[ConnectionManager] Failed to recreate user tables:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to recreate tables'
+      };
     }
   }
 

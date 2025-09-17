@@ -12,11 +12,15 @@ import { Fonts } from '@/constants/theme';
 import { DatabaseService } from '@/lib/services/DatabaseService';
 import { TestDataService } from '@/lib/services/TestDataService';
 import { UserDatabaseService } from '@/lib/database/user-db';
+import { DatabaseConnectionManager } from '@/lib/database/connection';
 
 export default function TabTwoScreen() {
   const [isReloading, setIsReloading] = useState(false);
   const [isGeneratingData, setIsGeneratingData] = useState(false);
   const [isClearingData, setIsClearingData] = useState(false);
+  const [isCheckingSchema, setIsCheckingSchema] = useState(false);
+  const [isDeletingDB, setIsDeletingDB] = useState(false);
+  const [isDetectingDB, setIsDetectingDB] = useState(false);
 
   const checkDatabaseStatus = async () => {
     setIsReloading(true);
@@ -128,6 +132,132 @@ export default function TabTwoScreen() {
     );
   };
 
+  // 数据库检测功能
+  const detectDatabaseFiles = async () => {
+    setIsDetectingDB(true);
+    try {
+      const connectionManager = DatabaseConnectionManager.getInstance();
+
+      // 检查数据库状态
+      const status = await connectionManager.getStatus();
+
+      Alert.alert(
+        '数据库文件检测',
+        `连接管理器状态:\n` +
+        `• 是否已初始化: ${status.isInitialized ? '✅ 是' : '❌ 否'}\n` +
+        `• 版本: ${status.version}\n` +
+        `• 最后同步: ${status.lastSync}\n\n` +
+        `双数据库架构:\n` +
+        `• 配置数据库: tarot_config.db\n` +
+        `• 用户数据库: tarot_user_data.db`,
+        [{ text: '确定' }]
+      );
+    } catch (error) {
+      console.error('Error detecting databases:', error);
+      Alert.alert(
+        '错误',
+        `数据库检测失败: ${error instanceof Error ? error.message : '未知错误'}`,
+        [{ text: '确定' }]
+      );
+    } finally {
+      setIsDetectingDB(false);
+    }
+  };
+
+  // 数据库删除功能
+  const deleteDatabaseFiles = async () => {
+    Alert.alert(
+      '危险操作确认',
+      '⚠️ 确定要删除所有数据库文件吗？\n\n这将删除:\n• 配置数据库 (tarot_config.db)\n• 用户数据库 (tarot_user_data.db)\n\n此操作不可恢复！',
+      [
+        { text: '取消', style: 'cancel' },
+        {
+          text: '确定删除',
+          style: 'destructive',
+          onPress: async () => {
+            setIsDeletingDB(true);
+            try {
+              const connectionManager = DatabaseConnectionManager.getInstance();
+
+              // 执行完全重置
+              const resetResult = await connectionManager.fullReset();
+
+              if (resetResult.success) {
+                Alert.alert(
+                  '删除完成',
+                  '✅ 所有数据库文件已删除\n\n应用将在下次启动时重新创建数据库',
+                  [{ text: '确定' }]
+                );
+              } else {
+                throw new Error(resetResult.error || '删除数据库失败');
+              }
+            } catch (error) {
+              console.error('Error deleting databases:', error);
+              Alert.alert(
+                '错误',
+                `删除数据库失败: ${error instanceof Error ? error.message : '未知错误'}`,
+                [{ text: '确定' }]
+              );
+            } finally {
+              setIsDeletingDB(false);
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  // 表结构检测功能
+  const checkTableSchema = async () => {
+    setIsCheckingSchema(true);
+    try {
+      const connectionManager = DatabaseConnectionManager.getInstance();
+
+      // 获取用户数据库连接
+      const userDb = connectionManager.getUserDatabase();
+
+      // 检查user_history表结构
+      const tableInfo = userDb.getAllSync<{cid: number, name: string, type: string, pk: number}>(
+        "PRAGMA table_info(user_history)"
+      );
+
+      if (tableInfo.length === 0) {
+        Alert.alert(
+          '表结构检测',
+          '❌ user_history 表不存在',
+          [{ text: '确定' }]
+        );
+        return;
+      }
+
+      // 检查id字段类型
+      const idField = tableInfo.find(field => field.name === 'id');
+      const isCorrectSchema = idField && idField.type === 'TEXT' && idField.pk === 1;
+
+      const schemaDetails = tableInfo.map(field =>
+        `• ${field.name}: ${field.type}${field.pk ? ' (主键)' : ''}`
+      ).join('\n');
+
+      Alert.alert(
+        '表结构检测结果',
+        `user_history 表结构:\n${schemaDetails}\n\n` +
+        `主键类型检测: ${isCorrectSchema ? '✅ 正确 (TEXT)' : '❌ 错误 (应为TEXT)'}\n\n` +
+        `${isCorrectSchema ? '✅ 表结构符合UUID主键要求' : '⚠️ 表结构需要修复'}`,
+        [{ text: '确定' }]
+      );
+
+    } catch (error) {
+      console.error('Error checking table schema:', error);
+      Alert.alert(
+        '错误',
+        `表结构检测失败: ${error instanceof Error ? error.message : '未知错误'}`,
+        [{ text: '确定' }]
+      );
+    } finally {
+      setIsCheckingSchema(false);
+    }
+  };
+
   return (
     <ParallaxScrollView
       headerBackgroundColor={{ light: '#D0D0D0', dark: '#353636' }}
@@ -152,6 +282,8 @@ export default function TabTwoScreen() {
 
       <Collapsible title="数据管理">
         <ThemedText>管理应用数据和设置。</ThemedText>
+
+        {/* 数据库状态检查 */}
         <TouchableOpacity
           style={styles.reloadButton}
           onPress={checkDatabaseStatus}
@@ -161,6 +293,8 @@ export default function TabTwoScreen() {
             {isReloading ? '正在检查...' : '检查数据库状态'}
           </ThemedText>
         </TouchableOpacity>
+
+        {/* 用户数据统计 */}
         <TouchableOpacity
           style={[styles.reloadButton, styles.viewDataButton]}
           onPress={viewRecentUserData}
@@ -170,6 +304,8 @@ export default function TabTwoScreen() {
             {isGeneratingData ? '正在查看...' : '查看全局数据统计'}
           </ThemedText>
         </TouchableOpacity>
+
+        {/* 清除用户数据 */}
         <TouchableOpacity
           style={[styles.reloadButton, styles.clearDataButton]}
           onPress={clearUserData}
@@ -177,6 +313,39 @@ export default function TabTwoScreen() {
         >
           <ThemedText style={styles.reloadButtonText}>
             {isClearingData ? '正在清除...' : '清除用户数据'}
+          </ThemedText>
+        </TouchableOpacity>
+
+        {/* 数据库文件检测 */}
+        <TouchableOpacity
+          style={[styles.reloadButton, styles.detectDBButton]}
+          onPress={detectDatabaseFiles}
+          disabled={isDetectingDB}
+        >
+          <ThemedText style={styles.reloadButtonText}>
+            {isDetectingDB ? '正在检测...' : '🔍 检测数据库文件'}
+          </ThemedText>
+        </TouchableOpacity>
+
+        {/* 表结构检测 */}
+        <TouchableOpacity
+          style={[styles.reloadButton, styles.schemaButton]}
+          onPress={checkTableSchema}
+          disabled={isCheckingSchema}
+        >
+          <ThemedText style={styles.reloadButtonText}>
+            {isCheckingSchema ? '正在检测...' : '🔬 检测表结构'}
+          </ThemedText>
+        </TouchableOpacity>
+
+        {/* 删除数据库文件 */}
+        <TouchableOpacity
+          style={[styles.reloadButton, styles.deleteDBButton]}
+          onPress={deleteDatabaseFiles}
+          disabled={isDeletingDB}
+        >
+          <ThemedText style={styles.reloadButtonText}>
+            {isDeletingDB ? '正在删除...' : '🗑️ 删除数据库文件'}
           </ThemedText>
         </TouchableOpacity>
       </Collapsible>
@@ -276,6 +445,18 @@ const styles = StyleSheet.create({
   },
   clearDataButton: {
     backgroundColor: '#FF3B30',
+    marginTop: 8,
+  },
+  detectDBButton: {
+    backgroundColor: '#5856D6',
+    marginTop: 8,
+  },
+  schemaButton: {
+    backgroundColor: '#FF9500',
+    marginTop: 8,
+  },
+  deleteDBButton: {
+    backgroundColor: '#8E8E93',
     marginTop: 8,
   },
 });

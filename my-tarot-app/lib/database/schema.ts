@@ -81,16 +81,18 @@ export const CREATE_TABLES = {
     );
   `,
 
-  // 7. user_history 表 - 用户历史记录
+  // 7. user_history 表 - 用户历史记录（支持无限制保存，UUID主键）
   user_history: `
     CREATE TABLE IF NOT EXISTS user_history (
-      id INTEGER PRIMARY KEY,
+      id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL,
-      timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+      timestamp DATETIME NOT NULL,
       spread_id INTEGER NOT NULL,
       card_ids TEXT NOT NULL,
       interpretation_mode TEXT NOT NULL CHECK (interpretation_mode IN ('default', 'ai')),
       result TEXT NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (spread_id) REFERENCES spread (id)
     );
   `
@@ -102,5 +104,8 @@ export const CREATE_INDEXES = [
   'CREATE INDEX IF NOT EXISTS idx_card_deck ON card (deck);',
   'CREATE INDEX IF NOT EXISTS idx_dimension_category ON dimension (category);',
   'CREATE INDEX IF NOT EXISTS idx_interpretation_card_direction ON card_interpretation (card_id, direction);',
-  'CREATE INDEX IF NOT EXISTS idx_user_history_user_timestamp ON user_history (user_id, timestamp);'
+  'CREATE INDEX IF NOT EXISTS idx_user_history_user_timestamp ON user_history (user_id, timestamp DESC);',
+  'CREATE INDEX IF NOT EXISTS idx_user_history_mode ON user_history (interpretation_mode);',
+  'CREATE INDEX IF NOT EXISTS idx_user_history_spread ON user_history (spread_id);',
+  'CREATE INDEX IF NOT EXISTS idx_user_history_created_at ON user_history (created_at DESC);'
 ];

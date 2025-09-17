@@ -23,8 +23,9 @@ MySixth/
 ### 核心功能
 - 匿名用户支持（无需注册）
 - 神秘塔罗风格首页设计
-- 完整占卜流程（4个步骤）
+- 完整占卜流程（5个步骤）
 - 静态基础解读 + 付费LLM动态解读
+- 完整的占卜历史记录功能
 - 离线同步机制
 - 跨平台支持（Android/iOS）
 
@@ -252,17 +253,23 @@ const getFontFamily = (locale: string) => {
 | card_count    | INTEGER        | 牌阵所需卡牌数量               |
 
 #### 7. `user_history` 表 - 用户历史记录
-记录用户的占卜历史。
+记录用户的占卜历史，支持无限制保存。
 
 | 字段名              | 类型           | 描述                           |
 |---------------------|----------------|--------------------------------|
-| id                  | INTEGER (PK)   | 记录唯一标识                   |
+| id                  | TEXT (PK)      | 记录唯一标识（UUID）           |
 | user_id             | TEXT           | 用户ID（可匿名）               |
 | timestamp           | DATETIME       | 记录时间                       |
 | spread_id           | INTEGER (FK)   | 使用的牌阵ID                   |
 | card_ids            | TEXT (JSON)    | 抽到的卡牌ID数组               |
 | interpretation_mode | TEXT           | 解读方式（default/ai）         |
-| result              | TEXT (JSON)    | 解读结果（结构可自定义）       |
+| result              | TEXT (JSON)    | 解读结果（结构化JSON）         |
+
+**存储策略**：
+- 无限制保存所有历史记录
+- 读取时默认显示最新100条记录
+- 支持分页加载更多历史记录
+- 本地SQLite存储，不参与云端同步
 
 ## 🔌 API 设计规范
 
@@ -277,6 +284,15 @@ const getFontFamily = (locale: string) => {
 | GET  | `/readings/{id}`     | 获取历史解读结果              |
 | POST | `/payments/checkout` | 创建 Stripe Checkout 会话 |
 | POST | `/webhooks/stripe`   | Stripe 支付回调           |
+
+### 历史记录API
+
+| 方法   | 路径                   | 说明                    |
+| ---- | -------------------- | --------------------- |
+| GET  | `/history`           | 获取历史记录列表（分页，默认100条） |
+| GET  | `/history/{id}`      | 获取单条历史记录详情          |
+| POST | `/history`           | 保存新的历史记录              |
+| DELETE | `/history/{id}`    | 删除指定历史记录              |
 
 ### 离线同步API
 
@@ -420,6 +436,12 @@ components/
 │   ├── AnimatedButton.tsx  # 动画按钮
 │   ├── GlassCard.tsx       # 玻璃卡片效果
 │   └── ParticleBackground.tsx # 粒子背景
+├── history/                # 历史记录组件
+│   ├── HistoryList.tsx     # 历史记录列表
+│   ├── HistoryDetail.tsx   # 历史记录详情
+│   ├── HistoryListItem.tsx # 历史记录列表项
+│   ├── HistoryFilterBar.tsx # 筛选工具栏
+│   └── styles.ts           # 历史页面样式
 └── reading/                # 占卜流程组件
     ├── TypeSelector.tsx    # 占卜类型选择器
     ├── CategorySelector.tsx # 类别选择器
@@ -469,23 +491,21 @@ app/
 4. 基础解读页面（牌意展示）
 5. 深度解读页面（系统分析）
 
-### 第三阶段 - 功能完善
+### 第三阶段 - 历史记录功能
+1. 历史记录数据模型设计
+2. 本地SQLite存储实现
+3. 历史记录组件开发
+4. 分页加载和筛选功能
+5. 历史记录详情页面
+
+### 第四阶段 - 后端集成
 1. 数据库设计和初始数据
 2. 基础 FastAPI 后端 API
 3. 离线同步机制
 4. 付费 LLM 解读集成
 5. Stripe 支付集成
-6. 用户历史记录
 
-### 第三阶段 - 功能完善
-1. 数据库设计和初始数据
-2. 基础 FastAPI 后端 API
-3. 离线同步机制
-4. 付费 LLM 解读集成
-5. Stripe 支付集成
-6. 用户历史记录
-
-### 第四阶段 - 优化迭代
+### 第五阶段 - 优化迭代
 1. 性能优化和缓存
 2. UI/UX 优化
 3. 更多牌阵和解读维度

@@ -144,20 +144,16 @@ export class ReadingService implements IReadingService {
   /**
    * 保存占卜结果到用户历史记录
    */
-  async saveReadingResult(sessionId: string, result: ReadingResult): Promise<number> {
+  async saveReadingResult(sessionId: string, result: ReadingResult): Promise<string> {
     try {
       // 将ReadingResult转换为UserHistory格式
       const userHistory = this.convertReadingResultToUserHistory(result);
 
       // 保存到数据库
-      const saveResponse = await this.userDbService.saveUserHistory(userHistory);
+      const savedId = await this.userDbService.saveUserHistory(userHistory);
 
-      if (!saveResponse.success) {
-        throw new Error(saveResponse.error || '保存记录失败');
-      }
-
-      // console.log(`用户记录已保存，ID: ${saveResponse.data}`);
-      return saveResponse.data;
+      // console.log(`用户记录已保存，ID: ${savedId}`);
+      return savedId;
     } catch (error) {
       // console.error('保存用户记录失败:', error);
       throw error;
@@ -207,7 +203,7 @@ export class ReadingService implements IReadingService {
   /**
    * 通过ReadingFlowState保存记录（用于ReadingContext集成）
    */
-  async saveReadingFromState(state: ReadingFlowState, userId: string = 'anonymous'): Promise<ServiceResponse<number>> {
+  async saveReadingFromState(state: ReadingFlowState, userId: string = 'anonymous_user'): Promise<ServiceResponse<string>> {
     try {
       // 如果没有完整的解读结果，构建一个基础的
       if (!state.readingResult) {

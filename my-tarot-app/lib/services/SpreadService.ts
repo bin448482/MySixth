@@ -3,18 +3,18 @@
  * Spread business logic service
  */
 
-import { DatabaseService } from './DatabaseService';
-import type { 
-  Spread, 
-  ServiceResponse 
+import { ConfigDatabaseService } from '../database/config-db';
+import type {
+  Spread,
+  ServiceResponse
 } from '../types/database';
 
 export class SpreadService {
   private static instance: SpreadService;
-  private dbService: DatabaseService;
+  private dbService: ConfigDatabaseService;
 
   private constructor() {
-    this.dbService = DatabaseService.getInstance();
+    this.dbService = ConfigDatabaseService.getInstance();
   }
 
   public static getInstance(): SpreadService {
@@ -126,29 +126,11 @@ export class SpreadService {
    * 删除牌阵（预留接口）
    */
   async deleteSpread(id: number): Promise<ServiceResponse<void>> {
-    // 先检查是否有用户历史使用了这个牌阵
-    const historyCheck = await this.dbService.queryFirst<{count: number}>(
-      'SELECT COUNT(*) as count FROM user_history WHERE spread_id = ?',
-      [id]
-    );
-
-    if (historyCheck.success && historyCheck.data && historyCheck.data.count > 0) {
-      return {
-        success: false,
-        error: 'Cannot delete spread that has been used in user history'
-      };
-    }
-
-    const sql = 'DELETE FROM spread WHERE id = ?';
-    const result = await this.dbService.execute(sql, [id]);
-    
-    if (result.success) {
-      return { success: true };
-    }
-    
+    // TODO: 实现牌阵删除逻辑
+    // 注意：需要与 UserDatabaseService 协调检查用户历史记录
     return {
       success: false,
-      error: result.error || 'Failed to delete spread'
+      error: 'Spread deletion not implemented yet'
     };
   }
 }

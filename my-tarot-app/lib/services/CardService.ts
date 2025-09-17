@@ -3,7 +3,7 @@
  * Card business logic service
  */
 
-import { DatabaseService } from './DatabaseService';
+import { ConfigDatabaseService } from '../database/config-db';
 import type {
   Card,
   CardStyle,
@@ -32,10 +32,10 @@ export interface CardStyleData {
 
 export class CardService {
   private static instance: CardService;
-  private dbService: DatabaseService;
+  private dbService: ConfigDatabaseService;
 
   private constructor() {
-    this.dbService = DatabaseService.getInstance();
+    this.dbService = ConfigDatabaseService.getInstance();
   }
 
   public static getInstance(): CardService {
@@ -84,7 +84,7 @@ export class CardService {
     if (options.limit) {
       sql += ' LIMIT ?';
       params.push(options.limit);
-      
+
       if (options.offset) {
         sql += ' OFFSET ?';
         params.push(options.offset);

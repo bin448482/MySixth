@@ -11,9 +11,9 @@ import type { Card, Spread, Dimension } from './config';
 
 // UserHistory - 用户历史记录（对应数据库表）
 export interface UserHistory {
-  id?: number;
+  id: string; // UUID 作为主键，确保唯一性
   user_id: string;
-  timestamp?: string;
+  timestamp: string; // ISO 时间字符串
   spread_id: number;
   card_ids: string; // JSON string in database
   interpretation_mode: 'default' | 'ai';
@@ -140,6 +140,24 @@ export interface HistoryQuery extends UserQueryOptions {
   spread_id?: number;
 }
 
+// 历史记录筛选条件
+export interface HistoryFilter {
+  mode?: 'all' | 'default' | 'ai';
+  dateRange?: {
+    start: string;
+    end: string;
+  };
+  spreadId?: number;
+}
+
+// 分页查询参数
+export interface HistoryPaginationQuery {
+  limit: number; // 默认 100
+  offset: number; // 默认 0
+  orderBy?: string; // 默认 'timestamp'
+  orderDirection?: 'ASC' | 'DESC'; // 默认 'DESC'
+}
+
 // 历史统计查询
 export interface HistoryStatsQuery {
   user_id: string;
@@ -184,16 +202,37 @@ export interface PeriodStats {
 
 // 用户历史服务接口
 export interface IHistoryService {
-  saveUserHistory(history: Omit<UserHistory, 'id' | 'created_at' | 'updated_at'>): Promise<number>;
-  getUserHistory(userId: string, limit?: number, offset?: number): Promise<ParsedUserHistory[]>;
-  getUserHistoryById(id: number): Promise<ParsedUserHistory | null>;
-  getUserHistoryCount(userId: string): Promise<number>;
-  deleteUserHistory(id: number): Promise<boolean>;
+  // 保存历史记录（无限制保存）
+  saveUserHistory(history: Omit<UserHistory, 'created_at' | 'updated_at'>): Promise<string>; // 返回 UUID
+
+  // 获取历史记录列表（默认最新100条）
+  getUserHistory(userId: string, pagination?: HistoryPaginationQuery, filter?: HistoryFilter): Promise<ParsedUserHistory[]>;
+
+  // 获取历史记录总数
+  getUserHistoryCount(userId: string, filter?: HistoryFilter): Promise<number>;
+
+  // 获取单条历史记录
+  getUserHistoryById(id: string): Promise<ParsedUserHistory | null>;
+
+  // 删除历史记录
+  deleteUserHistory(id: string): Promise<boolean>;
+
+  // 删除用户所有历史记录
   deleteAllUserHistory(userId: string): Promise<number>;
-  updateUserHistory(id: number, updates: Partial<UserHistory>): Promise<boolean>;
+
+  // 更新历史记录
+  updateUserHistory(id: string, updates: Partial<UserHistory>): Promise<boolean>;
+
+  // 获取最近历史记录
   getRecentUserHistory(userId: string, days?: number): Promise<ParsedUserHistory[]>;
+
+  // 按日期范围查询历史记录
   getUserHistoryByDateRange(userId: string, startDate: string, endDate: string): Promise<ParsedUserHistory[]>;
+
+  // 获取牌阵使用统计
   getUserSpreadStats(userId: string): Promise<SpreadUsageStats[]>;
+
+  // 获取用户历史统计
   getUserHistoryStats(userId: string): Promise<UserHistoryStats>;
 }
 
@@ -203,7 +242,7 @@ export interface IReadingService {
   drawCards(sessionId: string, spreadId: number): Promise<CardDraw[]>;
   getBasicInterpretation(sessionId: string, cards: CardDraw[]): Promise<CardInterpretationData[]>;
   getAiInterpretation(sessionId: string, cards: CardDraw[], category: string): Promise<CardInterpretationData[]>;
-  saveReadingResult(sessionId: string, result: ReadingResult): Promise<number>;
+  saveReadingResult(sessionId: string, result: ReadingResult): Promise<string>; // 修改返回值为string (UUID)
   getReadingSession(sessionId: string): Promise<ReadingFlowState | null>;
   completeReading(sessionId: string): Promise<ReadingResult>;
 }
