@@ -364,4 +364,61 @@ export class UserDatabaseService {
   async executeTransaction(callback: () => void): Promise<ServiceResponse<void>> {
     return await this.connectionManager.userTransaction(callback);
   }
+
+  /**
+   * 获取全局用户数据统计
+   */
+  async getAllUserDataStats(): Promise<ServiceResponse<{
+    totalRecords: number;
+    totalUsers: number;
+    offlineRecords: number;
+    aiRecords: number;
+    latestRecord: string | null;
+  }>> {
+    try {
+      // 获取总记录数
+      const totalResult = await this.connectionManager.queryUserFirst<{count: number}>(
+        'SELECT COUNT(*) as count FROM user_history'
+      );
+
+      // 获取用户数量
+      const usersResult = await this.connectionManager.queryUserFirst<{count: number}>(
+        'SELECT COUNT(DISTINCT user_id) as count FROM user_history'
+      );
+
+      // 获取离线记录数
+      const offlineResult = await this.connectionManager.queryUserFirst<{count: number}>(
+        "SELECT COUNT(*) as count FROM user_history WHERE interpretation_mode = 'default'"
+      );
+
+      // 获取AI记录数
+      const aiResult = await this.connectionManager.queryUserFirst<{count: number}>(
+        "SELECT COUNT(*) as count FROM user_history WHERE interpretation_mode = 'ai'"
+      );
+
+      // 获取最新记录时间
+      const latestResult = await this.connectionManager.queryUserFirst<{timestamp: string}>(
+        'SELECT timestamp FROM user_history ORDER BY timestamp DESC LIMIT 1'
+      );
+
+      const stats = {
+        totalRecords: totalResult.success ? totalResult.data?.count || 0 : 0,
+        totalUsers: usersResult.success ? usersResult.data?.count || 0 : 0,
+        offlineRecords: offlineResult.success ? offlineResult.data?.count || 0 : 0,
+        aiRecords: aiResult.success ? aiResult.data?.count || 0 : 0,
+        latestRecord: latestResult.success ? latestResult.data?.timestamp || null : null
+      };
+
+      return {
+        success: true,
+        data: stats
+      };
+    } catch (error) {
+      console.error('Error getting global user data stats:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
+    }
+  }
 }

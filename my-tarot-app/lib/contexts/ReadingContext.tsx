@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { ReadingService } from '../services/ReadingService';
 
 export interface SelectedCard {
   cardId: number;
@@ -41,7 +42,7 @@ interface ReadingContextType {
   updateDimensions: (dimensions: DimensionData[]) => void;
   updateCards: (cards: SelectedCard[]) => void;
   resetFlow: () => void;
-  saveToHistory: () => Promise<void>;
+  saveToHistory: () => Promise<number>;
   restoreState: () => Promise<void>;
 }
 
@@ -117,8 +118,25 @@ export function ReadingProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const saveToHistory = useCallback(async () => {
-    // 实现保存到历史记录的逻辑
-    console.log('Saving reading to history:', state);
+    try {
+      console.log('开始保存占卜记录到历史...');
+
+      const readingService = ReadingService.getInstance();
+      const result = await readingService.saveReadingFromState(state);
+
+      if (result.success) {
+        console.log('占卜记录保存成功，ID:', result.data);
+        return result.data; // 返回保存的记录ID
+      } else {
+        const errorMessage = result.error || '保存失败，原因未知';
+        console.error('保存占卜记录失败:', errorMessage);
+        throw new Error(errorMessage);
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : '保存占卜记录时出现未知错误';
+      console.error('保存占卜记录时出错:', errorMessage);
+      throw new Error(errorMessage);
+    }
   }, [state]);
 
   const restoreState = useCallback(async () => {

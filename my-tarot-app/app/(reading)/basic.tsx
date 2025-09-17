@@ -116,15 +116,16 @@ export default function BasicReadingScreen() {
   const handleSaveToHistory = async () => {
     try {
       setSaving(true);
-      await saveToHistory();
+      const savedId = await saveToHistory();
       Alert.alert(
         '保存成功',
-        '占卜记录已保存到历史记录',
+        `占卜记录已保存到历史记录 (ID: ${savedId})`,
         [{ text: '了解', onPress: handleComplete }]
       );
     } catch (error) {
       console.error('Error saving to history:', error);
-      Alert.alert('错误', '保存记录失败，请重试');
+      const errorMessage = error instanceof Error ? error.message : '保存记录失败，请重试';
+      Alert.alert('错误', errorMessage);
     } finally {
       setSaving(false);
     }

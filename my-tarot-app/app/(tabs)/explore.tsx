@@ -48,36 +48,31 @@ export default function TabTwoScreen() {
     try {
       const userDbService = UserDatabaseService.getInstance();
 
-      // 使用默认的测试用户ID来查看数据
-      const testUserId = 'test_user';
+      // 获取全局统计数据
+      const globalStatsResult = await userDbService.getAllUserDataStats();
 
-      // 获取最近的用户数据
-      const recentDataResult = await userDbService.getRecentUserHistory(testUserId, 7); // 最近7天
+      if (globalStatsResult.success && globalStatsResult.data) {
+        const stats = globalStatsResult.data;
 
-      if (recentDataResult.success && recentDataResult.data) {
-        const recentData = recentDataResult.data;
-
-        if (recentData.length === 0) {
+        if (stats.totalRecords === 0) {
           Alert.alert(
             '用户数据',
-            '没有找到最近的用户数据',
+            '数据库中没有任何用户记录',
             [{ text: '确定' }]
           );
         } else {
-          const offlineCount = recentData.filter(item => item.interpretation_mode === 'default').length;
-          const aiCount = recentData.filter(item => item.interpretation_mode === 'ai').length;
-
           Alert.alert(
-            '最近用户数据',
-            `找到 ${recentData.length} 条记录（最近7天）\n` +
-            `离线解读: ${offlineCount} 条\n` +
-            `AI解读: ${aiCount} 条\n\n` +
-            `最新记录时间: ${recentData[0]?.timestamp || '无'}`,
+            '全局用户数据统计',
+            `📊 总记录数: ${stats.totalRecords} 条\n` +
+            `👥 总用户数: ${stats.totalUsers} 个\n` +
+            `🔹 离线解读: ${stats.offlineRecords} 条\n` +
+            `🤖 AI解读: ${stats.aiRecords} 条\n\n` +
+            `⏰ 最新记录: ${stats.latestRecord || '无'}`,
             [{ text: '确定' }]
           );
         }
       } else {
-        throw new Error(recentDataResult.error || '获取用户数据失败');
+        throw new Error(globalStatsResult.error || '获取用户数据失败');
       }
     } catch (error) {
       console.error('Error viewing user data:', error);
@@ -172,7 +167,7 @@ export default function TabTwoScreen() {
           disabled={isGeneratingData}
         >
           <ThemedText style={styles.reloadButtonText}>
-            {isGeneratingData ? '正在查看...' : '查看最近用户数据'}
+            {isGeneratingData ? '正在查看...' : '查看全局数据统计'}
           </ThemedText>
         </TouchableOpacity>
         <TouchableOpacity
