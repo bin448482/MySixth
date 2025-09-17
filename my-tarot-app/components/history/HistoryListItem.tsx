@@ -114,12 +114,10 @@ export const HistoryListItem: React.FC<HistoryListItemProps> = ({
             </View>
           </View>
 
-          {/* 解读预览 */}
+          {/* 主题预览 */}
           <View style={styles.preview}>
             <Text style={styles.previewText} numberOfLines={2}>
-              {history.result?.interpretation?.overall ||
-               history.result?.interpretation?.cards?.[0]?.summary ||
-               '查看完整解读...'}
+              {history.result?.metadata?.theme || '查看完整解读...'}
             </Text>
           </View>
 

@@ -1,17 +1,16 @@
 import React, { useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
   Modal,
   ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import Animated, {
-  useSharedValue,
   useAnimatedStyle,
-  withTiming,
-  withSpring,
+  useSharedValue,
+  withSpring
 } from 'react-native-reanimated';
 import type { HistoryFilter } from '../../lib/types/user';
 
@@ -43,7 +42,6 @@ export const HistoryFilterBar: React.FC<HistoryFilterBarProps> = ({
     { value: 'today', label: '今天', icon: '📍' },
     { value: 'week', label: '本周', icon: '📊' },
     { value: 'month', label: '本月', icon: '📈' },
-    { value: 'custom', label: '自定义', icon: '⚙️' },
   ];
 
   // 获取当前模式显示文本
@@ -99,9 +97,6 @@ export const HistoryFilterBar: React.FC<HistoryFilterBarProps> = ({
           start: monthStart.toISOString(),
           end: monthNow.toISOString(),
         };
-        break;
-      case 'custom':
-        // TODO: 实现自定义日期选择器
         break;
     }
 

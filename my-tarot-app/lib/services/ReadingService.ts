@@ -228,6 +228,11 @@ export class ReadingService implements IReadingService {
           isReversed: selectedCard.direction === 'reversed'
         }));
 
+        // 获取主题信息（从第一个维度的description）
+        const theme = state.selectedCards.length > 0 && state.selectedCards[0].dimension
+          ? state.selectedCards[0].dimension.description
+          : state.category;
+
         const readingResult: ReadingResult = {
           spread: mockSpread,
           cards: cardDraws,
@@ -237,7 +242,8 @@ export class ReadingService implements IReadingService {
           metadata: {
             created_at: state.createdAt.toISOString(),
             interpretation_mode: state.type === 'offline' ? 'default' : 'ai',
-            user_id: userId
+            user_id: userId,
+            theme: theme // 使用 dimension.description 作为主题
           }
         };
 

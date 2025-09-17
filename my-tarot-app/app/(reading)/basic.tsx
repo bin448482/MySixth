@@ -109,6 +109,7 @@ export default function BasicReadingScreen() {
       // 将解读数据同步到ReadingContext中
       const interpretationData = detailedReadings.map(reading => ({
         cardId: reading.card.id,
+        cardName: reading.card.name, // 添加牌名
         position: reading.card.position,
         direction: reading.card.direction,
         summary: reading.interpretation.summary,

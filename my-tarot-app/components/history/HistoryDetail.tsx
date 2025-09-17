@@ -147,7 +147,9 @@ export const HistoryDetail: React.FC<HistoryDetailProps> = ({
             <Text style={styles.expandIcon}>{isExpanded ? '▼' : '▶'}</Text>
           </View>
 
-          <Text style={styles.cardSummary}>{cardData.summary}</Text>
+          <Text style={styles.cardSummary}>
+            {cardData.cardName ? `${cardData.cardName} - ${cardData.summary}` : cardData.summary}
+          </Text>
 
           {isExpanded && (
             <Animated.View entering={SlideInRight.duration(300)}>

@@ -58,6 +58,7 @@ export interface DimensionInterpretation {
 // 单张卡牌的解读数据
 export interface CardInterpretationData {
   cardId: number;
+  cardName?: string; // 添加牌名字段
   position: number;
   direction: 'upright' | 'reversed';
   summary: string;
@@ -78,6 +79,7 @@ export interface ReadingResult {
     created_at: string;
     interpretation_mode: 'default' | 'ai';
     user_id: string;
+    theme?: string; // 占卜主题 (dimension.description)
   };
 }
 
