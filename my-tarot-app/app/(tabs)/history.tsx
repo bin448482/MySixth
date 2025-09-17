@@ -43,6 +43,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#0f0f1a',
+    paddingTop: 60, // 为顶部状态栏和时间留出空间
   },
   historyList: {
     flex: 1,

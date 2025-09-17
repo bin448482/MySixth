@@ -227,8 +227,12 @@ const styles = StyleSheet.create({
   container: {
     backgroundColor: '#1a1a2e',
     paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#2a2a3e',
+    marginTop: 8,
+    marginHorizontal: 16,
+    marginBottom: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#2a2a3e',
   },
   filterBar: {
     paddingHorizontal: 16,
