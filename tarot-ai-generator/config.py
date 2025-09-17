@@ -14,9 +14,10 @@ class Config:
     OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
     OPENAI_BASE_URL = os.getenv('OPENAI_BASE_URL', 'https://api.openai.com/v1')
     
-    # 数据文件路径
-    CARD_INTERPRETATIONS_PATH = os.getenv('CARD_INTERPRETATIONS_PATH', '../my-tarot-app/assets/data/card_interpretations.json')
-    DIMENSIONS_PATH = os.getenv('DIMENSIONS_PATH', '../my-tarot-app/assets/data/dimensions.json')
+    # 数据文件路径 - 使用绝对路径确保无论从哪个目录运行都能正确加载文件
+    PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
+    CARD_INTERPRETATIONS_PATH = os.getenv('CARD_INTERPRETATIONS_PATH', os.path.join(PROJECT_ROOT, 'data/config_jsons/card_interpretations.json'))
+    DIMENSIONS_PATH = os.getenv('DIMENSIONS_PATH', os.path.join(PROJECT_ROOT, 'data/config_jsons/dimensions.json'))
     
     # 输出配置
     OUTPUT_PATH = os.getenv('OUTPUT_PATH', './output/card_interpretation_dimensions.json')
