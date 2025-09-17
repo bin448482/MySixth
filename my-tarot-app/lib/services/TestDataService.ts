@@ -125,7 +125,7 @@ export class TestDataService {
       };
 
     } catch (error) {
-      console.error('Error generating test user data:', error);
+      // console.error('Error generating test user data:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error'
@@ -325,7 +325,7 @@ export class TestDataService {
         }
       }
     } catch (error) {
-      console.error('Error clearing test user data:', error);
+      // console.error('Error clearing test user data:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error'
@@ -378,7 +378,7 @@ export class TestDataService {
         };
       }
     } catch (error) {
-      console.error('Error getting test data stats:', error);
+      // console.error('Error getting test data stats:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error'

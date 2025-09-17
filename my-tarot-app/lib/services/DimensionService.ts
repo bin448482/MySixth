@@ -75,23 +75,23 @@ export class DimensionService {
    */
   async getAllDimensions(): Promise<ServiceResponse<DimensionData[]>> {
     try {
-      console.log('[DimensionService] Querying all dimensions from database...');
+      // console.log('[DimensionService] Querying all dimensions from database...');
       
       const result = await this.dbService.query<DimensionData>(
         'SELECT * FROM dimension ORDER BY category, aspect_type ASC'
       );
 
-      console.log('[DimensionService] Database query result:', result);
+      // console.log('[DimensionService] Database query result:', result);
 
       if (result.success && result.data) {
-        console.log(`[DimensionService] Successfully retrieved ${result.data.length} dimensions from database`);
+        // console.log(`[DimensionService] Successfully retrieved ${result.data.length} dimensions from database`);
         return { success: true, data: result.data };
       }
 
-      console.log('[DimensionService] Database query failed or returned no data:', result.error);
+      // console.log('[DimensionService] Database query failed or returned no data:', result.error);
       return { success: false, error: result.error || 'Failed to get all dimensions' };
     } catch (error) {
-      console.error('[DimensionService] Error in getAllDimensions:', error);
+      // console.error('[DimensionService] Error in getAllDimensions:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error getting dimensions'

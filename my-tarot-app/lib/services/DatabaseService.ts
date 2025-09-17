@@ -40,7 +40,7 @@ export class DatabaseService {
    */
   async initialize(): Promise<ServiceResponse<DatabaseStatus>> {
     try {
-      console.log('[DatabaseService] Starting database initialization...');
+      // console.log('[DatabaseService] Starting database initialization...');
       
       // 1. 确保预置数据库已复制到可写目录
       await this.ensureAssetDatabaseCopied();
@@ -48,7 +48,7 @@ export class DatabaseService {
       // 2. 打开数据库连接
       if (!this.db) {
         const dbPath = `${FileSystem.documentDirectory}SQLite/${DATABASE_NAME}`;
-        console.log(`[DatabaseService] Opening database at: ${dbPath}`);
+        // console.log(`[DatabaseService] Opening database at: ${dbPath}`);
         this.db = SQLite.openDatabaseSync(dbPath);
         this.migrations = new DatabaseMigrations(this.db);
       }
@@ -57,7 +57,7 @@ export class DatabaseService {
       await this.ensureUserTablesExist();
       
       this.isInitialized = true;
-      console.log('[DatabaseService] Database initialization completed');
+      // console.log('[DatabaseService] Database initialization completed');
       
       return {
         success: true,
@@ -87,7 +87,7 @@ export class DatabaseService {
       const fileInfo = await FileSystem.getInfoAsync(dbPath);
       
       if (!fileInfo.exists) {
-        console.log('[DatabaseService] Copying bundled database to writable directory...');
+        // console.log('[DatabaseService] Copying bundled database to writable directory...');
         
         // 确保SQLite目录存在
         const sqliteDir = `${FileSystem.documentDirectory}SQLite`;
@@ -103,9 +103,9 @@ export class DatabaseService {
           to: dbPath
         });
         
-        console.log('[DatabaseService] Bundled database copied successfully');
+        // console.log('[DatabaseService] Bundled database copied successfully');
       } else {
-        console.log('[DatabaseService] Database already exists in writable directory');
+        // console.log('[DatabaseService] Database already exists in writable directory');
       }
     } catch (error) {
       console.error('[DatabaseService] Failed to copy bundled database:', error);
@@ -124,7 +124,7 @@ export class DatabaseService {
       );
       
       if ((result?.count || 0) === 0) {
-        console.log('[DatabaseService] Creating user_history table...');
+        // console.log('[DatabaseService] Creating user_history table...');
         
         // 仅创建user_history表
         const userHistorySQL = `
@@ -147,9 +147,9 @@ export class DatabaseService {
           'CREATE INDEX IF NOT EXISTS idx_user_history_user_timestamp ON user_history (user_id, timestamp);'
         );
         
-        console.log('[DatabaseService] User tables created successfully');
+        // console.log('[DatabaseService] User tables created successfully');
       } else {
-        console.log('[DatabaseService] User tables already exist');
+        // console.log('[DatabaseService] User tables already exist');
       }
     } catch (error) {
       console.error('[DatabaseService] Failed to create user tables:', error);

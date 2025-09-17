@@ -107,7 +107,7 @@ export class ReadingService implements IReadingService {
 
       return drawnCards;
     } catch (error) {
-      console.error('Error drawing cards:', error);
+      // console.error('Error drawing cards:', error);
       throw error;
     }
   }
@@ -156,10 +156,10 @@ export class ReadingService implements IReadingService {
         throw new Error(saveResponse.error || '保存记录失败');
       }
 
-      console.log(`用户记录已保存，ID: ${saveResponse.data}`);
+      // console.log(`用户记录已保存，ID: ${saveResponse.data}`);
       return saveResponse.data;
     } catch (error) {
-      console.error('保存用户记录失败:', error);
+      // console.error('保存用户记录失败:', error);
       throw error;
     }
   }
@@ -258,7 +258,7 @@ export class ReadingService implements IReadingService {
         };
       }
     } catch (error) {
-      console.error('保存占卜记录失败:', error);
+      // console.error('保存占卜记录失败:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : '保存失败'
