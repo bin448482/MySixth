@@ -39,11 +39,11 @@ export default function CategorySelectionScreen() {
     try {
       setLoading(true);
       const res = await dimensionService.getAllDimensions();
-      console.log('[Category] getAllDimensions result:', res);
+      // console.log('[Category] getAllDimensions result:', res);
       let dims: any[] = [];
       if (res && res.success && res.data && res.data.length > 0) {
         dims = res.data;
-        console.log('[Category] Using database data, count:', dims.length);
+        // console.log('[Category] Using database data, count:', dims.length);
       }
       // else {
       //   console.log('[Category] Database empty or failed, loading from JSON file');
@@ -53,7 +53,7 @@ export default function CategorySelectionScreen() {
       //   console.log('[Category] First JSON item:', dims[0]);
       // }
 
-      console.log('[Category] Total dimensions loaded:', dims.length);
+      // console.log('[Category] Total dimensions loaded:', dims.length);
       if (dims.length === 0) {
         console.warn('[Category] No dimensions data found!');
         setGroups([]);
@@ -63,7 +63,7 @@ export default function CategorySelectionScreen() {
       // group by category + description (fix: use description as key instead of non-existent id)
       const map = new Map<string, GroupItem>();
       for (const d of dims) {
-        console.log('[Category] Processing dimension:', d);
+        // console.log('[Category] Processing dimension:', d);
         // Fix: use description as the grouping key since id doesn't exist in JSON
         const key = `${d.category}-${d.description}`;
         if (!map.has(key)) {
@@ -82,7 +82,7 @@ export default function CategorySelectionScreen() {
         }
       }
 
-      console.log('[Category] Groups created:', map.size);
+      // console.log('[Category] Groups created:', map.size);
 
       // normalize: ensure each group's dimensions sorted by aspect_type
       const result: GroupItem[] = [];
@@ -91,10 +91,10 @@ export default function CategorySelectionScreen() {
         // Generate displayName from aspects sorted by aspect_type
         g.displayName = g.dimensions.map(d => d.aspect).join(' - ');
         result.push(g);
-        console.log('[Category] Group added:', g.id, 'with', g.dimensions.length, 'dimensions');
+        // console.log('[Category] Group added:', g.id, 'with', g.dimensions.length, 'dimensions');
       }
 
-      console.log('[Category] Final result count:', result.length);
+      // console.log('[Category] Final result count:', result.length);
       setGroups(result);
     } catch (error) {
       console.error('[Category] loadDimensions error', error);

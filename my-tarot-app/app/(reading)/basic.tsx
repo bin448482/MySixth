@@ -54,20 +54,20 @@ export default function BasicReadingScreen() {
       setLoading(true);
       const detailedReadings: DetailedReading[] = [];
 
-      console.log('[BasicReading] Starting generateDetailedReading');
-      console.log('[BasicReading] state.selectedCards:', state.selectedCards);
+      // console.log('[BasicReading] Starting generateDetailedReading');
+      // console.log('[BasicReading] state.selectedCards:', state.selectedCards);
 
       // 按 aspect_type 排序选择的卡牌 (1=过去, 2=现在, 3=将来)
       const sortedSelectedCards = [...state.selectedCards].sort((a, b) =>
         a.dimension.aspect_type - b.dimension.aspect_type
       );
 
-      console.log('[BasicReading] sortedSelectedCards:', sortedSelectedCards);
+      // console.log('[BasicReading] sortedSelectedCards:', sortedSelectedCards);
 
       for (let i = 0; i < sortedSelectedCards.length; i++) {
         const selectedCard = sortedSelectedCards[i];
-        console.log(`[BasicReading] Processing card ${i + 1}:`, selectedCard);
-        console.log(`[BasicReading] Card dimension:`, selectedCard.dimension);
+        // console.log(`[BasicReading] Processing card ${i + 1}:`, selectedCard);
+        // console.log(`[BasicReading] Card dimension:`, selectedCard.dimension);
 
         // 获取详细维度解读
         const interpretation = await interpretationService.getCardInterpretationForDimension(
@@ -77,7 +77,7 @@ export default function BasicReadingScreen() {
           selectedCard.dimension.aspect_type.toString()
         );
 
-        console.log(`[BasicReading] Card ${i + 1} interpretation result:`, interpretation);
+        // console.log(`[BasicReading] Card ${i + 1} interpretation result:`, interpretation);
 
         // 获取基础牌意
         const basicInterpretation = await interpretationService.getCardInterpretation(
@@ -85,7 +85,7 @@ export default function BasicReadingScreen() {
           selectedCard.direction === 'upright' ? '正位' : '逆位'
         );
 
-        console.log(`[BasicReading] Card ${i + 1} basic interpretation:`, basicInterpretation);
+        // console.log(`[BasicReading] Card ${i + 1} basic interpretation:`, basicInterpretation);
 
         detailedReadings.push({
           card: {
@@ -103,7 +103,7 @@ export default function BasicReadingScreen() {
         });
       }
 
-      console.log('[BasicReading] Final detailedReadings:', detailedReadings);
+      // console.log('[BasicReading] Final detailedReadings:', detailedReadings);
       setReadings(detailedReadings);
     } catch (error) {
       console.error('[BasicReading] Error generating detailed reading:', error);
