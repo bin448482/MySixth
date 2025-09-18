@@ -207,13 +207,10 @@ export const HistoryDetail: React.FC<HistoryDetailProps> = ({
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* 头部信息 */}
-        <Animated.View style={[styles.header, headerAnimatedStyle]}>
-          <View style={styles.headerTop}>
-            <TouchableOpacity style={styles.backIcon} onPress={onBack}>
-              <Text style={styles.backIconText}>‹</Text>
-            </TouchableOpacity>
-            <Text style={styles.title}>占卜记录详情</Text>
+        {/* 占卜信息和操作 */}
+        <Animated.View style={[styles.infoSection, headerAnimatedStyle]}>
+          <View style={styles.metaInfo}>
+            <Text style={styles.dateTime}>{formatDateTime(history.timestamp)}</Text>
             <View style={styles.headerActions}>
               <TouchableOpacity style={styles.actionButton} onPress={handleShare}>
                 <Text style={styles.actionIcon}>↗</Text>
@@ -224,20 +221,17 @@ export const HistoryDetail: React.FC<HistoryDetailProps> = ({
             </View>
           </View>
 
-          <View style={styles.metaInfo}>
-            <Text style={styles.dateTime}>{formatDateTime(history.timestamp)}</Text>
-            <View style={styles.badges}>
-              <View style={[
-                styles.badge,
-                { backgroundColor: history.interpretation_mode === 'ai' ? '#00ced1' : '#ffd700' }
-              ]}>
-                <Text style={styles.badgeText}>
-                  {history.interpretation_mode === 'ai' ? 'AI解读' : '基础解读'}
-                </Text>
-              </View>
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>{history.card_ids.length}张牌</Text>
-              </View>
+          <View style={styles.badges}>
+            <View style={[
+              styles.badge,
+              { backgroundColor: history.interpretation_mode === 'ai' ? '#00ced1' : '#ffd700' }
+            ]}>
+              <Text style={styles.badgeText}>
+                {history.interpretation_mode === 'ai' ? 'AI解读' : '基础解读'}
+              </Text>
+            </View>
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>{history.card_ids.length}张牌</Text>
             </View>
           </View>
         </Animated.View>
@@ -270,7 +264,7 @@ export const HistoryDetail: React.FC<HistoryDetailProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0f0f1a',
+    backgroundColor: '#000', // 更新为与卡牌说明页面一致的背景色
   },
   centerContent: {
     justifyContent: 'center',
@@ -281,6 +275,12 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingBottom: 20,
+  },
+  // 信息区域样式（简化后的头部）
+  infoSection: {
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#2a2a3e',
   },
   header: {
     padding: 20,
@@ -329,7 +329,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   metaInfo: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: 16,
   },
   dateTime: {
     color: '#e6e6fa',
@@ -340,7 +343,8 @@ const styles = StyleSheet.create({
   badges: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
+    gap: 8,
   },
   badge: {
     paddingHorizontal: 12,

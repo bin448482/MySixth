@@ -198,6 +198,18 @@ export default function CardDetailScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* 自定义标题栏 */}
+      <View style={styles.customHeader}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => router.back()}
+        >
+          <Ionicons name="arrow-back" size={24} color="#d4af37" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>{card?.name || '卡牌详情'}</Text>
+        <View style={styles.headerSpacer} />
+      </View>
+
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {/* 卡牌图片和基本信息 */}
         <View style={styles.heroSection}>
@@ -245,6 +257,32 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#000',
+  },
+  // 自定义标题栏样式
+  customHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    minHeight: 60, // 确保最小高度一致
+    backgroundColor: 'rgba(20, 20, 40, 0.95)',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(212, 175, 55, 0.3)',
+  },
+  backButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: 'rgba(212, 175, 55, 0.1)',
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#d4af37',
+    textAlign: 'center',
+  },
+  headerSpacer: {
+    width: 40, // 与backButton保持平衡
   },
   scrollView: {
     flex: 1,

@@ -15,7 +15,7 @@ export default function CardsLayout() {
         name="[id]"
         options={{
           title: '卡牌详情',
-          headerShown: true,
+          headerShown: false, // 隐藏导航，采用自定义风格
           presentation: 'card',
         }}
       />

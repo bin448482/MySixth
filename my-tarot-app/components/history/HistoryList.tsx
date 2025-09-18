@@ -244,7 +244,7 @@ export const HistoryList: React.FC<HistoryListProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0f0f1a',
+    backgroundColor: '#000', // 更新为与卡牌说明页面一致的背景色
   },
   centerContent: {
     justifyContent: 'center',
