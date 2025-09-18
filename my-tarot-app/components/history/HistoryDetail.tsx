@@ -68,16 +68,16 @@ export const HistoryDetail: React.FC<HistoryDetailProps> = ({
     }
   };
 
-  // 格式化时间
+  // 格式化时间 - 显示完整的日期时间
   const formatDateTime = (timestamp: string) => {
     const date = new Date(timestamp);
     return date.toLocaleString('zh-CN', {
       year: 'numeric',
-      month: 'long',
-      day: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
       hour: '2-digit',
       minute: '2-digit',
-      weekday: 'long',
+      second: '2-digit'
     });
   };
 
