@@ -10,7 +10,7 @@ import {
 import { useRouter } from 'expo-router';
 import { useReadingFlow } from '@/lib/contexts/ReadingContext';
 import { DimensionService } from '@/lib/services/DimensionService';
-import { DatabaseInitializer } from '@/lib/database/initializer';
+// import { DatabaseInitializer } from '@/lib/database/initializer';
 
 interface GroupItem {
   id: string;
