@@ -2,3 +2,4 @@ execuste&validete_anthropic_env.ps1
 set_anthropic_env.ps1
 /debug
 /tarot-ai-generator/bk
+set_codex_env.ps1
