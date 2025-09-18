@@ -32,14 +32,14 @@
       "aspect_type": 1
     },
     {
-      "name": "时间之流牌阵-对方",
+      "name": "恋人金字塔牌阵-对方",
       "category": "情感",
       "description": "深入了解双方各自的心态、想法以及彼此的互动模式",
       "aspect": "对方",
       "aspect_type": 2
     },
     {
-      "name": "情感决策牌阵-关系",
+      "name": "恋人金字塔牌阵-关系",
       "category": "情感",
       "description": "深入了解双方各自的心态、想法以及彼此的互动模式",
       "aspect": "关系",
@@ -47,23 +47,44 @@
     },
     {
       "name": "情感决策牌阵-现状",
-      "category": "类比",
+      "category": "决策",
       "description": "面临情感抉择时的利弊分析",
       "aspect": "现状",
       "aspect_type": 1
     },
     {
       "name": "情感决策牌阵-选择是",
-      "category": "选择是",
+      "category": "决策",
       "description": "面临情感抉择时的利弊分析",
-      "aspect": "对方",
+      "aspect": "选择是",
       "aspect_type": 2
     },
     {
       "name": "情感决策牌阵-选择非",
-      "category": "选择非",
+      "category": "决策",
       "description": "面临情感抉择时的利弊分析",
-      "aspect": "关系",
+      "aspect": "选择非",
+      "aspect_type": 3
+    },
+    {
+      "name": "月的运程-上玄月",
+      "category": "财富",
+      "description": "未来的一个月的运程",
+      "aspect": "上玄月",
+      "aspect_type": 1
+    },
+    {
+      "name": "月的运程-下玄月",
+      "category": "财富",
+      "description": "未来的一个月的运程",
+      "aspect": "下玄月",
+      "aspect_type": 2
+    },
+    {
+      "name": "月的运程-总体趋势",
+      "category": "财富",
+      "description": "未来的一个月的运程",
+      "aspect": "总体趋势",
       "aspect_type": 3
     }
   ]
