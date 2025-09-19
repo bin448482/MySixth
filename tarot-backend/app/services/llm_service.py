@@ -180,15 +180,15 @@ class LLMService:
 
         return cleaned[index:].strip()
 
-    async def analyze_user_description(self, description: str, spread_type: str = "three-card") -> List[str]:
+    async def analyze_user_description(self, description: str, spread_type: str = "three-card") -> tuple[List[str], str]:
         """
-        分析用户描述，返回推荐的维度名称列表。
+        分析用户描述，返回推荐的维度名称列表和统一的描述。
         Args:
             description: 用户描述（200字以内）
             spread_type: 牌阵类型（three-card 或 celtic-cross）
 
         Returns:
-            推荐的维度名称列表（三牌阵最多三个，凯尔特十字最多十个）
+            (推荐的维度名称列表, 统一的描述)
         """
         # if spread_type == "three-card":
         #     return await self._analyze_for_three_card(description)
@@ -199,11 +199,11 @@ class LLMService:
         #     return await self._analyze_for_three_card(description)
         return await self._analyze_for_three_card(description)
 
-    async def _analyze_for_three_card(self, description: str) -> List[str]:
+    async def _analyze_for_three_card(self, description: str) -> tuple[List[str], str]:
         """
         三牌阵专用分析：基于因果率和发展趋势动态确定三个维度
         """
-        analysis_prompt = f"""你是一位专业的塔罗牌解读师。用户提供了占卜描述，请根据三牌阵的因果率和发展趋势分析逻辑，为这个问题确定最合适的三个分析维度。
+        analysis_prompt = f"""你是一位专业的塔罗牌解读师。用户提供了占卜描述，请根据三牌阵的因果率和发展趋势分析逻辑，为这个问题确定最合适的三个分析维度，并生成统一的问题概要。
 
 用户描述：{description}
 
@@ -212,6 +212,7 @@ class LLMService:
 2. 根据用户的具体问题内容，动态确定三个最贴合的分析角度(aspect)
 3. 按照因果递进逻辑排列这三个角度，体现从起因到结果的发展脉络
 4. **重要**：三个维度必须使用完全相同的类别名称！
+5. 同时生成一个统一的问题概要描述（30-50字），概括整个分析的核心主题
 
 可选的主要类别：
 - 时间：涉及过去现在未来的时间发展
@@ -226,37 +227,84 @@ class LLMService:
 
 **关键**：请根据用户的具体问题，动态生成最合适的三个aspect，不要使用模板化的固定组合。
 
+输出格式：
+DIMENSIONS:
+类别-aspect1
+类别-aspect2
+类别-aspect3
+
+DESCRIPTION:
+[统一的问题概要描述]
+
 例如：
-- 如果用户问债务处理，可能是：财务-现状分析、财务-解决方案、财务-执行步骤
-- 如果用户问工作压力，可能是：事业-压力来源、事业-应对策略、事业-未来发展
-- 如果用户问恋爱困惑，可能是：情感-内心状态、情感-沟通方式、情感-关系走向
+DIMENSIONS:
+财务-债务现状
+财务-还款策略
+财务-财务重建
 
-输出格式：直接输出格式为 "类别-aspect" 的三个维度名称，例如：
-- 财务-债务现状
-- 财务-还款策略
-- 财务-财务重建
+DESCRIPTION:
+探索债务处理的核心策略，从现状分析到具体行动的全面解决方案。
 
-**确保三个维度的类别名称完全一致，aspect要贴合用户的具体问题！** 请只输出三个维度名称，用换行符分隔，不要包含任何解释。"""
+**确保三个维度的类别名称完全一致，aspect要贴合用户的具体问题！**"""
 
         try:
             result = await self.call_ai_api(analysis_prompt)
             if result:
-                dimensions: List[str] = []
-                for raw_line in result.split('\n'):
-                    cleaned = self._clean_dimension_name(raw_line)
-                    if not cleaned:
-                        continue
-                    # 对于三牌阵，接受动态生成的维度名称
-                    if cleaned not in dimensions:
-                        dimensions.append(cleaned)
-                    if len(dimensions) >= 3:
-                        break
+                # 解析新的输出格式
+                dimensions, description = self._parse_combined_result(result)
                 if dimensions:
-                    return dimensions[:3]
-            return self._get_default_three_card_dimensions()
+                    return dimensions[:3], description
+            return self._get_default_three_card_dimensions_with_description()
         except Exception as e:
             print(f"三牌阵分析失败: {e}")
-            return self._get_default_three_card_dimensions()
+            return self._get_default_three_card_dimensions_with_description()
+
+    def _parse_combined_result(self, result: str) -> tuple[List[str], str]:
+        """解析合并的LLM结果，提取维度和描述"""
+        try:
+            lines = result.strip().split('\n')
+            dimensions = []
+            description = ""
+
+            # 查找DIMENSIONS和DESCRIPTION部分
+            in_dimensions = False
+            in_description = False
+
+            for line in lines:
+                line = line.strip()
+                if line.upper().startswith('DIMENSIONS:'):
+                    in_dimensions = True
+                    in_description = False
+                    continue
+                elif line.upper().startswith('DESCRIPTION:'):
+                    in_dimensions = False
+                    in_description = True
+                    continue
+                elif line and in_dimensions:
+                    # 处理维度行
+                    cleaned = self._clean_dimension_name(line)
+                    if cleaned and cleaned not in dimensions:
+                        dimensions.append(cleaned)
+                        if len(dimensions) >= 3:
+                            in_dimensions = False
+                elif line and in_description:
+                    # 处理描述行
+                    if description:
+                        description += " " + line
+                    else:
+                        description = line
+
+            return dimensions, description.strip()
+        except Exception as e:
+            print(f"解析合并结果失败: {e}")
+            return [], ""
+
+    def _get_default_three_card_dimensions_with_description(self) -> tuple[List[str], str]:
+        """获取默认的三牌阵维度和描述"""
+        return (
+            ["整体-过去", "整体-现在", "整体-将来"],
+            "三牌阵综合分析，探索问题的时间发展脉络"
+        )
 
     async def _analyze_for_celtic_cross(self, description: str) -> List[str]:
         """

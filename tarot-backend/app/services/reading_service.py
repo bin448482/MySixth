@@ -40,8 +40,8 @@ class ReadingService:
         limit = 3 if spread_type == "three-card" else 10
 
         try:
-            # 调用 LLM 分析，获取推荐的维度名称
-            recommended_names = await self.llm_service.analyze_user_description(description, spread_type)
+            # 调用 LLM 分析，获取推荐的维度名称和统一描述
+            recommended_names, unified_description = await self.llm_service.analyze_user_description(description, spread_type)
 
             # if spread_type == "three-card":
             #     return await self._process_three_card_dimensions(recommended_names, db, limit)
@@ -50,7 +50,7 @@ class ReadingService:
             # else:
             #     # 默认处理
             #     return await self._process_three_card_dimensions(recommended_names, db, limit)
-            return await self._process_three_card_dimensions(recommended_names, description, db, limit)
+            return await self._process_three_card_dimensions(recommended_names, unified_description, db, limit)
 
         except Exception as e:
             print(f"分析用户描述失败: {e}")
@@ -58,18 +58,18 @@ class ReadingService:
             if spread_type == "three-card":
                 # 为三牌阵返回默认的时间维度
                 default_names = ["整体-过去", "整体-现在", "整体-将来"]
-                return await self._process_three_card_dimensions(default_names, description, db, limit)
+                default_description = "三牌阵综合分析，探索问题的时间发展脉络"
+                return await self._process_three_card_dimensions(default_names, default_description, db, limit)
             else:
                 return self._get_default_celtic_cross_dimensions(db)
 
-    async def _process_three_card_dimensions(self, recommended_names: List[str], user_description: str, db: Session, limit: int) -> List[Dict[str, Any]]:
+    async def _process_three_card_dimensions(self, recommended_names: List[str], unified_description: str, db: Session, limit: int) -> List[Dict[str, Any]]:
         """
         处理三牌阵维度：支持动态创建和 aspect_type 分配
         """
         dimensions: List[Dict[str, Any]] = []
 
-        # 为所有维度生成统一的description（基于用户问题的概要）
-        unified_description = await self._generate_unified_description(recommended_names, user_description)
+        # 直接使用传入的统一description（来自LLM的单次调用）
 
         for i, name in enumerate(recommended_names[:limit]):
             if not name:
