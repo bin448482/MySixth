@@ -1,1 +1,3 @@
-# API 路由定义
+"""
+API routes package.
+"""
