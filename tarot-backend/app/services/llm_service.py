@@ -190,13 +190,14 @@ class LLMService:
         Returns:
             推荐的维度名称列表（三牌阵最多三个，凯尔特十字最多十个）
         """
-        if spread_type == "three-card":
-            return await self._analyze_for_three_card(description)
-        elif spread_type == "celtic-cross":
-            return await self._analyze_for_celtic_cross(description)
-        else:
-            # 默认使用三牌阵逻辑
-            return await self._analyze_for_three_card(description)
+        # if spread_type == "three-card":
+        #     return await self._analyze_for_three_card(description)
+        # elif spread_type == "celtic-cross":
+        #     return await self._analyze_for_celtic_cross(description)
+        # else:
+        #     # 默认使用三牌阵逻辑
+        #     return await self._analyze_for_three_card(description)
+        return await self._analyze_for_three_card(description)
 
     async def _analyze_for_three_card(self, description: str) -> List[str]:
         """

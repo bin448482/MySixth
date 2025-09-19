@@ -3,7 +3,12 @@ Configuration management for the Tarot Backend API.
 """
 import os
 from typing import Optional
-from pydantic_settings import BaseSettings
+
+try:
+    from pydantic_settings import BaseSettings
+except ImportError:
+    # 兼容旧版本的 pydantic
+    from pydantic import BaseSettings
 
 
 class Settings(BaseSettings):

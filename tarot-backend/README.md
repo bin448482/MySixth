@@ -20,6 +20,9 @@ pip install -r requirements.txt
 
 # 运行开发服务器
 uvicorn app.main:app --reload
+
+# claude code 内执行测试
+PYTHONIOENCODING=utf-8 python test_analyze_user_description.py
 ```
 
 ## 文档

@@ -43,13 +43,14 @@ class ReadingService:
             # 调用 LLM 分析，获取推荐的维度名称
             recommended_names = await self.llm_service.analyze_user_description(description, spread_type)
 
-            if spread_type == "three-card":
-                return await self._process_three_card_dimensions(recommended_names, db, limit)
-            elif spread_type == "celtic-cross":
-                return self._process_celtic_cross_dimensions(recommended_names, db, limit)
-            else:
-                # 默认处理
-                return await self._process_three_card_dimensions(recommended_names, db, limit)
+            # if spread_type == "three-card":
+            #     return await self._process_three_card_dimensions(recommended_names, db, limit)
+            # elif spread_type == "celtic-cross":
+            #     return self._process_celtic_cross_dimensions(recommended_names, db, limit)
+            # else:
+            #     # 默认处理
+            #     return await self._process_three_card_dimensions(recommended_names, db, limit)
+            return await self._process_three_card_dimensions(recommended_names, db, limit)
 
         except Exception as e:
             print(f"分析用户描述失败: {e}")
