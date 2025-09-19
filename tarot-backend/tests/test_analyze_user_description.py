@@ -8,7 +8,7 @@ import os
 from typing import Dict, Any, List
 
 # 添加项目根目录到Python路径
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.services.llm_service import LLMService
 from app.services.reading_service import ReadingService

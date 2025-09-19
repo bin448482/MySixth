@@ -50,7 +50,7 @@ class ReadingService:
             # else:
             #     # 默认处理
             #     return await self._process_three_card_dimensions(recommended_names, db, limit)
-            return await self._process_three_card_dimensions(recommended_names, db, limit)
+            return await self._process_three_card_dimensions(recommended_names, description, db, limit)
 
         except Exception as e:
             print(f"分析用户描述失败: {e}")
@@ -58,15 +58,18 @@ class ReadingService:
             if spread_type == "three-card":
                 # 为三牌阵返回默认的时间维度
                 default_names = ["整体-过去", "整体-现在", "整体-将来"]
-                return await self._process_three_card_dimensions(default_names, db, limit)
+                return await self._process_three_card_dimensions(default_names, description, db, limit)
             else:
                 return self._get_default_celtic_cross_dimensions(db)
 
-    async def _process_three_card_dimensions(self, recommended_names: List[str], db: Session, limit: int) -> List[Dict[str, Any]]:
+    async def _process_three_card_dimensions(self, recommended_names: List[str], user_description: str, db: Session, limit: int) -> List[Dict[str, Any]]:
         """
         处理三牌阵维度：支持动态创建和 aspect_type 分配
         """
         dimensions: List[Dict[str, Any]] = []
+
+        # 为所有维度生成统一的description（基于用户问题的概要）
+        unified_description = await self._generate_unified_description(recommended_names, user_description)
 
         for i, name in enumerate(recommended_names[:limit]):
             if not name:
@@ -79,17 +82,19 @@ class ReadingService:
                 # 确保 aspect_type 正确设置为递进顺序
                 dimension_dict = self._serialize_dimension(dimension)
                 dimension_dict["aspect_type"] = i + 1  # 1, 2, 3
+                # 更新description为统一的概要
+                dimension_dict["description"] = unified_description
                 dimensions.append(dimension_dict)
             else:
                 # 动态创建新维度
-                new_dimension = self._create_dynamic_dimension(name, i + 1, db)
+                new_dimension = self._create_dynamic_dimension(name, i + 1, unified_description, db)
                 if new_dimension:
                     dimensions.append(self._serialize_dimension(new_dimension))
 
         # 确保返回3个维度
         while len(dimensions) < limit:
             fallback_name = f"整体-维度{len(dimensions) + 1}"
-            fallback_dimension = self._create_dynamic_dimension(fallback_name, len(dimensions) + 1, db)
+            fallback_dimension = self._create_dynamic_dimension(fallback_name, len(dimensions) + 1, unified_description, db)
             if fallback_dimension:
                 dimensions.append(self._serialize_dimension(fallback_dimension))
 
@@ -123,7 +128,44 @@ class ReadingService:
         """查找现有维度"""
         return db.query(Dimension).filter(Dimension.name == name).first()
 
-    def _create_dynamic_dimension(self, name: str, aspect_type: int, db: Session) -> Optional[Dimension]:
+    async def _generate_unified_description(self, recommended_names: List[str], user_description: str) -> str:
+        """
+        为三牌阵生成统一的description，基于用户问题的概要分析
+        """
+        try:
+            # 基于用户描述和推荐的维度名称生成统一的问题概要
+            names_text = "、".join(recommended_names)
+
+            summary_prompt = f"""请为以下塔罗三牌阵分析生成一个统一的问题概要描述（30-50字）。
+
+用户问题：{user_description}
+分析维度：{names_text}
+
+要求：
+1. 基于用户的具体问题，概括核心关注点
+2. 体现三牌阵的因果发展逻辑
+3. 语言简洁专业，适合塔罗解读
+4. 不要重复用户的原始问题，而是提炼出问题的本质
+
+请直接输出概要描述，不要包含任何格式化标记。"""
+
+            result = await self.llm_service.call_ai_api(summary_prompt)
+            if result and result.strip():
+                return result.strip()
+            else:
+                # 默认描述：基于用户问题生成
+                category = recommended_names[0].split('-')[0] if recommended_names and '-' in recommended_names[0] else "整体"
+                return f"关于{category}方面的发展分析，探索当前状况与未来走向"
+
+        except Exception as e:
+            print(f"生成统一description失败: {e}")
+            # 返回基于第一个维度的默认描述
+            if recommended_names:
+                category = recommended_names[0].split('-')[0] if '-' in recommended_names[0] else "整体"
+                return f"关于{category}方面的发展分析，探索当前状况与未来走向"
+            return "三牌阵综合分析，探索问题的关键发展脉络"
+
+    def _create_dynamic_dimension(self, name: str, aspect_type: int, description: str, db: Session) -> Optional[Dimension]:
         """
         动态创建维度
         """
@@ -135,11 +177,11 @@ class ReadingService:
                 category = "整体"
                 aspect = name
 
-            # 创建新维度
+            # 创建新维度 - 使用传入的统一description
             dimension = Dimension(
                 name=name,
                 category=category,
-                description=f"根据用户描述动态生成的解读维度：{aspect}",
+                description=description,  # 使用统一的description
                 aspect=aspect,
                 aspect_type=aspect_type
             )

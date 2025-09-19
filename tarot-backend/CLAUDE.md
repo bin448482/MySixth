@@ -297,6 +297,8 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 ## 🧪 测试策略
 
+- 测试要创建到tests目录下
+
 ### 单元测试
 - 业务逻辑层测试
 - API接口测试

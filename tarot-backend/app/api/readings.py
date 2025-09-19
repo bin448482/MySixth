@@ -38,6 +38,9 @@ async def analyze_user_description(
     Returns:
         AnalyzeResponse: 推荐的维度列表
     """
+    # 调试断点 - 在这里设置断点
+    print(f"DEBUG: Received request - description: {request.description[:50]}..., spread_type: {request.spread_type}")
+
     try:
         reading_service = get_reading_service()
 
@@ -48,10 +51,12 @@ async def analyze_user_description(
                 detail="无效的牌阵类型，支持 three-card 或 celtic-cross"
             )
 
-        # 分析用户描述
+        # 分析用户描述 - 在这里也可以设置断点
+        print(f"DEBUG: Starting LLM analysis...")
         recommended_dimensions = await reading_service.analyze_user_description(
             request.description, request.spread_type, db
         )
+        print(f"DEBUG: LLM analysis completed, got {len(recommended_dimensions) if recommended_dimensions else 0} dimensions")
 
         if not recommended_dimensions:
             raise HTTPException(

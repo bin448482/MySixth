@@ -9,8 +9,8 @@ import uvicorn
 import logging
 import traceback
 
-from .config import settings
-from .database import create_tables
+from app.config import settings
+from app.database import create_tables
 
 # 配置日志
 logging.basicConfig(
@@ -117,7 +117,7 @@ async def health_check():
 
 
 # TODO: 注册API路由
-from .api import auth, readings, cards, dimensions, spreads
+from app.api import auth, readings, cards, dimensions, spreads
 app.include_router(auth.router, prefix="/api/v1")
 app.include_router(readings.router, prefix="/api/v1")
 app.include_router(cards.router, prefix="/api/v1")
