@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     DEBUG: bool = False
 
     # Database configuration
-    DATABASE_URL: str = "sqlite:///../tarot-ai-generator/data/tarot_config.db"
+    DATABASE_URL: str = "sqlite:///./backend_tarot.db"
 
     # LLM configuration (参考 ../tarot-ai-generator/.env)
     API_PROVIDER: str = "zhipu"  # zhipu 或 openai

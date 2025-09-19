@@ -85,11 +85,11 @@ tarot-backend/
 
 ## 📊 数据库配置
 
-### 现有数据库
-- **数据库文件**: `../tarot-ai-generator/data/tarot_config.db`
-- **数据库类型**: SQLite
-- **状态**: 已完成设计和初始化
-- **表结构**: 按照设计文档的7个核心表创建
+### 数据库独立化设计 🔥
+- **后台数据库**: `./backend_tarot.db` (独立数据库文件)
+- **源数据库**: `../tarot-ai-generator/data/tarot_config.db`
+- **迁移策略**: 从源数据库复制核心表（card, dimension, card_interpretation）
+- **状态**: 需要实施数据库独立化
 
 ### 数据库表结构
 1. **card** - 卡牌基础信息
@@ -137,10 +137,12 @@ WebSocket /sync/updates  # 实时更新推送
 - [x] 安装核心依赖包
 - [x] 设置开发环境配置文件
 
-#### 1.2 数据库设计实现
-- [ ] 根据现有数据库创建SQLAlchemy模型（数据库位置：`../tarot-ai-generator/data/tarot_config.db`）
-- [ ] 连接现有SQLite数据库
-- [ ] 验证数据库表结构和数据完整性
+#### 1.2 数据库独立化实现 🔥
+- [x] 修改数据库配置指向独立数据库文件
+- [x] 创建数据库初始化脚本从源数据库复制数据
+- [x] 复制核心表（card, dimension, card_interpretation）
+- [x] 确保_create_dynamic_dimension保存到后台数据库
+- [x] 验证数据库表结构和数据完整性
 
 #### 1.3 FastAPI基础框架
 - [ ] 创建FastAPI应用入口
@@ -388,3 +390,7 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 | 凯尔特十字-结果 | 凯尔特十字 | 综合推演事件的最终走向或长期结果。 | 最终结果 | 10 |
 
 > 以上定义同时写入 `app/utils/dimension_definitions.py` 并由后端服务加载校验，确保 API 返回值与数据库中的维度数据保持一致。
+
+<!-- 执行测试脚本的时候 -->
+执行测试脚本的时候，加上这个命令：PYTHONIOENCODING=utf-8 
+

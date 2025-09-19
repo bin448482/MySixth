@@ -67,13 +67,13 @@ async def test_single_llm_call():
 
         # 调用分析（现在应该只调用一次LLM）
         print("正在分析...")
-        print("📞 期望：只有一次LLM API调用")
+        print("期望：只有一次LLM API调用")
 
         result = await reading_service.analyze_user_description(
             description, spread_type, mock_db
         )
 
-        print(f"✓ 分析完成，返回 {len(result)} 个维度")
+        print(f"分析完成，返回 {len(result)} 个维度")
         print()
 
         # 检查结果
@@ -83,9 +83,9 @@ async def test_single_llm_call():
 
         print("结果验证:")
         print(f"Categories: {categories}")
-        print(f"Category统一: {'✅' if len(set(categories)) == 1 else '❌'}")
+        print(f"Category统一: {'是' if len(set(categories)) == 1 else '否'}")
         print(f"Aspects: {aspects}")
-        print(f"Description统一: {'✅' if len(set(descriptions)) == 1 else '❌'}")
+        print(f"Description统一: {'是' if len(set(descriptions)) == 1 else '否'}")
         print()
 
         print("维度详情:")
@@ -97,13 +97,13 @@ async def test_single_llm_call():
             print()
 
         # 验证性能改进
-        print("🚀 性能改进验证:")
-        print("✅ LLM API调用次数：从 2次 减少到 1次")
-        print("✅ 减少了网络延迟和API成本")
-        print("✅ Category和Description都保持统一")
+        print("性能改进验证:")
+        print("LLM API调用次数：从 2次 减少到 1次")
+        print("减少了网络延迟和API成本")
+        print("Category和Description都保持统一")
 
     except Exception as e:
-        print(f"✗ 测试失败: {e}")
+        print(f"测试失败: {e}")
         import traceback
         traceback.print_exc()
 
