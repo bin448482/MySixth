@@ -7,7 +7,6 @@ from typing import List
 from pydantic import BaseModel
 
 from ..database import get_db
-from ..models import Spread
 
 router = APIRouter(prefix="/spreads", tags=["Spreads"])
 

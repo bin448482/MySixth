@@ -5,7 +5,7 @@ from typing import Dict, List, Optional, Any, Set
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models import Card, Dimension, CardInterpretation, CardInterpretationDimension
+from ..models import Card, Dimension, CardInterpretation
 from .llm_service import get_llm_service
 
 

@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from typing import Optional
 
 from ..database import get_db
-from ..models import Card, CardStyle
+from ..models import Card
 from ..schemas.card import CardInfo, CardListResponse, CardDetailResponse
 
 router = APIRouter(prefix="/cards", tags=["Cards"])
@@ -106,17 +106,6 @@ async def get_card_detail(
                 detail=f"Card with id {card_id} not found"
             )
 
-        # 查询风格信息
-        style_info = None
-        if card.style_id:
-            style = db.query(CardStyle).filter(CardStyle.id == card.style_id).first()
-            if style:
-                style_info = {
-                    "id": style.id,
-                    "name": style.name,
-                    "image_base_url": style.image_base_url
-                }
-
         card_info = CardInfo(
             id=card.id,
             name=card.name,
@@ -125,8 +114,7 @@ async def get_card_detail(
             number=card.number,
             image_url=card.image_url,
             style_id=card.style_id,
-            deck=card.deck,
-            style=style_info
+            deck=card.deck
         )
 
         # 可选：包含解读信息
