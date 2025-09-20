@@ -73,8 +73,8 @@ class GenerateResponse(BaseModel):
 ```python
 async def generate_interpretation(
     self,
-    cards: List[CardInfo],
-    dimensions: List[DimensionInfo],  # 使用现有的DimensionInfo
+    cards: List[Dict],           # 卡牌字典列表，包含完整卡牌信息
+    dimensions: List[Dict],      # 维度字典列表，包含完整维度信息
     user_description: str,
     spread_type: str,
     db: Session
@@ -83,29 +83,29 @@ async def generate_interpretation(
 
     # 1. 解析卡牌信息
     resolved_cards = []
-    for card_info in cards:
-        db_card = await self._resolve_card_info(card_info, db)
-        resolved_cards.append((card_info, db_card))
+    for card_dict in cards:
+        db_card = await self._resolve_card_dict(card_dict, db)
+        resolved_cards.append((card_dict, db_card))
 
     # 2. 为每个维度生成解读
     dimension_summaries = {}
     all_card_interpretations = []
 
-    for dimension in dimensions:
+    for dimension_dict in dimensions:
         # 为当前维度生成卡牌解读（基于现有逻辑）
         card_interpretations = []
-        for card_info, db_card in resolved_cards:
+        for card_dict, db_card in resolved_cards:
             # 使用现有的单张卡牌解读逻辑
             interpretation = await self._generate_single_card_interpretation(
-                card_info, db_card, dimension, user_description
+                card_dict, db_card, dimension_dict, user_description
             )
             card_interpretations.append(interpretation)
 
         # 为当前维度生成总结（基于现有逻辑）
         dimension_summary = await self._generate_dimension_summary(
-            card_interpretations, dimension, user_description
+            card_interpretations, dimension_dict, user_description
         )
-        dimension_summaries[dimension.name] = dimension_summary
+        dimension_summaries[dimension_dict["name"]] = dimension_summary
 
         # 收集所有卡牌解读
         all_card_interpretations.extend(card_interpretations)
@@ -134,17 +134,16 @@ async def generate_interpretation(
 
 #### 2. 卡牌信息解析
 ```python
-async def _resolve_card_info(self, card_info: CardInfo, db: Session) -> Card:
-    """解析客户端传递的卡牌信息，匹配数据库中的卡牌"""
+async def _resolve_card_dict(self, card_dict: Dict, db: Session) -> Card:
+    """解析客户端传递的卡牌字典信息，匹配数据库中的卡牌"""
 
     # 优先使用名称精确匹配
     card = db.query(Card).filter(
-        Card.name == card_info.name
+        Card.name == card_dict["name"]
     ).first()
 
-
     if not card:
-        raise ValueError(f"无法找到卡牌: {card_info.name}")
+        raise ValueError(f"无法找到卡牌: {card_dict['name']}")
 
     return card
 ```

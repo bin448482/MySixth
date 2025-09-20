@@ -113,7 +113,7 @@ MySixth/
 | GET  | `/api/v1/dimensions`  | 获取维度列表                | ✅ 已实现 |
 | GET  | `/api/v1/spreads`     | 获取牌阵列表                | ✅ 已实现 |
 | POST | `/api/v1/readings/analyze` | 第一步：分析用户描述，返回推荐维度 | ✅ 已实现 |
-| POST | `/api/v1/readings/generate` | 第二步：基于选定维度生成具体解读 | ✅ 已实现 |
+| POST | `/api/v1/readings/generate` | 第二步：基于选定维度生成多维度解读 | ✅ 已实现 |
 | POST | `/payments/checkout` | 创建 Stripe Checkout 会话 | 🔄 待实现 |
 
 ### 解读API流程
@@ -125,9 +125,10 @@ MySixth/
    - LLM分析用户需求，返回推荐的维度列表
 
 2. **生成阶段** (`/readings/generate`)：
-   - 用户选择维度和卡牌
-   - 基于选定维度调用LLM生成详细解读
-   - 返回完整的解读结果
+   - 用户选择多个维度和卡牌（支持完整CardInfo对象）
+   - 验证维度数量与牌阵类型匹配（三牌阵3个维度，凯尔特十字10个维度）
+   - 基于选定维度调用LLM生成多维度详细解读
+   - 返回包含dimension_summaries和overall_summary的完整解读结果
 
 ## 🎯 开发优先级
 

@@ -110,7 +110,7 @@ POST /auth/anon          # 生成匿名用户ID
 ### 解读相关（分两步API请求）
 ```
 POST /readings/analyze   # 第一步：分析用户描述，返回3个推荐维度
-POST /readings/generate  # 第二步：根据选定维度生成具体解读
+POST /readings/generate  # 第二步：根据选定维度生成多维度解读
 ```
 
 ### 支付相关
@@ -168,16 +168,18 @@ WebSocket /sync/updates  # 实时更新推送
 - [ ] 配置提示词模板和参数
 - [ ] 实现API调用限流和错误处理
 
-#### 3.2 解读系统API设计
-- [ ] `POST /readings/analyze` - 分析用户描述，返回推荐维度
-  - 接收用户200字以内描述
-  - 调用LLM解析需求
-  - 返回3个最相关维度
-- [ ] `POST /readings/generate` - 生成具体解读内容
-  - 接收用户选择的维度和卡牌信息
-  - 调用 `generate_single_interpretation` 逻辑
-  - 返回详细解读结果
-- [ ] 解读结果实时返回（无需存储历史）
+#### 3.2 解读系统API设计 ✅
+- [x] `POST /readings/analyze` - 分析用户描述，返回推荐维度
+  - 接收用户200字以内描述，支持三牌阵和凯尔特十字
+  - 调用LLM解析需求（通过reading_service.analyze_user_description）
+  - 返回推荐维度列表
+- [x] `POST /readings/generate` - 生成多维度解读内容
+  - 接收用户选择的多个维度和卡牌信息（支持完整CardInfo对象）
+  - 验证维度数量与牌阵类型匹配（三牌阵3个维度，凯尔特十字10个维度）
+  - 调用reading_service.generate_interpretation生成多维度解读
+  - 返回详细的GenerateResponse（包含dimension_summaries和overall_summary）
+- [x] 解读结果实时返回（无需存储历史）
+- [x] 支持数据自包含设计，客户端传递完整对象信息，减少数据库ID依赖
 
 #### 3.3 支付系统集成
 - [ ] Stripe Checkout会话创建
