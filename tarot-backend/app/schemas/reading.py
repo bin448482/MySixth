@@ -62,6 +62,12 @@ class GenerateRequest(BaseModel):
     spread_type: str = Field(default="three-card", description="牌阵类型")
 
 
+class DimensionAspectInfo(BaseModel):
+    """维度方面信息"""
+    dimension_name: str
+    interpretation: str
+
+
 class CardInterpretationInfo(BaseModel):
     """单张卡牌解读信息"""
     card_id: int
@@ -70,7 +76,7 @@ class CardInterpretationInfo(BaseModel):
     position: int
     basic_summary: str
     ai_interpretation: str
-    dimension_aspect: Dict[str, Any]
+    dimension_aspect: DimensionAspectInfo
 
 
 class GenerateResponse(BaseModel):

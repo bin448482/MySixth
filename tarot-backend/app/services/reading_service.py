@@ -296,7 +296,7 @@ class ReadingService:
 
             # 解析LLM返回的完整结果
             return self._parse_complete_interpretation_result(
-                result, cards_info, dimensions, user_description
+                result, cards_info, dimensions, user_description, db
             )
 
         except Exception as e:
@@ -317,13 +317,20 @@ class ReadingService:
             for card in cards_info
         ])
 
-        # 维度信息部分
+        # 维度信息部分 - 按 aspect_type 排序
+        sorted_dimensions = sorted(dimensions, key=lambda x: x.get('aspect_type', 0))
         dimensions_section = "\n".join([
-            f"{i+1}. {dim['name']} - {dim['description']}"
-            for i, dim in enumerate(dimensions)
+            f"维度{dim.get('aspect_type', i+1)}: {dim['name']} - {dim['description']}"
+            for i, dim in enumerate(sorted_dimensions)
         ])
 
-        prompt = f"""你是一位专业的塔罗牌解读师。请为以下塔罗牌抽卡结果生成完整的多维度解读。
+        # 位置-维度对应关系
+        position_mapping = "\n".join([
+            f"位置{i+1}的卡牌对应维度{dim.get('aspect_type', i+1)}({dim['name']})"
+            for i, dim in enumerate(sorted_dimensions)
+        ])
+
+        prompt = f"""你是一位专业的塔罗牌解读师。请为以下塔罗牌抽卡结果生成完整的解读。
 
 ## 用户问题
 {user_description}
@@ -334,6 +341,9 @@ class ReadingService:
 ## 解读维度
 {dimensions_section}
 
+## 位置-维度对应关系
+{position_mapping}
+
 ## 要求
 请按照以下JSON格式返回完整的解读结果：
 
@@ -342,12 +352,15 @@ class ReadingService:
     "card_interpretations": [
         {{
             "card_id": 1,
-            "card_name": "卡牌名称",
+            "card_name": "卡牌名称(正位/逆位)",
             "direction": "正位/逆位",
             "position": 1,
             "basic_summary": "基础牌意",
-            "ai_interpretation": "150-200字的详细解读",
-            "dimension_aspect": {{"维度名称": "该卡牌在此维度下的具体含义"}}
+            "ai_interpretation": "在对应维度下的详细解读(150-300字)",
+            "dimension_aspect": {{
+                "dimension_name": "对应维度名称",
+                "interpretation": "该卡牌在此维度下的具体含义和指导(150-300字)"
+            }}
         }}
     ],
     "dimension_summaries": {{
@@ -361,11 +374,12 @@ class ReadingService:
 ```
 
 注意：
-1. 为每张卡牌生成综合性解读，不要重复为每个维度单独解读
-2. 在dimension_aspect中体现该卡牌在各个维度下的不同含义
-3. 维度总结要综合考虑所有相关卡牌
-4. 整体分析要体现维度间的关联性
-5. 洞察要具体可行，避免过于抽象
+1. 每张卡牌只对应一个维度：位置1对应维度1，位置2对应维度2，位置3对应维度3
+2. ai_interpretation 要针对该卡牌在对应维度下的含义进行详细解读(150-300字)
+3. dimension_aspect 中的 interpretation 要具体说明该卡牌如何体现该维度的含义
+4. 维度总结要基于对应位置的卡牌进行分析
+5. 整体分析要体现三个维度的关联性和发展脉络
+6. 洞察要具体可行，避免过于抽象
 """
         return prompt
 
@@ -374,7 +388,8 @@ class ReadingService:
         llm_result: str,
         cards_info: List[Dict[str, Any]],
         dimensions: List[Dict[str, Any]],
-        user_description: str
+        user_description: str,
+        db: Session
     ) -> Dict[str, Any]:
         """解析LLM返回的完整解读结果"""
         try:
@@ -388,9 +403,19 @@ class ReadingService:
 
             parsed_data = json.loads(json_str)
 
+            # 从数据库重新获取完整的维度信息（包含aspect和aspect_type）
+            complete_dimensions = []
+            for dim in dimensions:
+                db_dimension = db.query(Dimension).filter(Dimension.id == dim["id"]).first()
+                if db_dimension:
+                    complete_dimensions.append(self._serialize_dimension(db_dimension))
+                else:
+                    # 如果数据库中找不到，使用传入的数据
+                    complete_dimensions.append(dim)
+
             # 验证和补全数据结构
             return {
-                "dimensions": dimensions,
+                "dimensions": complete_dimensions,
                 "user_description": user_description,
                 "spread_type": "three-card",  # 根据实际情况设置
                 "card_interpretations": parsed_data.get("card_interpretations", []),
