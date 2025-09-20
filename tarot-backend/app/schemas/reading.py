@@ -28,6 +28,32 @@ class AnalyzeResponse(BaseModel):
     user_description: str
 
 
+class CardInfo(BaseModel):
+    """客户端传递的完整卡牌信息"""
+    id: Optional[int] = Field(None, description="数据库ID，可选")
+    name: str = Field(..., min_length=1, max_length=50, description="卡牌名称")
+    arcana: str = Field(..., pattern="^(Major|Minor)$", description="大牌/小牌")
+    suit: Optional[str] = Field(None, description="花色（小牌）")
+    number: int = Field(..., ge=0, le=78, description="牌序号")
+    direction: str = Field("正位", pattern="^(正位|逆位)$", description="牌位方向")
+    position: int = Field(..., ge=1, le=10, description="在牌阵中的位置")
+    image_url: Optional[str] = Field(None, description="图片URL")
+    deck: Optional[str] = Field("default", description="牌组类型")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "id": 1,
+                "name": "愚者",
+                "arcana": "Major",
+                "number": 0,
+                "direction": "正位",
+                "position": 1,
+                "deck": "default"
+            }
+        }
+
+
 class GenerateRequest(BaseModel):
     """生成解读的请求"""
     cards: List[CardInfo] = Field(..., min_items=1, max_items=10, description="抽到的卡牌信息列表")
@@ -73,29 +99,3 @@ class BasicInterpretationResponse(BaseModel):
     direction: str
     summary: str
     detail: Optional[str] = None
-
-
-class CardInfo(BaseModel):
-    """客户端传递的完整卡牌信息"""
-    id: Optional[int] = Field(None, description="数据库ID，可选")
-    name: str = Field(..., min_length=1, max_length=50, description="卡牌名称")
-    arcana: str = Field(..., regex="^(Major|Minor)$", description="大牌/小牌")
-    suit: Optional[str] = Field(None, description="花色（小牌）")
-    number: int = Field(..., ge=0, le=78, description="牌序号")
-    direction: str = Field("正位", regex="^(正位|逆位)$", description="牌位方向")
-    position: int = Field(..., ge=1, le=10, description="在牌阵中的位置")
-    image_url: Optional[str] = Field(None, description="图片URL")
-    deck: Optional[str] = Field("default", description="牌组类型")
-
-    class Config:
-        schema_extra = {
-            "example": {
-                "id": 1,
-                "name": "愚人",
-                "arcana": "Major",
-                "number": 0,
-                "direction": "正位",
-                "position": 1,
-                "deck": "rider-waite"
-            }
-        }

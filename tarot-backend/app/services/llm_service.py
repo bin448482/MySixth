@@ -81,20 +81,6 @@ class LLMService:
 ## 输出格式
 请直接输出解读内容，不要包含任何格式化标记或前言后语。"""
 
-    def create_prompt(self, card: Dict[str, Any], dimension: Dict[str, Any]) -> str:
-        """创建提示词"""
-        return self.prompt_template.format(
-            card_name=card.get('name', ''),
-            direction=card.get('direction', '正位'),
-            summary=card.get('summary', ''),
-            detail=card.get('detail', ''),
-            dimension_name=dimension.get('name', ''),
-            category=dimension.get('category', ''),
-            description=dimension.get('description', ''),
-            aspect=dimension.get('aspect', ''),
-            aspect_type=dimension.get('aspect_type', '')
-        )
-
     async def call_ai_api(self, prompt: str) -> Optional[str]:
         """调用AI API生成内容（异步版本）"""
         try:
@@ -132,35 +118,6 @@ class LLMService:
         except Exception as e:
             print(f"AI API调用错误: {e}")
             return None
-
-    async def generate_single_interpretation(
-        self,
-        card: Dict[str, Any],
-        dimension: Dict[str, Any]
-    ) -> Optional[Dict[str, Any]]:
-        """
-        生成单个解读。
-        Args:
-            card: 卡牌信息字典
-            dimension: 维度信息字典
-
-        Returns:
-            解读结果字典，失败时返回None
-        """
-        prompt = self.create_prompt(card, dimension)
-        content = await self.call_ai_api(prompt)
-
-        if content:
-            return {
-                "card_name": card.get('name', ''),
-                "direction": card.get('direction', '正位'),
-                "dimension_name": dimension.get('name', ''),
-                "dimension_category": dimension.get('category', ''),
-                "aspect": dimension.get('aspect', ''),
-                "aspect_type": dimension.get('aspect_type', ''),
-                "content": content
-            }
-        return None
 
     @staticmethod
     def _clean_dimension_name(line: str) -> str:

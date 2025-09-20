@@ -191,22 +191,28 @@ async def _generate_cross_dimension_summary(
 ### 测试策略
 ```python
 # 重点测试用例
-def test_v2_generate_multi_dimension():
+def test_generate_multi_dimension():
     """测试多维度解读功能"""
     request_data = {
-        "cards": [
-            {"name": "愚人", "arcana": "Major", "number": 0, "direction": "正位", "position": 1},
-            {"name": "魔术师", "arcana": "Major", "number": 1, "direction": "逆位", "position": 2},
-            {"name": "女祭司", "arcana": "Major", "number": 2, "direction": "正位", "position": 3}
-        ],
-        "dimensions": [
-            {"id": 1, "name": "事业-过去", "category": "事业", "description": "过去经历", "weight": 1.0},
-            {"id": 2, "name": "事业-现在", "category": "事业", "description": "当前状况", "weight": 1.0},
-            {"id": 3, "name": "事业-未来", "category": "事业", "description": "未来发展", "weight": 1.0}
-        ],
-        "description": "关于事业发展的困惑",
-        "spread_type": "three-card"
-    }
+                        "cards": [
+                            {"name": "愚者", "arcana": "Major", "number": 0,
+                    "direction": "正位", "position": 1},
+                            {"name": "魔术师", "arcana": "Major", "number": 1,
+                    "direction": "逆位", "position": 2},
+                            {"name": "女祭司", "arcana": "Major", "number": 2,
+                    "direction": "正位", "position": 3}
+                        ],
+                        "dimensions": [
+                            {"id": 1, "name": "事业-过去", "category": "事业",
+                    "description": "过去经历"},
+                            {"id": 2, "name": "事业-现在", "category": "事业",
+                    "description": "当前状况"},
+                            {"id": 3, "name": "事业-未来", "category": "事业",
+                    "description": "未来发展"}
+                        ],
+                        "description": "关于事业发展的困惑",
+                        "spread_type": "three-card"
+                    }
 
     response = client.post("/api/v1/readings/generate", json=request_data)
     assert response.status_code == 200
