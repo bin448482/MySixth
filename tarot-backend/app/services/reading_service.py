@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from ..models import Card, Dimension, CardInterpretation
 from .llm_service import get_llm_service
+from ..schemas.reading import CardInfo, DimensionInfo
 
 
 class ReadingService:
@@ -206,97 +207,238 @@ class ReadingService:
 
     async def generate_interpretation(
         self,
-        card_ids: List[int],
-        dimension_id: int,
+        cards: List[Dict[str, Any]],
+        dimensions: List[Dict[str, Any]],
         user_description: str,
+        spread_type: str,
         db: Session
     ) -> Dict[str, Any]:
         """
-        第二步：基于选定的维度和卡牌生成具体解读。
+        生成多维度解读（重构版本）。
         Args:
-            card_ids: 抽到的卡牌ID列表
-            dimension_id: 用户选择的维度ID
+            cards: 卡牌信息列表（CardInfo格式）
+            dimensions: 维度信息列表（DimensionInfo格式）
             user_description: 用户原始描述
+            spread_type: 牌阵类型
             db: 数据库会话
         Returns:
-            解读结果字典
+            多维度解读结果字典
         """
         try:
-            # 查询维度信息
-            dimension = db.query(Dimension).filter(Dimension.id == dimension_id).first()
-            if not dimension:
-                raise ValueError(f"维度ID {dimension_id} 不存在")
+            # 1. 解析卡牌信息
+            resolved_cards = []
+            for card_info in cards:
+                db_card = await self._resolve_card_info(card_info, db)
+                resolved_cards.append((card_info, db_card))
 
-            # 查询卡牌信息
-            cards = db.query(Card).filter(Card.id.in_(card_ids)).all()
-            if len(cards) != len(card_ids):
-                raise ValueError("部分卡牌ID不存在")
+            # 2. 为每个维度生成解读
+            dimension_summaries = {}
+            all_card_interpretations = []
 
-            # 为每张卡牌生成解读
-            card_interpretations = []
-            for i, card in enumerate(cards):
-                # 随机决定正位还是逆位（简化处理，实际应用中可能需要更复杂的逻辑）
-                direction = "正位" if i % 2 == 0 else "逆位"
+            for dimension in dimensions:
+                # 为当前维度生成卡牌解读
+                card_interpretations = []
+                for card_info, db_card in resolved_cards:
+                    # 使用现有的单张卡牌解读逻辑
+                    interpretation = await self._generate_single_card_interpretation(
+                        card_info, db_card, dimension, user_description
+                    )
+                    card_interpretations.append(interpretation)
 
-                # 查询基础解读
-                basic_interpretation = db.query(CardInterpretation).filter(
-                    CardInterpretation.card_id == card.id,
-                    CardInterpretation.direction == direction
-                ).first()
-
-                # 准备卡牌信息用于LLM
-                card_info = {
-                    "name": card.name,
-                    "direction": direction,
-                    "summary": basic_interpretation.summary if basic_interpretation else "",
-                    "detail": basic_interpretation.detail if basic_interpretation else ""
-                }
-
-                # 准备维度信息用于LLM
-                dimension_info = {
-                    "name": dimension.name,
-                    "category": dimension.category,
-                    "description": dimension.description,
-                    "aspect": dimension.aspect or "",
-                    "aspect_type": dimension.aspect_type or ""
-                }
-
-                # 使用LLM生成解读
-                ai_interpretation = await self.llm_service.generate_single_interpretation(
-                    card_info, dimension_info
+                # 为当前维度生成总结
+                dimension_summary = await self._generate_dimension_summary(
+                    card_interpretations, dimension, user_description
                 )
+                dimension_summaries[dimension["name"]] = dimension_summary
 
-                card_interpretations.append({
-                    "card_id": card.id,
-                    "card_name": card.name,
-                    "direction": direction,
-                    "position": i + 1,  # 卡牌在牌阵中的位置
-                    "basic_summary": basic_interpretation.summary if basic_interpretation else "",
-                    "ai_interpretation": ai_interpretation["content"] if ai_interpretation else "",
-                    "dimension_aspect": dimension_info
-                })
+                # 收集所有卡牌解读
+                all_card_interpretations.extend(card_interpretations)
 
-            # 生成整体总结
-            overall_summary = await self._generate_overall_summary(
-                card_interpretations, dimension_info, user_description
+            # 3. 生成跨维度综合分析
+            overall_summary = await self._generate_cross_dimension_summary(
+                dimension_summaries, user_description
+            )
+
+            # 4. 提取关键洞察
+            insights = await self._extract_key_insights(
+                dimension_summaries, overall_summary
             )
 
             return {
-                "dimension": {
-                    "id": dimension.id,
-                    "name": dimension.name,
-                    "category": dimension.category,
-                    "description": dimension.description
-                },
+                "dimensions": dimensions,
                 "user_description": user_description,
-                "card_interpretations": card_interpretations,
+                "spread_type": spread_type,
+                "card_interpretations": all_card_interpretations,
+                "dimension_summaries": dimension_summaries,
                 "overall_summary": overall_summary,
-                "generated_at": "now"  # 实际使用时应该是时间戳
+                "insights": insights,
+                "generated_at": "now"
             }
 
         except Exception as e:
-            print(f"生成解读失败: {e}")
+            print(f"生成多维度解读失败: {e}")
             raise
+
+    async def _resolve_card_info(self, card_info: Dict[str, Any], db: Session) -> Card:
+        """解析客户端传递的卡牌信息，匹配数据库中的卡牌"""
+        # 优先使用名称精确匹配
+        card = db.query(Card).filter(
+            Card.name == card_info["name"]
+        ).first()
+
+        if not card:
+            raise ValueError(f"无法找到卡牌: {card_info['name']}")
+
+        return card
+
+    async def _generate_single_card_interpretation(
+        self,
+        card_info: Dict[str, Any],
+        db_card: Card,
+        dimension: Dict[str, Any],
+        user_description: str
+    ) -> Dict[str, Any]:
+        """为单张卡牌在特定维度下生成解读"""
+        try:
+            # 查询基础解读
+            basic_interpretation = db.query(CardInterpretation).filter(
+                CardInterpretation.card_id == db_card.id,
+                CardInterpretation.direction == card_info["direction"]
+            ).first()
+
+            # 准备卡牌信息用于LLM
+            card_data = {
+                "name": db_card.name,
+                "direction": card_info["direction"],
+                "summary": basic_interpretation.summary if basic_interpretation else "",
+                "detail": basic_interpretation.detail if basic_interpretation else ""
+            }
+
+            # 使用LLM生成解读
+            ai_interpretation = await self.llm_service.generate_single_interpretation(
+                card_data, dimension
+            )
+
+            return {
+                "card_id": db_card.id,
+                "card_name": db_card.name,
+                "direction": card_info["direction"],
+                "position": card_info["position"],
+                "basic_summary": basic_interpretation.summary if basic_interpretation else "",
+                "ai_interpretation": ai_interpretation["content"] if ai_interpretation else "",
+                "dimension_aspect": dimension
+            }
+
+        except Exception as e:
+            print(f"生成单张卡牌解读失败: {e}")
+            # 返回默认解读
+            return {
+                "card_id": db_card.id,
+                "card_name": db_card.name,
+                "direction": card_info["direction"],
+                "position": card_info["position"],
+                "basic_summary": "基础的卡牌意义",
+                "ai_interpretation": "请相信你的直觉，这张牌对你有特别的意义。",
+                "dimension_aspect": dimension
+            }
+
+    async def _generate_dimension_summary(
+        self,
+        card_interpretations: List[Dict[str, Any]],
+        dimension: Dict[str, Any],
+        user_description: str
+    ) -> str:
+        """为单个维度生成总结"""
+        try:
+            # 构建当前维度的卡牌解读摘要
+            cards_summary = "\n".join([
+                f"第{interp['position']}张牌：{interp['card_name']} {interp['direction']}\n解读：{interp['ai_interpretation']}"
+                for interp in card_interpretations
+            ])
+
+            summary_prompt = f"""
+基于以下在特定维度下的卡牌解读，请生成一个简洁的维度总结（100-120字）。
+
+用户问题：{user_description}
+解读维度：{dimension['name']} - {dimension.get('description', '')}
+
+各卡牌解读：
+{cards_summary}
+
+请针对该维度的特定关注点，综合所有卡牌信息，给出连贯的分析和建议。
+要求：
+1. 突出该维度的核心信息
+2. 整合所有卡牌的意义
+3. 给出明确的指导意见
+4. 语言简洁明了，易于理解
+
+请直接输出总结内容，不要包含任何格式化标记。"""
+
+            result = await self.llm_service.call_ai_api(summary_prompt)
+            return result if result else f"在{dimension['name']}方面，建议您保持开放的心态，相信自己的直觉。"
+
+        except Exception as e:
+            print(f"生成维度总结失败: {e}")
+            return f"在{dimension['name']}方面，建议您保持开放的心态，相信自己的直觉。"
+
+    async def _generate_cross_dimension_summary(
+        self,
+        dimension_summaries: Dict[str, str],
+        user_description: str
+    ) -> str:
+        """生成维度间的综合分析"""
+        # 构建跨维度分析提示词
+        dimensions_summary = "\n".join([
+            f"【{dim_name}】: {summary}"
+            for dim_name, summary in dimension_summaries.items()
+        ])
+
+        cross_analysis_prompt = f"""
+基于以下多维度塔罗解读结果，请生成一个综合分析（150-200字）：
+
+用户问题：{user_description}
+各维度解读：{dimensions_summary}
+
+请综合分析各维度信息的一致性、互补性和整体发展趋势，给出具体的行动指导。
+"""
+
+        try:
+            result = await self.llm_service.call_ai_api(cross_analysis_prompt)
+            return result if result else "综合来看，建议您保持开放的心态，相信自己的直觉。"
+        except Exception as e:
+            print(f"生成跨维度分析失败: {e}")
+            return "综合来看，建议您保持开放的心态，相信自己的直觉。"
+
+    async def _extract_key_insights(
+        self,
+        dimension_summaries: Dict[str, str],
+        overall_summary: str
+    ) -> List[str]:
+        """提取关键洞察点"""
+        try:
+            insights_prompt = f"""
+基于以下的多维度塔罗解读结果，请提取3-5个关键洞察点。
+
+各维度分析：
+{"; ".join([f"{name}: {summary}" for name, summary in dimension_summaries.items()])}
+
+综合分析：
+{overall_summary}
+
+请返回3-5个简洁的洞察点（每个15-25字），每个洞察占一行，不要编号或格式化。
+"""
+
+            result = await self.llm_service.call_ai_api(insights_prompt)
+            if result:
+                # 将结果按行分割为列表
+                insights = [line.strip() for line in result.split("\n") if line.strip()]
+                return insights[:5]  # 最多返回5个
+            else:
+                return ["相信自己的直觉", "保持开放的心态", "积极面对挑战"]
+
+        except Exception as e:
+            print(f"提取关键洞察失败: {e}")
+            return ["相信自己的直觉", "保持开放的心态", "积极面对挑战"]
 
     async def _generate_overall_summary(
         self,
@@ -304,7 +446,7 @@ class ReadingService:
         dimension_info: Dict[str, Any],
         user_description: str
     ) -> str:
-        """生成整体总结"""
+        """生成整体总结（兼容旧的API）"""
         try:
             # 构造整体总结的提示词
             cards_summary = "\n".join([
@@ -334,6 +476,7 @@ class ReadingService:
         except Exception as e:
             print(f"生成整体总结失败: {e}")
             return "综合来看，建议您保持开放的心态，相信自己的直觉，并积极面对当前的挑战。"
+
 
     def get_basic_interpretation(
         self,

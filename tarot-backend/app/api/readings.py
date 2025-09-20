@@ -9,7 +9,8 @@ from ..database import get_db
 from ..schemas.reading import (
     AnalyzeRequest, AnalyzeResponse,
     GenerateRequest, GenerateResponse,
-    BasicInterpretationRequest, BasicInterpretationResponse
+    BasicInterpretationRequest, BasicInterpretationResponse,
+    CardInfo, DimensionInfo
 )
 from ..services.reading_service import get_reading_service
 from ..api.auth import get_current_user_id_optional
@@ -85,24 +86,70 @@ async def generate_reading(
     user_id: str = Depends(get_current_user_id_optional)
 ):
     """
-    第二步：基于选定维度生成具体解读内容。
+    生成多维度解读内容。
 
     Args:
-        request: 包含卡牌ID、维度ID和用户描述的请求
+        request: 包含卡牌信息、维度信息和用户描述的请求
         db: 数据库会话
         user_id: 可选的用户ID（用于日志记录）
 
     Returns:
-        GenerateResponse: 详细的解读结果
+        GenerateResponse: 详细的多维度解读结果
     """
     try:
         reading_service = get_reading_service()
 
-        # 生成解读
+        # 验证请求数据
+        if not request.cards or not request.dimensions:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="卡牌信息和维度信息都不能为空"
+            )
+
+        # 验证维度数量与牌阵类型的匹配
+        if request.spread_type == "three-card" and len(request.dimensions) != 3:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="三牌阵必须选择3个维度"
+            )
+        elif request.spread_type == "celtic-cross" and len(request.dimensions) != 10:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="凯尔特十字必须选择10个维度"
+            )
+
+        # 转换为服务层需要的格式
+        cards_data = []
+        for card in request.cards:
+            cards_data.append({
+                "id": card.id,
+                "name": card.name,
+                "arcana": card.arcana,
+                "suit": card.suit,
+                "number": card.number,
+                "direction": card.direction,
+                "position": card.position,
+                "image_url": card.image_url,
+                "deck": card.deck
+            })
+
+        dimensions_data = []
+        for dimension in request.dimensions:
+            dimensions_data.append({
+                "id": dimension.id,
+                "name": dimension.name,
+                "category": dimension.category,
+                "description": dimension.description,
+                "aspect": dimension.aspect,
+                "aspect_type": dimension.aspect_type
+            })
+
+        # 生成多维度解读
         interpretation_result = await reading_service.generate_interpretation(
-            card_ids=request.card_ids,
-            dimension_id=request.dimension_id,
+            cards=cards_data,
+            dimensions=dimensions_data,
             user_description=request.description,
+            spread_type=request.spread_type,
             db=db
         )
 
