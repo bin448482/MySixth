@@ -37,6 +37,7 @@ export default function DrawCardsScreen() {
   const [isDrawing, setIsDrawing] = useState(false);
   const [allCardsPlaced, setAllCardsPlaced] = useState(false);
   const [isDragMode, setIsDragMode] = useState(true); // 直接进入拖拽模式
+  const [error, setError] = useState<string | null>(null);
 
   const cardService = CardService.getInstance();
   const dimensionService = DimensionService.getInstance();
@@ -49,15 +50,28 @@ export default function DrawCardsScreen() {
   const loadDimensions = async () => {
     try {
       // 使用从步骤2传递过来的dimensions数据，而不是重新查询数据库
-      if (state.dimensions && state.dimensions.length > 0) {
-        // 按aspect_type排序：1(过去), 2(现在), 3(将来)
+      if (state.type === 'ai' && state.aiDimensions) {
+        // AI模式：使用推荐的维度
+        console.log('AI模式：使用推荐维度', state.aiDimensions);
+        const sortedDimensions = [...state.aiDimensions].sort((a, b) => a.aspect_type - b.aspect_type);
+        setDimensions(sortedDimensions.slice(0, 3)); // 取前3个维度
+      } else if (state.type === 'offline' && state.dimensions && state.dimensions.length > 0) {
+        // 离线模式：使用现有逻辑
+        console.log('离线模式：使用选择的维度', state.dimensions);
         const sortedDimensions = [...state.dimensions].sort((a, b) => a.aspect_type - b.aspect_type);
         setDimensions(sortedDimensions.slice(0, 3)); // 取前3个维度
       } else {
-        console.warn('No dimensions found in reading state');
+        console.warn('No dimensions found in reading state', {
+          type: state.type,
+          aiDimensions: state.aiDimensions,
+          dimensions: state.dimensions
+        });
+        // 如果没有维度数据，设置错误状态
+        setError('缺少占卜维度数据，请返回上一步重新选择');
       }
     } catch (error) {
       console.error('Error loading dimensions:', error);
+      setError('加载维度数据失败，请重试');
     } finally {
       setLoading(false);
     }
@@ -66,11 +80,21 @@ export default function DrawCardsScreen() {
   const handleDrawCards = async () => {
     try {
       setIsDrawing(true);
+      setError(null); // 清除之前的错误
+
+      // 检查维度数据
+      if (!dimensions || dimensions.length < 3) {
+        throw new Error('维度数据不完整，请返回上一步重新选择');
+      }
 
       // 1. 获取所有卡牌并随机抽取3张
       const cardsResult = await cardService.getAllCards();
       if (!cardsResult.success || !cardsResult.data) {
-        throw new Error('Failed to load cards');
+        throw new Error('加载卡牌数据失败，请检查网络连接');
+      }
+
+      if (cardsResult.data.length < 3) {
+        throw new Error('可用卡牌数量不足，请联系技术支持');
       }
 
       const shuffled = [...cardsResult.data].sort(() => Math.random() - 0.5);
@@ -101,7 +125,10 @@ export default function DrawCardsScreen() {
       setDrawnCards(cardsWithInterpretation);
     } catch (error) {
       console.error('Error drawing cards:', error);
-      Alert.alert('错误', '抽牌失败，请重试');
+      const errorMessage = error instanceof Error
+        ? error.message
+        : '抽牌失败，请重试';
+      setError(errorMessage);
     } finally {
       setIsDrawing(false);
     }
@@ -125,7 +152,12 @@ export default function DrawCardsScreen() {
   const handleContinue = () => {
     updateCards(drawnCards);
     updateStep(4);
-    router.push('/(reading)/basic');
+
+    if (state.type === 'ai') {
+      router.push('/(reading)/ai-result');
+    } else {
+      router.push('/(reading)/basic');
+    }
   };
 
   const handleCardPlacement = (cardId: number, slotIndex: number) => {
@@ -173,7 +205,10 @@ export default function DrawCardsScreen() {
       <View style={styles.header}>
         <Text style={styles.title}>抽取塔罗牌</Text>
         <Text style={styles.subtitle}>
-          将卡牌拖拽到对应位置或点击按钮抽牌
+          {state.type === 'ai'
+            ? '将卡牌拖拽到对应位置，AI将为您生成个性化解读'
+            : '将卡牌拖拽到对应位置或点击按钮抽牌'
+          }
         </Text>
       </View>
 
@@ -218,7 +253,9 @@ export default function DrawCardsScreen() {
             onPress={handleContinue}
             activeOpacity={0.8}
           >
-            <Text style={styles.continueButtonText}>查看解读</Text>
+            <Text style={styles.continueButtonText}>
+              {state.type === 'ai' ? '生成AI解读' : '查看解读'}
+            </Text>
           </TouchableOpacity>
         ) : (
           <View style={styles.dragHintContainer}>

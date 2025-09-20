@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  Alert,
   ScrollView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -12,19 +11,17 @@ import { useReadingFlow } from '@/lib/contexts/ReadingContext';
 
 export default function TypeSelectionScreen() {
   const router = useRouter();
-  const { updateStep } = useReadingFlow();
+  const { updateStep, updateType } = useReadingFlow();
 
-  const handleOfflineSelect = () => {
+  const handleTypeSelect = async (type: 'offline' | 'ai') => {
+    updateType(type);
     updateStep(2);
-    router.push('/(reading)/category');
-  };
 
-  const handleAISelect = () => {
-    Alert.alert(
-      'AI占卜功能',
-      '智能塔罗牌解读功能即将推出，敬请期待！',
-      [{ text: '了解', style: 'default' }]
-    );
+    if (type === 'offline') {
+      router.push('/(reading)/category');
+    } else {
+      router.push('/(reading)/ai-input');
+    }
   };
 
   return (
@@ -42,7 +39,7 @@ export default function TypeSelectionScreen() {
       <View style={styles.optionsContainer}>
         <TouchableOpacity
           style={[styles.optionCard, styles.availableOption]}
-          onPress={handleOfflineSelect}
+          onPress={() => handleTypeSelect('offline')}
           activeOpacity={0.8}
         >
           <View style={styles.iconContainer}>
@@ -60,21 +57,21 @@ export default function TypeSelectionScreen() {
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.optionCard, styles.lockedOption]}
-          onPress={handleAISelect}
+          style={[styles.optionCard, styles.availableOption]}
+          onPress={() => handleTypeSelect('ai')}
           activeOpacity={0.8}
         >
           <View style={styles.iconContainer}>
-            <Text style={[styles.icon, styles.lockedIcon]}>🤖</Text>
+            <Text style={[styles.icon, styles.availableIcon]}>🤖</Text>
           </View>
-          <Text style={[styles.optionTitle, styles.lockedTitle]}>
+          <Text style={[styles.optionTitle, styles.availableTitle]}>
             AI占卜
           </Text>
-          <Text style={[styles.optionDescription, styles.lockedDescription]}>
-            智能解读服务即将推出
+          <Text style={[styles.optionDescription, styles.availableDescription]}>
+            智能解读服务，个性化分析
           </Text>
-          <Text style={[styles.optionStatus, styles.lockedStatus]}>
-            [锁定]
+          <Text style={[styles.optionStatus, styles.availableStatus]}>
+            [可用]
           </Text>
         </TouchableOpacity>
       </View>
@@ -134,11 +131,6 @@ const styles = StyleSheet.create({
     borderColor: '#FFD700',
     backgroundColor: '#16213E',
   },
-  lockedOption: {
-    borderColor: '#666666',
-    backgroundColor: '#0A0A15',
-    opacity: 0.7,
-  },
   iconContainer: {
     marginBottom: 16,
   },
@@ -148,9 +140,6 @@ const styles = StyleSheet.create({
   availableIcon: {
     opacity: 1,
   },
-  lockedIcon: {
-    opacity: 0.5,
-  },
   optionTitle: {
     fontSize: 20,
     fontWeight: 'bold',
@@ -158,9 +147,6 @@ const styles = StyleSheet.create({
   },
   availableTitle: {
     color: '#FFD700',
-  },
-  lockedTitle: {
-    color: '#888888',
   },
   optionDescription: {
     fontSize: 14,
@@ -170,9 +156,6 @@ const styles = StyleSheet.create({
   availableDescription: {
     color: '#CCCCCC',
   },
-  lockedDescription: {
-    color: '#666666',
-  },
   optionStatus: {
     fontSize: 12,
     fontWeight: 'bold',
@@ -180,9 +163,6 @@ const styles = StyleSheet.create({
   },
   availableStatus: {
     color: '#FFD700',
-  },
-  lockedStatus: {
-    color: '#666666',
   },
   footer: {
     alignItems: 'center',

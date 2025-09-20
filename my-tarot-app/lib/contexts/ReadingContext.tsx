@@ -24,10 +24,18 @@ export interface DimensionData {
 
 export interface ReadingFlowState {
   step: number;
-  type: 'offline';
+  type: 'offline' | 'ai';
   category: string;
   // 选中的维度列表（由步骤2选择的类别映射得到，用于后续匹配）
   dimensions: DimensionData[];
+  // AI占卜专用字段
+  userDescription?: string;         // AI模式：用户问题描述
+  aiDimensions?: DimensionData[];   // AI模式：推荐的维度
+  aiResult?: {                      // AI解读结果
+    dimension_summaries: Record<string, string>;
+    overall_summary: string;
+    insights: string[];
+  };
   selectedCards: SelectedCard[];
   interpretations: any[];
   createdAt: Date;
@@ -38,8 +46,12 @@ export interface ReadingFlowState {
 interface ReadingContextType {
   state: ReadingFlowState;
   updateStep: (step: number) => void;
+  updateType: (type: 'offline' | 'ai') => void;
   updateCategory: (category: string) => void;
   updateDimensions: (dimensions: DimensionData[]) => void;
+  updateUserDescription: (description: string) => void;
+  updateAIDimensions: (dimensions: DimensionData[]) => void;
+  updateAIResult: (result: any) => void;
   updateCards: (cards: SelectedCard[]) => void;
   updateInterpretations: (interpretations: any[]) => void;
   resetFlow: () => void;
@@ -52,6 +64,9 @@ const initialState: ReadingFlowState = {
   type: 'offline',
   category: '',
   dimensions: [],
+  userDescription: undefined,
+  aiDimensions: undefined,
+  aiResult: undefined,
   selectedCards: [],
   interpretations: [],
   createdAt: new Date(),
@@ -61,8 +76,12 @@ const initialState: ReadingFlowState = {
 
 type ReadingAction =
   | { type: 'UPDATE_STEP'; payload: number }
+  | { type: 'UPDATE_TYPE'; payload: 'offline' | 'ai' }
   | { type: 'UPDATE_CATEGORY'; payload: string }
   | { type: 'UPDATE_DIMENSIONS'; payload: DimensionData[] }
+  | { type: 'UPDATE_USER_DESCRIPTION'; payload: string }
+  | { type: 'UPDATE_AI_DIMENSIONS'; payload: DimensionData[] }
+  | { type: 'UPDATE_AI_RESULT'; payload: any }
   | { type: 'UPDATE_CARDS'; payload: SelectedCard[] }
   | { type: 'UPDATE_INTERPRETATIONS'; payload: any[] }
   | { type: 'SET_LOADING'; payload: boolean }
@@ -74,12 +93,20 @@ function readingReducer(state: ReadingFlowState, action: ReadingAction): Reading
   switch (action.type) {
     case 'UPDATE_STEP':
       return { ...state, step: action.payload };
+    case 'UPDATE_TYPE':
+      return { ...state, type: action.payload };
     case 'UPDATE_CATEGORY':
       return { ...state, category: action.payload };
     case 'UPDATE_CARDS':
       return { ...state, selectedCards: action.payload };
     case 'UPDATE_DIMENSIONS':
       return { ...state, dimensions: action.payload };
+    case 'UPDATE_USER_DESCRIPTION':
+      return { ...state, userDescription: action.payload };
+    case 'UPDATE_AI_DIMENSIONS':
+      return { ...state, aiDimensions: action.payload };
+    case 'UPDATE_AI_RESULT':
+      return { ...state, aiResult: action.payload };
     case 'UPDATE_INTERPRETATIONS':
       return { ...state, interpretations: action.payload };
     case 'SET_LOADING':
@@ -104,6 +131,10 @@ export function ReadingProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: 'UPDATE_STEP', payload: step });
   }, []);
 
+  const updateType = useCallback((type: 'offline' | 'ai') => {
+    dispatch({ type: 'UPDATE_TYPE', payload: type });
+  }, []);
+
   const updateCategory = useCallback((category: string) => {
     dispatch({ type: 'UPDATE_CATEGORY', payload: category });
   }, []);
@@ -114,6 +145,18 @@ export function ReadingProvider({ children }: { children: React.ReactNode }) {
 
   const updateDimensions = useCallback((dimensions: DimensionData[]) => {
     dispatch({ type: 'UPDATE_DIMENSIONS', payload: dimensions });
+  }, []);
+
+  const updateUserDescription = useCallback((description: string) => {
+    dispatch({ type: 'UPDATE_USER_DESCRIPTION', payload: description });
+  }, []);
+
+  const updateAIDimensions = useCallback((dimensions: DimensionData[]) => {
+    dispatch({ type: 'UPDATE_AI_DIMENSIONS', payload: dimensions });
+  }, []);
+
+  const updateAIResult = useCallback((result: any) => {
+    dispatch({ type: 'UPDATE_AI_RESULT', payload: result });
   }, []);
 
   const updateInterpretations = useCallback((interpretations: any[]) => {
@@ -172,8 +215,12 @@ export function ReadingProvider({ children }: { children: React.ReactNode }) {
   const value: ReadingContextType = {
     state,
     updateStep,
+    updateType,
     updateCategory,
     updateDimensions,
+    updateUserDescription,
+    updateAIDimensions,
+    updateAIResult,
     updateCards,
     updateInterpretations,
     resetFlow,

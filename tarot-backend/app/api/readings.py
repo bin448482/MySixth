@@ -1,6 +1,7 @@
 """
 Reading API endpoints for tarot card interpretation.
 """
+import logging
 from fastapi import APIRouter, HTTPException, status, Depends
 from sqlalchemy.orm import Session
 from typing import List
@@ -16,6 +17,9 @@ from ..services.reading_service import get_reading_service
 from ..api.auth import get_current_user_id_optional
 
 router = APIRouter(prefix="/readings", tags=["Readings"])
+
+logger = logging.getLogger(__name__)
+
 
 
 @router.post("/analyze", response_model=AnalyzeResponse)
@@ -40,7 +44,12 @@ async def analyze_user_description(
         AnalyzeResponse: 推荐的维度列表
     """
     # 调试断点 - 在这里设置断点
-    print(f"DEBUG: Received request - description: {request.description[:50]}..., spread_type: {request.spread_type}")
+    logger.debug(
+        "Received analyze request: description_prefix=%s spread_type=%s user_id=%s",
+        request.description[:50],
+        request.spread_type,
+        user_id,
+    )
 
     try:
         reading_service = get_reading_service()
@@ -53,11 +62,14 @@ async def analyze_user_description(
             )
 
         # 分析用户描述 - 在这里也可以设置断点
-        print(f"DEBUG: Starting LLM analysis...")
+        logger.debug("Starting LLM analysis for spread_type=%s", request.spread_type)
         recommended_dimensions = await reading_service.analyze_user_description(
             request.description, request.spread_type, db
         )
-        print(f"DEBUG: LLM analysis completed, got {len(recommended_dimensions) if recommended_dimensions else 0} dimensions")
+        logger.debug(
+            "LLM analysis completed with %d dimensions",
+            len(recommended_dimensions) if recommended_dimensions else 0
+        )
 
         if not recommended_dimensions:
             raise HTTPException(
@@ -73,6 +85,7 @@ async def analyze_user_description(
     except HTTPException:
         raise
     except Exception as e:
+        logger.exception("Failed to analyze user description")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Analysis failed: {str(e)}"
@@ -86,6 +99,7 @@ async def generate_reading(
     user_id: str = Depends(get_current_user_id_optional)
 ):
     """
+
     生成多维度解读内容。
 
     Args:
@@ -96,6 +110,9 @@ async def generate_reading(
     Returns:
         GenerateResponse: 详细的多维度解读结果
     """
+
+    logger.info("Generating reading for spread_type=%s cards=%d dimensions=%d user_id=%s", request.spread_type, len(request.cards), len(request.dimensions), user_id)
+
     try:
         reading_service = get_reading_service()
 
@@ -156,11 +173,13 @@ async def generate_reading(
         return GenerateResponse(**interpretation_result)
 
     except ValueError as e:
+        logger.warning("Reading generation failed due to validation error: %s", e)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e)
         )
     except Exception as e:
+        logger.exception("Unexpected error during reading generation")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Generation failed: {str(e)}"

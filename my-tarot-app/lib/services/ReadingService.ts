@@ -237,13 +237,25 @@ export class ReadingService implements IReadingService {
           spread: mockSpread,
           cards: cardDraws,
           interpretation: {
-            cards: state.interpretations
+            cards: state.interpretations,
+            // AI占卜专用字段
+            ...(state.type === 'ai' && {
+              dimension_summaries: state.aiResult?.dimension_summaries,
+              insights: state.aiResult?.insights,
+              user_description: state.userDescription,
+              overall: state.aiResult?.overall_summary
+            })
           },
           metadata: {
             created_at: state.createdAt.toISOString(),
             interpretation_mode: state.type === 'offline' ? 'default' : 'ai',
             user_id: userId,
-            theme: theme // 使用 dimension.description 作为主题
+            theme: theme, // 使用 dimension.description 作为主题
+            // AI占卜专用元数据
+            ...(state.type === 'ai' && {
+              ai_dimensions: state.aiDimensions,
+              generated_at: new Date().toISOString()
+            })
           }
         };
 

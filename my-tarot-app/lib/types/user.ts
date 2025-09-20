@@ -74,12 +74,19 @@ export interface ReadingResult {
   interpretation: {
     overall?: string; // 整体解读
     cards: CardInterpretationData[]; // 各卡牌解读
+    // AI占卜专用字段
+    dimension_summaries?: Record<string, string>; // 各维度解读总结
+    insights?: string[]; // 关键洞察
+    user_description?: string; // 用户原始问题描述
   };
   metadata: {
     created_at: string;
     interpretation_mode: 'default' | 'ai';
     user_id: string;
     theme?: string; // 占卜主题 (dimension.description)
+    // AI占卜专用元数据
+    ai_dimensions?: any[]; // AI推荐的维度
+    generated_at?: string; // AI解读生成时间
   };
 }
 
