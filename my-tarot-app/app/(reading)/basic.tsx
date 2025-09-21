@@ -193,12 +193,12 @@ export default function BasicReadingScreen() {
               </View>
             </View>
 
-            <View style={styles.cardWithInterpretation}>
+            <View style={styles.cardContent}>
               <View style={styles.cardImageSection}>
                 <CardImageLoader
                   imageUrl={reading.card.imageUrl}
-                  width={100}
-                  height={166}
+                  width={120}
+                  height={200}
                   style={[
                     styles.cardImageLarge,
                     reading.card.direction === 'reversed' && styles.cardImageReversed
@@ -207,19 +207,19 @@ export default function BasicReadingScreen() {
                 />
               </View>
 
-              <View style={styles.interpretationSection}>
-                <View style={styles.dimensionInfo}>
-                  <Text style={styles.dimensionTitle}>{reading.dimension.name}</Text>
-                  <Text style={styles.dimensionAspect}>{reading.dimension.aspect}</Text>
-                </View>
+              <View style={styles.dimensionInfo}>
+                <Text style={styles.dimensionTitle}>{reading.dimension.name}</Text>
+                <Text style={styles.dimensionAspect}>{reading.dimension.aspect}</Text>
+              </View>
 
-                <View style={styles.interpretationContainer}>
-                  <Text style={styles.interpretationLabel}>基础牌意：</Text>
-                  <Text style={styles.interpretationSummary}>{reading.interpretation.summary}</Text>
+              <View style={styles.basicInterpretationContainer}>
+                <Text style={styles.interpretationLabel}>基础牌意：</Text>
+                <Text style={styles.interpretationSummary}>{reading.interpretation.summary}</Text>
+              </View>
 
-                  <Text style={[styles.interpretationLabel, styles.detailedLabel]}>详细解读：</Text>
-                  <Text style={styles.interpretationDetail}>{reading.interpretation.detailedContent}</Text>
-                </View>
+              <View style={styles.detailedInterpretationContainer}>
+                <Text style={styles.interpretationLabel}>详细解读：</Text>
+                <Text style={styles.interpretationDetail}>{reading.interpretation.detailedContent}</Text>
               </View>
             </View>
           </View>
@@ -340,12 +340,13 @@ const styles = StyleSheet.create({
   cardInfo: {
     flex: 1,
   },
-  cardWithInterpretation: {
-    flexDirection: 'row',
+  cardContent: {
+    alignItems: 'center',
     gap: 16,
   },
   cardImageSection: {
     alignItems: 'center',
+    marginBottom: 8,
   },
   cardImageLarge: {
     borderRadius: 8,
@@ -355,25 +356,38 @@ const styles = StyleSheet.create({
   cardImageReversed: {
     transform: [{ rotate: '180deg' }],
   },
-  interpretationSection: {
-    flex: 1,
-  },
   dimensionInfo: {
+    alignItems: 'center',
     marginBottom: 16,
     paddingBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#333333',
+    width: '100%',
   },
-  interpretationContainer: {
-    gap: 8,
+  basicInterpretationContainer: {
+    width: '100%',
+    marginBottom: 16,
+  },
+  detailedInterpretationContainer: {
+    width: '100%',
   },
   interpretationLabel: {
     fontSize: 14,
     fontWeight: 'bold',
     color: '#FFD700',
+    marginBottom: 8,
   },
-  detailedLabel: {
-    marginTop: 12,
+  interpretationSummary: {
+    fontSize: 14,
+    color: '#CCCCCC',
+    lineHeight: 20,
+    textAlign: 'center',
+  },
+  interpretationDetail: {
+    fontSize: 14,
+    color: '#CCCCCC',
+    lineHeight: 22,
+    textAlign: 'left',
   },
   cardName: {
     fontSize: 18,
@@ -385,45 +399,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#CCCCCC',
     textTransform: 'capitalize',
-  },
-  dimensionInfo: {
-    marginBottom: 16,
-    padding: 12,
-    backgroundColor: '#1A1A2E',
-    borderRadius: 8,
-  },
-  dimensionTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#4ECDC4',
-    marginBottom: 4,
-  },
-  dimensionAspect: {
-    fontSize: 14,
-    color: '#888888',
-    fontStyle: 'italic',
-  },
-  interpretationContainer: {
-    gap: 8,
-  },
-  interpretationLabel: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#FFD700',
-  },
-  detailedLabel: {
-    marginTop: 12,
-  },
-  interpretationSummary: {
-    fontSize: 14,
-    color: '#CCCCCC',
-    lineHeight: 20,
-  },
-  interpretationDetail: {
-    fontSize: 14,
-    color: '#CCCCCC',
-    lineHeight: 22,
-    textAlign: 'justify',
   },
   actionsContainer: {
     gap: 12,
