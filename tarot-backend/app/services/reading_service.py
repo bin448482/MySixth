@@ -363,11 +363,6 @@ class ReadingService:
             }}
         }}
     ],
-    "dimension_summaries": {{
-        "维度1名称": "该维度下的综合总结(100-150字)",
-        "维度2名称": "该维度下的综合总结(100-150字)",
-        "维度3名称": "该维度下的综合总结(100-150字)"
-    }},
     "overall_summary": "跨维度的整体分析和建议(200-300字)",
     "insights": ["关键洞察1", "关键洞察2", "关键洞察3"]
 }}
@@ -377,9 +372,8 @@ class ReadingService:
 1. 每张卡牌只对应一个维度：位置1对应维度1，位置2对应维度2，位置3对应维度3
 2. ai_interpretation 要针对该卡牌在对应维度下的含义进行详细解读(150-300字)
 3. dimension_aspect 中的 interpretation 要具体说明该卡牌如何体现该维度的含义
-4. 维度总结要基于对应位置的卡牌进行分析
-5. 整体分析要体现三个维度的关联性和发展脉络
-6. 洞察要具体可行，避免过于抽象
+4. 整体分析要体现三个维度的关联性和发展脉络
+5. 洞察要具体可行，避免过于抽象
 """
         return prompt
 
@@ -419,7 +413,6 @@ class ReadingService:
                 "user_description": user_description,
                 "spread_type": "three-card",  # 根据实际情况设置
                 "card_interpretations": parsed_data.get("card_interpretations", []),
-                "dimension_summaries": parsed_data.get("dimension_summaries", {}),
                 "overall_summary": parsed_data.get("overall_summary", ""),
                 "insights": parsed_data.get("insights", []),
                 "generated_at": "now"

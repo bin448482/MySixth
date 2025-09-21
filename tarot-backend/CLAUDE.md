@@ -177,7 +177,7 @@ WebSocket /sync/updates  # 实时更新推送
   - 接收用户选择的多个维度和卡牌信息（支持完整CardInfo对象）
   - 验证维度数量与牌阵类型匹配（三牌阵3个维度，凯尔特十字10个维度）
   - 调用reading_service.generate_interpretation生成多维度解读
-  - 返回详细的GenerateResponse（包含dimension_summaries和overall_summary）
+  - 返回详细的GenerateResponse（包含overall_summary）
 - [x] 解读结果实时返回（无需存储历史）
 - [x] 支持数据自包含设计，客户端传递完整对象信息，减少数据库ID依赖
 

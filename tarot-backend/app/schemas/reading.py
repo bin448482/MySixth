@@ -85,7 +85,6 @@ class GenerateResponse(BaseModel):
     user_description: str
     spread_type: str
     card_interpretations: List[CardInterpretationInfo]
-    dimension_summaries: Dict[str, str] = Field(..., description="各维度的独立总结")
     overall_summary: str
     insights: List[str] = Field(default=[], description="关键洞察点")
     generated_at: str

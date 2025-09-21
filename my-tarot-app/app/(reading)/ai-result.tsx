@@ -7,17 +7,38 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
-  Image,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useReadingFlow } from '@/lib/contexts/ReadingContext';
 import AIReadingService from '@/lib/services/AIReadingService';
+import { CardImageLoader } from '@/components/reading/CardImageLoader';
 
 interface AIResult {
-  dimension_summaries: Record<string, string>;
+  dimension_summaries?: Record<string, string>; // 现在是可选的，为了向后兼容
   overall_summary: string;
   insights: string[];
   generated_at: string;
+  // 新的主要数据结构
+  card_interpretations: Array<{
+    card_id: number;
+    card_name: string;
+    direction: string;
+    position: number;
+    ai_interpretation: string;
+    basic_summary: string;
+    dimension_aspect?: {
+      dimension_name: string;
+      interpretation: string;
+    };
+  }>;
+  dimensions: Array<{
+    id: number;
+    name: string;
+    aspect: string;
+    aspect_type: number;
+    category: string;
+    description: string;
+  }>;
 }
 
 export default function AIResultScreen() {
@@ -30,7 +51,17 @@ export default function AIResultScreen() {
   const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
-    generateAIReading();
+    // 检查是否已经有AI解读结果
+    if (state.aiResult) {
+      // 如果已经有结果，直接使用，不重新调用API
+      console.log('使用已有的AI解读结果，避免重复调用API');
+      setAiResult(state.aiResult);
+      setLoading(false);
+    } else {
+      // 如果没有结果，才调用API生成解读
+      console.log('没有AI解读结果，开始生成新的解读');
+      generateAIReading();
+    }
   }, []);
 
   const generateAIReading = async () => {
@@ -49,33 +80,7 @@ export default function AIResultScreen() {
       // 检查服务健康状态
       const isHealthy = await aiService.checkServiceHealth();
       if (!isHealthy) {
-        // 在开发模式下，如果后端服务不可用，使用模拟数据
-        if (__DEV__) {
-          console.log('开发模式：使用模拟AI解读数据');
-
-          // 模拟AI解读结果
-          const mockResult = {
-            dimension_summaries: {
-              '情感状态': '在情感方面，当前的卡牌显示您正处于一个重要的转折点。内心的声音在引导您做出正确的选择，建议倾听直觉。',
-              '当前状况': '现状显示您具备足够的能力和资源来应对挑战。保持专注和决心，成功就在前方等待着您。',
-              '发展方向': '未来的道路充满希望和可能性。坚持当前的方向，但也要保持开放的心态迎接新的机遇。'
-            },
-            overall_summary: '整体而言，这次占卜显示您正站在人生的重要节点上。过去的经验为您提供了智慧，现在的努力正在开花结果，而未来充满着光明的前景。相信自己的能力，勇敢地迈向下一个阶段。',
-            insights: [
-              '相信内心的直觉，它会为您指引正确的方向',
-              '现在是采取行动的最佳时机，不要犹豫',
-              '保持积极乐观的心态，好运正在向您走来',
-              '与重要的人分享您的想法，会获得意外的支持'
-            ],
-            generated_at: new Date().toISOString()
-          };
-
-          updateAIResult(mockResult);
-          setAiResult(mockResult);
-          return;
-        } else {
-          throw new Error('AI服务暂时不可用，请稍后重试');
-        }
+        throw new Error('AI服务暂时不可用，请稍后重试');
       }
 
       // 转换卡牌数据格式，符合后端API要求
@@ -90,6 +95,20 @@ export default function AIResultScreen() {
         deck: 'default'
       }));
 
+      // 📋 详细打印请求数据用于后台调试
+      console.log('=== AI解读请求数据开始 ===');
+      console.log('📝 用户问题描述:', state.userDescription);
+      console.log('🎴 卡牌信息 (cardInfos):', JSON.stringify(cardInfos, null, 2));
+      console.log('🎯 AI维度信息 (aiDimensions):', JSON.stringify(state.aiDimensions, null, 2));
+      console.log('📊 牌阵类型 (spreadType):', 'three-card');
+      console.log('🔗 完整请求参数:', {
+        cards: cardInfos,
+        dimensions: state.aiDimensions,
+        userDescription: state.userDescription,
+        spreadType: 'three-card'
+      });
+      console.log('=== AI解读请求数据结束 ===');
+
       const result = await aiService.generateAIReading(
         cardInfos,
         state.aiDimensions,
@@ -97,11 +116,25 @@ export default function AIResultScreen() {
         'three-card'
       );
 
+      // 📋 详细打印响应数据用于后台调试
+      console.log('=== AI解读响应数据开始 ===');
+      console.log('📦 完整响应数据:', JSON.stringify(result, null, 2));
+      console.log('🔍 响应数据类型检查:');
+      console.log('  - 是否有 card_interpretations:', !!result.card_interpretations);
+      console.log('  - card_interpretations 类型:', typeof result.card_interpretations);
+      console.log('  - card_interpretations 长度:', result.card_interpretations?.length);
+      console.log('  - 是否有 dimensions:', !!result.dimensions);
+      console.log('  - dimensions 长度:', result.dimensions?.length);
+      console.log('  - 是否有 overall_summary:', !!result.overall_summary);
+      console.log('  - 是否有 insights:', !!result.insights);
+      console.log('=== AI解读响应数据结束 ===');
+
       // 验证返回数据
-      if (!result || !result.dimension_summaries || !result.overall_summary) {
+      if (!result || !result.card_interpretations || !result.overall_summary) {
         throw new Error('AI解读生成失败，请重试');
       }
 
+      console.log('AI解读生成成功，保存到Context');
       updateAIResult(result);
       setAiResult(result);
     } catch (error) {
@@ -151,24 +184,18 @@ export default function AIResultScreen() {
   };
 
   const handleRetry = () => {
+    // 清除当前结果并重新生成
+    setAiResult(null);
+    setError(null);
+    setRetryCount(prev => prev + 1);
+
+    // 清除context中的结果，确保重新调用API
+    updateAIResult(undefined);
+
+    // 重新生成解读
     generateAIReading();
   };
 
-  const getCardImage = (imageUrl: string) => {
-    // React Native不支持动态require，这里需要使用静态映射或网络图片
-    // 暂时使用默认图片，后续可以改为网络图片或静态映射
-    try {
-      // 如果是网络图片，直接返回URI对象
-      if (imageUrl && imageUrl.startsWith('http')) {
-        return { uri: imageUrl };
-      }
-      // 否则使用默认图标
-      return require('../../assets/images/icon.png');
-    } catch (error) {
-      console.warn(`Failed to load image: ${imageUrl}`);
-      return require('../../assets/images/icon.png');
-    }
-  };
 
   const handleGoBack = () => {
     router.back();
@@ -246,43 +273,77 @@ export default function AIResultScreen() {
         </Text>
       </View>
 
-      {/* 显示抽取的卡牌 */}
-      <View style={styles.cardsContainer}>
-        <Text style={styles.sectionTitle}>您的塔罗牌</Text>
-        <View style={styles.cardsRow}>
-          {state.selectedCards.map((card, index) => (
-            <View key={card.cardId} style={styles.cardItem}>
-              <Image
-                source={getCardImage(card.imageUrl)}
-                style={[
-                  styles.cardImage,
-                  card.direction === 'reversed' && styles.cardImageReversed
-                ]}
-                resizeMode="contain"
-              />
-              <Text style={styles.cardName}>{card.name}</Text>
-              <Text style={styles.cardDirection}>
-                {card.direction === 'upright' ? '正位' : '逆位'}
-              </Text>
-              <Text style={styles.cardPosition}>
-                {state.aiDimensions?.[index]?.aspect || `位置${index + 1}`}
-              </Text>
-            </View>
-          ))}
-        </View>
-      </View>
-
-      {/* 各维度解读 */}
+      {/* 各维度解读 - 包含卡牌图片和基础牌意 */}
       <View style={styles.dimensionsContainer}>
-        <Text style={styles.sectionTitle}>各维度解读</Text>
-        {Object.entries(aiResult.dimension_summaries).map(([dimensionName, summary], index) => (
-          <View key={dimensionName} style={styles.dimensionItem}>
-            <Text style={styles.dimensionName}>
-              {index + 1}. {dimensionName}
-            </Text>
-            <Text style={styles.dimensionSummary}>{summary}</Text>
+        <Text style={styles.sectionTitle}>您的塔罗牌与解读</Text>
+        {aiResult.card_interpretations && aiResult.card_interpretations.length > 0 ? (
+          aiResult.card_interpretations.map((cardInterpretation, index) => {
+            const card = state.selectedCards[index];
+            if (!card) return null;
+
+            return (
+              <View key={cardInterpretation.card_id} style={styles.dimensionCard}>
+                <View style={styles.cardHeader}>
+                  <View style={styles.positionBadge}>
+                    <Text style={styles.positionText}>{cardInterpretation.position}</Text>
+                  </View>
+                  <View style={styles.cardInfoSection}>
+                    <Text style={styles.cardName}>{cardInterpretation.card_name}</Text>
+                    <Text style={styles.cardDirection}>
+                      {cardInterpretation.direction}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.cardContent}>
+                  {/* 卡牌图片居中显示 */}
+                  <View style={styles.cardImageSection}>
+                    <CardImageLoader
+                      imageUrl={card.imageUrl}
+                      width={120}
+                      height={200}
+                      style={[
+                        styles.cardImageLarge,
+                        cardInterpretation.direction === '逆位' && styles.cardImageReversed
+                      ]}
+                      resizeMode="contain"
+                    />
+                  </View>
+
+                  {/* 维度信息 */}
+                  <View style={styles.dimensionInfo}>
+                    <Text style={styles.dimensionName}>
+                      {cardInterpretation.dimension_aspect?.dimension_name || `维度${index + 1}`}
+                    </Text>
+                    <Text style={styles.dimensionAspect}>
+                      {aiResult.dimensions?.[index]?.aspect || ''}
+                    </Text>
+                  </View>
+
+                  {/* 基础牌意 */}
+                  <View style={styles.basicInterpretationContainer}>
+                    <Text style={styles.interpretationLabel}>基础牌意：</Text>
+                    <Text style={styles.basicInterpretation}>
+                      {cardInterpretation.basic_summary}
+                    </Text>
+                  </View>
+
+                  {/* AI详细解读 */}
+                  <View style={styles.aiInterpretationContainer}>
+                    <Text style={styles.interpretationLabel}>AI详细解读：</Text>
+                    <Text style={styles.aiInterpretation}>
+                      {cardInterpretation.ai_interpretation}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            );
+          })
+        ) : (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>没有找到卡牌解读数据</Text>
           </View>
-        ))}
+        )}
       </View>
 
       {/* 综合分析 */}
@@ -447,29 +508,94 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   dimensionsContainer: {
+    marginBottom: 32,
+  },
+  dimensionCard: {
     backgroundColor: '#16213E',
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 20,
-    marginBottom: 24,
+    marginBottom: 20,
     borderWidth: 1,
     borderColor: '#FFD700',
   },
-  dimensionItem: {
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: 16,
-    paddingBottom: 16,
+  },
+  positionBadge: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#FFD700',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  positionText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#0F0F1A',
+  },
+  cardInfoSection: {
+    flex: 1,
+  },
+  cardContent: {
+    alignItems: 'center',
+    gap: 16,
+  },
+  cardImageSection: {
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  cardImageLarge: {
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#FFD700',
+  },
+  dimensionInfo: {
+    alignItems: 'center',
+    marginBottom: 16,
+    paddingBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#333333',
+    width: '100%',
+  },
+  dimensionAspect: {
+    fontSize: 12,
+    color: '#888888',
+    marginTop: 2,
+    textAlign: 'center',
+  },
+  basicInterpretationContainer: {
+    width: '100%',
+    marginBottom: 16,
+  },
+  aiInterpretationContainer: {
+    width: '100%',
+  },
+  interpretationLabel: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#FFD700',
+    marginBottom: 8,
+  },
+  basicInterpretation: {
+    fontSize: 14,
+    color: '#CCCCCC',
+    lineHeight: 20,
+    textAlign: 'center',
+  },
+  aiInterpretation: {
+    fontSize: 14,
+    color: '#CCCCCC',
+    lineHeight: 20,
+    textAlign: 'left',
   },
   dimensionName: {
     fontSize: 16,
     color: '#FFD700',
     fontWeight: 'bold',
-    marginBottom: 8,
-  },
-  dimensionSummary: {
-    fontSize: 14,
-    color: '#CCCCCC',
-    lineHeight: 22,
   },
   overallContainer: {
     backgroundColor: '#16213E',

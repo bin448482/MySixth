@@ -61,7 +61,6 @@ class GenerateResponse(BaseModel):
     user_description: str
     spread_type: str
     card_interpretations: List[CardInterpretationInfo]
-    dimension_summaries: Dict[str, str]  # 新增：各维度的独立总结
     overall_summary: str
     insights: List[str] = []  # 新增：关键洞察点
     generated_at: str
@@ -88,7 +87,6 @@ async def generate_interpretation(
         resolved_cards.append((card_dict, db_card))
 
     # 2. 为每个维度生成解读
-    dimension_summaries = {}
     all_card_interpretations = []
 
     for dimension_dict in dimensions:
@@ -101,18 +99,12 @@ async def generate_interpretation(
             )
             card_interpretations.append(interpretation)
 
-        # 为当前维度生成总结（基于现有逻辑）
-        dimension_summary = await self._generate_dimension_summary(
-            card_interpretations, dimension_dict, user_description
-        )
-        dimension_summaries[dimension_dict["name"]] = dimension_summary
-
         # 收集所有卡牌解读
         all_card_interpretations.extend(card_interpretations)
 
     # 3. 生成跨维度综合分析
     overall_summary = await self._generate_cross_dimension_summary(
-        dimension_summaries, user_description
+        all_card_interpretations, user_description
     )
 
     # 4. 提取关键洞察
@@ -125,7 +117,6 @@ async def generate_interpretation(
         "user_description": user_description,
         "spread_type": spread_type,
         "card_interpretations": all_card_interpretations,
-        "dimension_summaries": dimension_summaries,
         "overall_summary": overall_summary,
         "insights": insights,
         "generated_at": "now"
@@ -218,7 +209,6 @@ def test_generate_multi_dimension():
 
     data = response.json()
     assert len(data["dimensions"]) == 3
-    assert len(data["dimension_summaries"]) == 3
     assert "overall_summary" in data
     assert "insights" in data
 ```

@@ -132,19 +132,40 @@ class AIReadingService {
     spreadType: string = 'three-card'
   ): Promise<GenerateResponse> {
     try {
-      console.log('调用AI解读生成接口:', {
-        cardsCount: cards.length,
-        dimensionsCount: dimensions.length,
-        description,
-        spreadType
-      });
-
       const request: GenerateRequest = {
         cards,
         dimensions,
         description,
         spread_type: spreadType
       };
+
+      // 🔧 详细的请求调试日志
+      console.log('🚀 === AIReadingService.generateAIReading 开始 ===');
+      console.log('🌐 请求URL:', `${this.baseUrl}/api/v1/readings/generate`);
+      console.log('📋 请求方法: POST');
+      console.log('📦 请求头:', {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      });
+      console.log('📄 请求体 (完整):', JSON.stringify(request, null, 2));
+      console.log('🎴 卡牌详情:');
+      cards.forEach((card, index) => {
+        console.log(`  卡牌 ${index + 1}:`, {
+          id: card.id,
+          name: card.name,
+          direction: card.direction,
+          position: card.position
+        });
+      });
+      console.log('🎯 维度详情:');
+      dimensions.forEach((dim, index) => {
+        console.log(`  维度 ${index + 1}:`, {
+          id: dim.id,
+          name: dim.name,
+          aspect: dim.aspect,
+          aspect_type: dim.aspect_type
+        });
+      });
 
       const response = await fetch(`${this.baseUrl}/api/v1/readings/generate`, {
         method: 'POST',
@@ -155,17 +176,57 @@ class AIReadingService {
         body: JSON.stringify(request),
       });
 
+      console.log('📡 响应状态:', response.status, response.statusText);
+      console.log('📡 响应头:', Object.fromEntries(response.headers.entries()));
+
       if (!response.ok) {
         const errorText = await response.text();
+        console.error('❌ API请求失败:', {
+          status: response.status,
+          statusText: response.statusText,
+          errorText
+        });
         throw new Error(`API请求失败: ${response.status} - ${errorText}`);
       }
 
       const result: GenerateResponse = await response.json();
-      console.log('AI解读生成结果:', result);
+
+      // 🔍 详细的响应调试日志
+      console.log('✅ === AIReadingService.generateAIReading 响应 ===');
+      console.log('📦 完整响应数据 (JSON):', JSON.stringify(result, null, 2));
+      console.log('🔍 响应数据结构分析:');
+      console.log('  📊 dimensions:', result.dimensions?.length || 0, '个维度');
+      console.log('  🎴 card_interpretations:', result.card_interpretations?.length || 0, '个解读');
+      console.log('  📝 dimension_summaries keys:', Object.keys(result.dimension_summaries || {}));
+      console.log('  📖 overall_summary 长度:', result.overall_summary?.length || 0);
+      console.log('  💡 insights:', result.insights?.length || 0, '个洞察');
+
+      if (result.card_interpretations) {
+        console.log('🎴 卡牌解读详情:');
+        result.card_interpretations.forEach((interpretation, index) => {
+          console.log(`  解读 ${index + 1}:`, {
+            card_id: interpretation.card_id,
+            card_name: interpretation.card_name,
+            direction: interpretation.direction,
+            position: interpretation.position,
+            has_ai_interpretation: !!interpretation.ai_interpretation,
+            has_basic_summary: !!interpretation.basic_summary
+          });
+        });
+      }
+
+      console.log('🏁 === AIReadingService.generateAIReading 结束 ===');
 
       return result;
     } catch (error) {
-      console.error('AI解读生成请求失败:', error);
+      console.error('💥 AI解读生成请求失败:', error);
+      if (error instanceof Error) {
+        console.error('💥 错误详情:', {
+          name: error.name,
+          message: error.message,
+          stack: error.stack
+        });
+      }
       throw this.handleError(error);
     }
   }

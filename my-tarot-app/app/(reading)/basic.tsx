@@ -13,6 +13,7 @@ import { useReadingFlow } from '@/lib/contexts/ReadingContext';
 import { CardInterpretationService } from '@/lib/services/CardInterpretationService';
 import { DimensionService } from '@/lib/services/DimensionService';
 import { getCardImage } from '@/lib/utils/cardImages';
+import { CardImageLoader } from '@/components/reading/CardImageLoader';
 
 interface DetailedReading {
   card: {
@@ -192,17 +193,34 @@ export default function BasicReadingScreen() {
               </View>
             </View>
 
-            <View style={styles.dimensionInfo}>
-              <Text style={styles.dimensionTitle}>{reading.dimension.name}</Text>
-              <Text style={styles.dimensionAspect}>{reading.dimension.aspect}</Text>
-            </View>
+            <View style={styles.cardWithInterpretation}>
+              <View style={styles.cardImageSection}>
+                <CardImageLoader
+                  imageUrl={reading.card.imageUrl}
+                  width={100}
+                  height={166}
+                  style={[
+                    styles.cardImageLarge,
+                    reading.card.direction === 'reversed' && styles.cardImageReversed
+                  ]}
+                  resizeMode="contain"
+                />
+              </View>
 
-            <View style={styles.interpretationContainer}>
-              <Text style={styles.interpretationLabel}>基础牌意：</Text>
-              <Text style={styles.interpretationSummary}>{reading.interpretation.summary}</Text>
+              <View style={styles.interpretationSection}>
+                <View style={styles.dimensionInfo}>
+                  <Text style={styles.dimensionTitle}>{reading.dimension.name}</Text>
+                  <Text style={styles.dimensionAspect}>{reading.dimension.aspect}</Text>
+                </View>
 
-              <Text style={[styles.interpretationLabel, styles.detailedLabel]}>详细解读：</Text>
-              <Text style={styles.interpretationDetail}>{reading.interpretation.detailedContent}</Text>
+                <View style={styles.interpretationContainer}>
+                  <Text style={styles.interpretationLabel}>基础牌意：</Text>
+                  <Text style={styles.interpretationSummary}>{reading.interpretation.summary}</Text>
+
+                  <Text style={[styles.interpretationLabel, styles.detailedLabel]}>详细解读：</Text>
+                  <Text style={styles.interpretationDetail}>{reading.interpretation.detailedContent}</Text>
+                </View>
+              </View>
             </View>
           </View>
         ))}
@@ -290,7 +308,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 20,
     borderWidth: 1,
-    borderColor: '#2A2A4A',
+    borderColor: '#FFD700',
     elevation: 4,
     shadowColor: '#000',
     shadowOffset: {
@@ -303,7 +321,7 @@ const styles = StyleSheet.create({
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 16,
   },
   positionBadge: {
     width: 32,
@@ -321,6 +339,41 @@ const styles = StyleSheet.create({
   },
   cardInfo: {
     flex: 1,
+  },
+  cardWithInterpretation: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+  cardImageSection: {
+    alignItems: 'center',
+  },
+  cardImageLarge: {
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#FFD700',
+  },
+  cardImageReversed: {
+    transform: [{ rotate: '180deg' }],
+  },
+  interpretationSection: {
+    flex: 1,
+  },
+  dimensionInfo: {
+    marginBottom: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#333333',
+  },
+  interpretationContainer: {
+    gap: 8,
+  },
+  interpretationLabel: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#FFD700',
+  },
+  detailedLabel: {
+    marginTop: 12,
   },
   cardName: {
     fontSize: 18,
