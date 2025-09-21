@@ -17,8 +17,13 @@ import Animated, {
   FadeInDown,
   SlideInRight,
 } from 'react-native-reanimated';
+import { Ionicons } from '@expo/vector-icons';
 import { UserDatabaseService } from '../../lib/database/user-db';
+import { ConfigDatabaseService } from '../../lib/database/config-db';
+import { CardImageLoader } from '../reading/CardImageLoader';
+import { getCardImage } from '../../lib/utils/cardImages';
 import type { ParsedUserHistory } from '../../lib/types/user';
+import type { Card } from '../../lib/types/config';
 
 interface HistoryDetailProps {
   historyId: string;
@@ -35,15 +40,31 @@ export const HistoryDetail: React.FC<HistoryDetailProps> = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expandedCard, setExpandedCard] = useState<number | null>(null);
+  const [cardsData, setCardsData] = useState<Card[]>([]);
 
   const userDbService = UserDatabaseService.getInstance();
+  const configDbService = ConfigDatabaseService.getInstance();
   const opacity = useSharedValue(0);
   const headerScale = useSharedValue(0.9);
 
   // 加载历史详情
   useEffect(() => {
     loadHistoryDetail();
+    loadCardsData();
   }, [historyId]);
+
+  const loadCardsData = async () => {
+    try {
+      const response = await configDbService.getAllCards();
+      if (response.success && response.data) {
+        console.log('Cards data loaded, count:', response.data.length);
+        console.log('First few cards:', response.data.slice(0, 5).map(c => ({ name: c.name, image_url: c.image_url })));
+        setCardsData(response.data);
+      }
+    } catch (error) {
+      console.error('Error loading cards data:', error);
+    }
+  };
 
   const loadHistoryDetail = async () => {
     try {
@@ -53,6 +74,10 @@ export const HistoryDetail: React.FC<HistoryDetailProps> = ({
       const historyData = await userDbService.getUserHistoryById(historyId);
 
       if (historyData) {
+        console.log('History data loaded:', historyData);
+        if (historyData.result?.interpretation?.card_interpretations) {
+          console.log('Card interpretations:', historyData.result.interpretation.card_interpretations);
+        }
         setHistory(historyData);
         // 入场动画
         opacity.value = withTiming(1, { duration: 500 });
@@ -127,8 +152,94 @@ export const HistoryDetail: React.FC<HistoryDetailProps> = ({
     setExpandedCard(expandedCard === cardIndex ? null : cardIndex);
   };
 
-  // 渲染卡牌解读
-  const renderCardInterpretation = (cardData: any, index: number) => {
+  // 根据卡牌名称获取图片路径
+  const getCardImageByName = (cardName: string): string => {
+    console.log('Looking for card image for:', cardName);
+
+    // 首先尝试完全匹配
+    let card = cardsData.find(c => c.name === cardName);
+
+    if (!card) {
+      // 尝试部分匹配（去除空格、标点符号等）
+      const normalizedSearchName = cardName.replace(/[^\w\u4e00-\u9fff]/g, '').toLowerCase();
+      card = cardsData.find(c => {
+        const normalizedCardName = c.name.replace(/[^\w\u4e00-\u9fff]/g, '').toLowerCase();
+        return normalizedCardName.includes(normalizedSearchName) || normalizedSearchName.includes(normalizedCardName);
+      });
+    }
+
+    if (card) {
+      console.log('Found card:', card.name, 'with image:', card.image_url);
+      return card.image_url;
+    } else {
+      console.log('Card not found for:', cardName);
+      console.log('Available cards:', cardsData.slice(0, 10).map(c => c.name));
+      return 'major/00-fool.jpg';
+    }
+  };
+
+  // 渲染AI占卜的卡牌解读（样式与ai-result.tsx一致）
+  const renderAICardInterpretation = (cardInterpretation: any, index: number) => {
+    const cardImageUrl = getCardImageByName(cardInterpretation.card_name);
+
+    return (
+      <View key={index} style={styles.aiDimensionCard}>
+        <View style={styles.aiCardHeader}>
+          <View style={styles.aiPositionBadge}>
+            <Text style={styles.aiPositionText}>{cardInterpretation.position || (index + 1)}</Text>
+          </View>
+          <View style={styles.aiCardInfoSection}>
+            <Text style={styles.aiCardName}>{cardInterpretation.card_name}</Text>
+            <Text style={styles.aiCardDirection}>
+              {cardInterpretation.direction}
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.aiCardContent}>
+          {/* 卡牌图片区域 */}
+          <View style={styles.aiCardImageSection}>
+            <CardImageLoader
+              imageUrl={cardImageUrl}
+              width={120}
+              height={200}
+              style={[
+                styles.aiCardImageLarge,
+                cardInterpretation.direction === '逆位' && styles.aiCardImageReversed
+              ]}
+              resizeMode="contain"
+            />
+          </View>
+
+          {/* 维度信息 */}
+          <View style={styles.aiDimensionInfo}>
+            <Text style={styles.aiDimensionName}>
+              {cardInterpretation.dimension_aspect?.dimension_name || `维度${index + 1}`}
+            </Text>
+          </View>
+
+          {/* 基础牌意 */}
+          <View style={styles.aiBasicInterpretationContainer}>
+            <Text style={styles.aiInterpretationLabel}>基础牌意：</Text>
+            <Text style={styles.aiBasicInterpretation}>
+              {cardInterpretation.basic_summary}
+            </Text>
+          </View>
+
+          {/* AI详细解读 */}
+          <View style={styles.aiDetailedInterpretationContainer}>
+            <Text style={styles.aiInterpretationLabel}>AI详细解读：</Text>
+            <Text style={styles.aiDetailedInterpretation}>
+              {cardInterpretation.ai_interpretation}
+            </Text>
+          </View>
+        </View>
+      </View>
+    );
+  };
+
+  // 渲染基础占卜的卡牌解读
+  const renderBasicCardInterpretation = (cardData: any, index: number) => {
     const isExpanded = expandedCard === index;
 
     return (
@@ -170,6 +281,19 @@ export const HistoryDetail: React.FC<HistoryDetailProps> = ({
     );
   };
 
+  // 渲染卡牌解读（根据类型选择不同的渲染方法）
+  const renderCardInterpretation = (cardData: any, index: number) => {
+    const isAI = history?.interpretation_mode === 'ai';
+
+    if (isAI && history?.result?.interpretation?.card_interpretations) {
+      // AI占卜：使用AI解读格式
+      return renderAICardInterpretation(cardData, index);
+    } else {
+      // 基础占卜：使用原有格式
+      return renderBasicCardInterpretation(cardData, index);
+    }
+  };
+
   // 动画样式
   const animatedStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,
@@ -182,7 +306,7 @@ export const HistoryDetail: React.FC<HistoryDetailProps> = ({
   if (loading) {
     return (
       <View style={[styles.container, styles.centerContent]}>
-        <ActivityIndicator size="large" color="#ffd700" />
+        <ActivityIndicator size="large" color="#FFD700" />
         <Text style={styles.loadingText}>加载中...</Text>
       </View>
     );
@@ -200,6 +324,9 @@ export const HistoryDetail: React.FC<HistoryDetailProps> = ({
     );
   }
 
+  const isAI = history.interpretation_mode === 'ai';
+  const interpretation = history.result?.interpretation;
+
   return (
     <Animated.View style={[styles.container, style, animatedStyle]}>
       <ScrollView
@@ -209,6 +336,12 @@ export const HistoryDetail: React.FC<HistoryDetailProps> = ({
       >
         {/* 占卜信息和操作 */}
         <Animated.View style={[styles.infoSection, headerAnimatedStyle]}>
+          {/* AI占卜用户问题显示 */}
+          {isAI && interpretation?.user_description && (
+            <Text style={styles.aiSubtitle}>
+              基于您的问题：{interpretation.user_description}
+            </Text>
+          )}
           <View style={styles.metaInfo}>
             <Text style={styles.dateTime}>{formatDateTime(history.timestamp)}</Text>
             <View style={styles.headerActions}>
@@ -224,10 +357,10 @@ export const HistoryDetail: React.FC<HistoryDetailProps> = ({
           <View style={styles.badges}>
             <View style={[
               styles.badge,
-              { backgroundColor: history.interpretation_mode === 'ai' ? '#00ced1' : '#ffd700' }
+              { backgroundColor: isAI ? '#00ced1' : '#ffd700' }
             ]}>
               <Text style={styles.badgeText}>
-                {history.interpretation_mode === 'ai' ? 'AI解读' : '基础解读'}
+                {isAI ? 'AI解读' : '基础解读'}
               </Text>
             </View>
             <View style={styles.badge}>
@@ -236,23 +369,52 @@ export const HistoryDetail: React.FC<HistoryDetailProps> = ({
           </View>
         </Animated.View>
 
-        {/* 整体解读 */}
-        {history.result?.interpretation?.overall && (
-          <Animated.View entering={FadeInDown.delay(200)} style={styles.overallSection}>
-            <Text style={styles.sectionTitle}>🔮 整体解读</Text>
-            <View style={styles.overallContainer}>
-              <Text style={styles.overallText}>{history.result.interpretation.overall}</Text>
+        {/* AI占卜的各维度解读 */}
+        {isAI && interpretation?.card_interpretations && (
+          <View style={styles.aiDimensionsContainer}>
+            <Text style={styles.aiSectionTitle}>您的塔罗牌与解读</Text>
+            {interpretation.card_interpretations.map((cardInterpretation: any, index: number) =>
+              renderAICardInterpretation(cardInterpretation, index)
+            )}
+          </View>
+        )}
+
+        {/* 综合分析 */}
+        {interpretation?.overall && (
+          <Animated.View entering={FadeInDown.delay(200)} style={isAI ? styles.aiOverallContainer : styles.overallSection}>
+            <Text style={isAI ? styles.aiSectionTitle : styles.sectionTitle}>
+              {isAI ? '综合分析' : '🔮 整体解读'}
+            </Text>
+            <View style={isAI ? styles.aiOverallContentContainer : styles.overallContainer}>
+              <Text style={isAI ? styles.aiOverallSummary : styles.overallText}>
+                {interpretation.overall}
+              </Text>
             </View>
           </Animated.View>
         )}
 
-        {/* 卡牌解读 */}
-        <View style={styles.cardsSection}>
-          <Text style={styles.sectionTitle}>🎴 卡牌解读</Text>
-          {history.result?.interpretation?.cards?.map((cardData, index) =>
-            renderCardInterpretation(cardData, index)
-          )}
-        </View>
+        {/* AI占卜的关键洞察 */}
+        {isAI && interpretation?.insights && interpretation.insights.length > 0 && (
+          <View style={styles.aiInsightsContainer}>
+            <Text style={styles.aiSectionTitle}>关键洞察</Text>
+            {interpretation.insights.map((insight: string, index: number) => (
+              <View key={index} style={styles.aiInsightItem}>
+                <Text style={styles.aiInsightBullet}>•</Text>
+                <Text style={styles.aiInsightText}>{insight}</Text>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* 基础占卜的卡牌解读 */}
+        {!isAI && interpretation?.cards && (
+          <View style={styles.cardsSection}>
+            <Text style={styles.sectionTitle}>🎴 卡牌解读</Text>
+            {interpretation.cards.map((cardData: any, index: number) =>
+              renderBasicCardInterpretation(cardData, index)
+            )}
+          </View>
+        )}
 
         {/* 底部间距 */}
         <View style={styles.bottomSpacing} />
@@ -264,7 +426,33 @@ export const HistoryDetail: React.FC<HistoryDetailProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000', // 更新为与卡牌说明页面一致的背景色
+    backgroundColor: '#0F0F1A', // 与ai-result.tsx一致的背景色
+  },
+  // 自定义标题栏样式（与占卜历史页面保持一致）
+  customHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    minHeight: 60, // 确保最小高度一致
+    backgroundColor: 'rgba(20, 20, 40, 0.95)',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(212, 175, 55, 0.3)',
+  },
+  backButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: 'rgba(212, 175, 55, 0.1)',
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#d4af37',
+    textAlign: 'center',
+  },
+  headerSpacer: {
+    width: 40, // 与backButton保持平衡
   },
   centerContent: {
     justifyContent: 'center',
@@ -276,9 +464,30 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingBottom: 20,
   },
+  // AI占卜专用头部样式
+  aiHeader: {
+    alignItems: 'center',
+    marginBottom: 32,
+    paddingHorizontal: 24,
+    paddingTop: 20,
+  },
+  aiTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#FFD700',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  aiSubtitle: {
+    fontSize: 16,
+    color: '#CCCCCC',
+    textAlign: 'center',
+    lineHeight: 24,
+  },
   // 信息区域样式（简化后的头部）
   infoSection: {
-    padding: 20,
+    paddingHorizontal: 24,
+    paddingVertical: 20,
     borderBottomWidth: 1,
     borderBottomColor: '#2a2a3e',
   },
@@ -357,6 +566,158 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
+  // AI占卜各维度解读样式（与ai-result.tsx一致）
+  aiDimensionsContainer: {
+    paddingHorizontal: 24,
+    marginBottom: 32,
+  },
+  aiSectionTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#FFD700',
+    marginBottom: 16,
+  },
+  aiDimensionCard: {
+    backgroundColor: '#16213E',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#FFD700',
+  },
+  aiCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  aiPositionBadge: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#FFD700',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  aiPositionText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#0F0F1A',
+  },
+  aiCardInfoSection: {
+    flex: 1,
+  },
+  aiCardName: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#FFD700',
+    marginBottom: 2,
+  },
+  aiCardDirection: {
+    fontSize: 14,
+    color: '#CCCCCC',
+    textTransform: 'capitalize',
+  },
+  aiCardContent: {
+    alignItems: 'center',
+    gap: 16,
+  },
+  aiCardImageSection: {
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  aiCardImageLarge: {
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#FFD700',
+  },
+  aiCardImageReversed: {
+    transform: [{ rotate: '180deg' }],
+  },
+  aiDimensionInfo: {
+    alignItems: 'center',
+    marginBottom: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#333333',
+    width: '100%',
+  },
+  aiDimensionName: {
+    fontSize: 16,
+    color: '#FFD700',
+    fontWeight: 'bold',
+  },
+  aiBasicInterpretationContainer: {
+    width: '100%',
+    marginBottom: 16,
+  },
+  aiDetailedInterpretationContainer: {
+    width: '100%',
+  },
+  aiInterpretationLabel: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#FFD700',
+    marginBottom: 8,
+  },
+  aiBasicInterpretation: {
+    fontSize: 14,
+    color: '#CCCCCC',
+    lineHeight: 20,
+    textAlign: 'center',
+  },
+  aiDetailedInterpretation: {
+    fontSize: 14,
+    color: '#CCCCCC',
+    lineHeight: 20,
+    textAlign: 'left',
+  },
+  // AI占卜综合分析样式
+  aiOverallContainer: {
+    backgroundColor: '#16213E',
+    borderRadius: 12,
+    padding: 20,
+    marginHorizontal: 24,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: '#FFD700',
+  },
+  aiOverallContentContainer: {
+    // 容器样式，用于包装内容
+  },
+  aiOverallSummary: {
+    fontSize: 15,
+    color: '#CCCCCC',
+    lineHeight: 24,
+  },
+  // AI占卜关键洞察样式
+  aiInsightsContainer: {
+    backgroundColor: '#16213E',
+    borderRadius: 12,
+    padding: 20,
+    marginHorizontal: 24,
+    marginBottom: 32,
+    borderWidth: 1,
+    borderColor: '#FFD700',
+  },
+  aiInsightItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+  },
+  aiInsightBullet: {
+    fontSize: 16,
+    color: '#FFD700',
+    marginRight: 8,
+    marginTop: 2,
+  },
+  aiInsightText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#CCCCCC',
+    lineHeight: 22,
+  },
+  // 基础占卜样式
   overallSection: {
     padding: 20,
     borderBottomWidth: 1,

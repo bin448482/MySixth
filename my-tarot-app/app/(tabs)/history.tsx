@@ -24,7 +24,7 @@ export default function HistoryScreen() {
   if (selectedHistoryId) {
     return (
       <SafeAreaView style={styles.container}>
-        {/* 详情页自定义标题栏 */}
+        {/* 详情页面的自定义标题栏 */}
         <View style={styles.customHeader}>
           <TouchableOpacity
             style={styles.backButton}
@@ -47,7 +47,7 @@ export default function HistoryScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* 列表页自定义标题栏 */}
+      {/* 列表页面的自定义标题栏 */}
       <View style={styles.customHeader}>
         <TouchableOpacity
           style={styles.backButton}
@@ -80,13 +80,16 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    minHeight: 60, // 确保最小高度一致
+    height: 60, // 固定高度确保完全一致
     backgroundColor: 'rgba(20, 20, 40, 0.95)',
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(212, 175, 55, 0.3)',
   },
   backButton: {
-    padding: 8,
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
     borderRadius: 20,
     backgroundColor: 'rgba(212, 175, 55, 0.1)',
   },
