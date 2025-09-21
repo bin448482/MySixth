@@ -243,7 +243,9 @@ export class ReadingService implements IReadingService {
               dimension_summaries: state.aiResult?.dimension_summaries,
               insights: state.aiResult?.insights,
               user_description: state.userDescription,
-              overall: state.aiResult?.overall_summary
+              overall: state.aiResult?.overall_summary,
+              card_interpretations: state.aiResult?.card_interpretations,
+              dimensions: state.aiResult?.dimensions
             })
           },
           metadata: {

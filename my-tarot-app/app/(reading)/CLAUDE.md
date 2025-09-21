@@ -351,21 +351,20 @@ const generateAIReading = async () => {
 };
 
 const handleSaveToHistory = async () => {
-  try {
-    const historyRecord = {
-      id: Date.now().toString(),
-      type: 'ai' as const,
-      timestamp: new Date(),
-      cards: state.selectedCards,
-      userDescription: state.userDescription,
-      aiResult: aiResult
-    };
+  if (!aiResult) {
+    Alert.alert('保存失败', '没有可保存的解读结果');
+    return;
+  }
 
-    // 保存到历史记录
-    await saveToHistory(historyRecord);
-    Alert.alert('保存成功', '占卜记录已保存到历史');
+  try {
+    // 调用ReadingContext的saveToHistory方法
+    // 该方法会调用ReadingService.saveReadingFromState()处理AI占卜数据保存
+    const savedId = await saveToHistory();
+    Alert.alert('保存成功', `占卜记录已保存到历史记录 (ID: ${savedId})`);
   } catch (error) {
-    Alert.alert('保存失败', '请重试');
+    console.error('保存AI占卜记录失败:', error);
+    const errorMessage = error instanceof Error ? error.message : '保存记录失败，请重试';
+    Alert.alert('保存失败', errorMessage);
   }
 };
 ```

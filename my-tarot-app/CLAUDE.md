@@ -356,8 +356,64 @@ interface HistoryRecord {
     dimension_summaries: Record<string, string>;
     overall_summary: string;
     insights: string[];
+    card_interpretations: Array<{
+      card_id: number;
+      card_name: string;
+      direction: string;
+      position: number;
+      ai_interpretation: string;
+      basic_summary: string;
+      dimension_aspect?: {
+        dimension_name: string;
+        interpretation: string;
+      };
+    }>;
+    dimensions: Array<{
+      id: number;
+      name: string;
+      aspect: string;
+      aspect_type: number;
+      category: string;
+      description: string;
+    }>;
   };
 }
+```
+
+#### AI占卜历史记录保存实现
+AI占卜历史记录通过以下流程保存：
+1. **ai-result.tsx** 调用 `ReadingContext.saveToHistory()`
+2. **ReadingContext** 调用 `ReadingService.saveReadingFromState()`
+3. **ReadingService** 检测 `state.type === 'ai'` 并处理AI专用字段：
+   - `userDescription`: 用户问题描述
+   - `aiDimensions`: AI推荐的维度
+   - `aiResult`: 完整的AI解读结果
+4. 数据序列化为JSON并保存到 `user_history` 表
+
+#### 数据库存储格式
+```sql
+-- AI占卜记录在user_history表中的存储
+INSERT INTO user_history (
+  interpretation_mode, -- 'ai'
+  result -- JSON格式包含AI解读完整数据
+) VALUES (
+  'ai',
+  '{
+    "interpretation": {
+      "cards": [...],
+      "dimension_summaries": {...},
+      "insights": [...],
+      "user_description": "...",
+      "overall": "...",
+      "card_interpretations": [...]
+    },
+    "metadata": {
+      "interpretation_mode": "ai",
+      "ai_dimensions": [...],
+      "generated_at": "..."
+    }
+  }'
+);
 ```
 
 ## 🎴 卡牌说明功能架构

@@ -43,7 +43,7 @@ interface AIResult {
 
 export default function AIResultScreen() {
   const router = useRouter();
-  const { state, updateAIResult, resetFlow } = useReadingFlow();
+  const { state, updateAIResult, resetFlow, saveToHistory } = useReadingFlow();
 
   const [loading, setLoading] = useState(true);
   const [aiResult, setAiResult] = useState<AIResult | null>(null);
@@ -161,20 +161,18 @@ export default function AIResultScreen() {
     }
 
     try {
-      // 这里应该调用实际的保存历史记录服务
-      // await saveToHistory();
-      console.log('保存AI占卜记录:', {
-        type: 'ai',
-        userDescription: state.userDescription,
-        selectedCards: state.selectedCards,
-        aiResult: aiResult,
-        timestamp: new Date()
-      });
-
-      Alert.alert('保存成功', '占卜记录已保存到历史');
+      // 调用ReadingContext的saveToHistory方法
+      // 该方法会调用ReadingService.saveReadingFromState()处理AI占卜数据保存
+      const savedId = await saveToHistory();
+      Alert.alert(
+        '保存成功',
+        `占卜记录已保存到历史记录 (ID: ${savedId})`,
+        [{ text: '了解', onPress: () => {} }]
+      );
     } catch (error) {
       console.error('保存AI占卜记录失败:', error);
-      Alert.alert('保存失败', '请重试');
+      const errorMessage = error instanceof Error ? error.message : '保存记录失败，请重试';
+      Alert.alert('保存失败', errorMessage);
     }
   };
 
