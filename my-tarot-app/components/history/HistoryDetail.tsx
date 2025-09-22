@@ -238,46 +238,77 @@ export const HistoryDetail: React.FC<HistoryDetailProps> = ({
     );
   };
 
-  // 渲染基础占卜的卡牌解读
+  // 渲染基础占卜的卡牌解读（使用AI解读的样式）
   const renderBasicCardInterpretation = (cardData: any, index: number) => {
-    const isExpanded = expandedCard === index;
+    const cardImageUrl = cardData.cardName ? getCardImageByName(cardData.cardName) : 'major/00-fool.jpg';
 
     return (
-      <Animated.View key={index} entering={FadeInDown.delay(index * 100)}>
-        <TouchableOpacity
-          style={styles.cardContainer}
-          onPress={() => toggleCardExpansion(index)}
-        >
-          <View style={styles.cardHeader}>
-            <View style={styles.cardPosition}>
-              <Text style={styles.cardPositionText}>第{index + 1}张牌</Text>
-              <Text style={styles.cardDirection}>
-                {cardData.direction === 'upright' ? '正位' : '逆位'}
-              </Text>
-            </View>
-            <Text style={styles.expandIcon}>{isExpanded ? '▼' : '▶'}</Text>
+      <View key={index} style={styles.aiDimensionCard}>
+        <View style={styles.aiCardHeader}>
+          <View style={styles.aiPositionBadge}>
+            <Text style={styles.aiPositionText}>{index + 1}</Text>
+          </View>
+          <View style={styles.aiCardInfoSection}>
+            <Text style={styles.aiCardName}>{cardData.cardName || `第${index + 1}张牌`}</Text>
+            <Text style={styles.aiCardDirection}>
+              {cardData.direction === 'upright' ? '正位' : '逆位'}
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.aiCardContent}>
+          {/* 卡牌图片区域 */}
+          <View style={styles.aiCardImageSection}>
+            <CardImageLoader
+              imageUrl={cardImageUrl}
+              width={120}
+              height={200}
+              style={[
+                styles.aiCardImageLarge,
+                cardData.direction === 'reversed' && styles.aiCardImageReversed
+              ]}
+              resizeMode="contain"
+            />
           </View>
 
-          <Text style={styles.cardSummary}>
-            {cardData.cardName ? `${cardData.cardName} - ${cardData.summary}` : cardData.summary}
-          </Text>
-
-          {isExpanded && (
-            <Animated.View entering={SlideInRight.duration(300)}>
-              {cardData.detail && (
-                <Text style={styles.cardDetail}>{cardData.detail}</Text>
-              )}
-
-              {cardData.dimensionInterpretations?.map((dim: any, dimIndex: number) => (
-                <View key={dimIndex} style={styles.dimensionContainer}>
-                  <Text style={styles.dimensionName}>{dim.dimensionName}</Text>
-                  <Text style={styles.dimensionContent}>{dim.content}</Text>
-                </View>
-              ))}
-            </Animated.View>
+          {/* 维度信息 */}
+          {cardData.dimensionInterpretations && cardData.dimensionInterpretations.length > 0 && (
+            <View style={styles.aiDimensionInfo}>
+              <Text style={styles.aiDimensionName}>
+                {cardData.dimensionInterpretations[0]?.dimensionName || `维度${index + 1}`}
+              </Text>
+            </View>
           )}
-        </TouchableOpacity>
-      </Animated.View>
+
+          {/* 基础牌意 */}
+          {cardData.summary && (
+            <View style={styles.aiBasicInterpretationContainer}>
+              <Text style={styles.aiInterpretationLabel}>基础牌意：</Text>
+              <Text style={styles.aiBasicInterpretation}>
+                {cardData.summary}
+              </Text>
+            </View>
+          )}
+
+          {/* 详细解读 */}
+          {cardData.detail && (
+            <View style={styles.aiDetailedInterpretationContainer}>
+              <Text style={styles.aiInterpretationLabel}>详细解读：</Text>
+              <Text style={styles.aiDetailedInterpretation}>
+                {cardData.detail}
+              </Text>
+            </View>
+          )}
+
+          {/* 维度解读 */}
+          {cardData.dimensionInterpretations?.map((dim: any, dimIndex: number) => (
+            <View key={dimIndex} style={styles.aiDetailedInterpretationContainer}>
+              <Text style={styles.aiInterpretationLabel}>{dim.dimensionName}：</Text>
+              <Text style={styles.aiDetailedInterpretation}>{dim.content}</Text>
+            </View>
+          ))}
+        </View>
+      </View>
     );
   };
 
@@ -398,8 +429,10 @@ export const HistoryDetail: React.FC<HistoryDetailProps> = ({
 
         {/* 基础占卜的卡牌解读 */}
         {!isAI && interpretation?.cards && (
-          <View style={styles.cardsSection}>
-            <Text style={styles.sectionTitle}>🎴 卡牌解读</Text>
+          <View style={styles.aiDimensionsContainer}>
+            <Text style={styles.aiSectionTitle}>
+              {history.result?.metadata?.theme || '卡牌解读'}
+            </Text>
             {interpretation.cards.map((cardData: any, index: number) =>
               renderBasicCardInterpretation(cardData, index)
             )}
