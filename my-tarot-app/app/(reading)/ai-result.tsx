@@ -86,16 +86,16 @@ export default function AIResultScreen() {
       }
 
       // 转换卡牌数据格式，符合后端API要求
-      const cardInfos = state.selectedCards.map((card, index) => ({
+      const cardInfos = state.selectedCards.map((card) => ({
         id: card.cardId,
         name: card.name,
         arcana: 'Major', // 可以从卡牌数据获取
         number: card.cardId,
         direction: card.direction === 'upright' ? '正位' : '逆位',
-        position: index + 1, // API要求1-10之间的整数
+        position: card.dimension?.aspect_type || 1, // 使用维度的aspect_type作为位置（1,2,3）
         image_url: card.imageUrl || '',
         deck: 'default'
-      }));
+      })).sort((a, b) => a.position - b.position); // 按position排序
 
       // 📋 详细打印请求数据用于后台调试
       console.log('=== AI解读请求数据开始 ===');
@@ -280,7 +280,8 @@ export default function AIResultScreen() {
         {/* <Text style={styles.sectionTitle}>{state.userDescription}</Text> */}
         {aiResult.card_interpretations && aiResult.card_interpretations.length > 0 ? (
           aiResult.card_interpretations.map((cardInterpretation, index) => {
-            const card = state.selectedCards[index];
+            // 根据position找到对应的卡牌
+            const card = state.selectedCards.find(c => c.dimension?.aspect_type === cardInterpretation.position);
             if (!card) return null;
 
             return (
