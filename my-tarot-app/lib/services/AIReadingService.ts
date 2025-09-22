@@ -63,7 +63,7 @@ class AIReadingService {
 
     if (__DEV__) {
       // Expo 环境使用电脑的实际IP地址
-      devUrl = 'http://192.168.71.3:8001';
+      devUrl = 'http://192.168.71.2:8001';
 
       // 备用选项（如果上面的IP不工作，可以尝试其他地址）：
       // devUrl = 'http://localhost:8001';    // 仅适用于iOS模拟器

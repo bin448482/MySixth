@@ -35,12 +35,26 @@ export const HistoryListItem: React.FC<HistoryListItemProps> = ({
 
   // 获取占卜类型显示文本
   const getModeText = (mode: string) => {
-    return mode === 'ai' ? 'AI解读' : '基础解读';
+    return mode === 'ai' ? '✨ AI解读' : '基础解读';
   };
 
   // 获取占卜类型颜色
   const getModeColor = (mode: string) => {
     return mode === 'ai' ? '#00ced1' : '#ffd700';
+  };
+
+  // 获取主题预览文本
+  const getPreviewText = () => {
+    if (history.interpretation_mode === 'ai' && history.result?.interpretation?.user_description) {
+      const userDesc = history.result.interpretation.user_description;
+      const dimensions = history.result?.metadata?.ai_dimensions;
+      if (dimensions && dimensions.length > 0) {
+        const dimensionDesc = dimensions[0].description;
+        return `${userDesc} AI分析：${dimensionDesc}`;
+      }
+      return userDesc;
+    }
+    return history.result?.metadata?.theme || '查看完整解读...';
   };
 
   // 获取卡牌数量
@@ -100,13 +114,13 @@ export const HistoryListItem: React.FC<HistoryListItemProps> = ({
 
           {/* 主题预览 */}
           <View style={styles.preview}>
-            <Text style={styles.previewText} numberOfLines={2}>
-              {history.result?.metadata?.theme || '查看完整解读...'}
+            <Text style={styles.previewText}>
+              {getPreviewText()}
             </Text>
           </View>
 
           {/* 标签栏 */}
-          <View style={styles.tags}>
+          {/* <View style={styles.tags}>
             <View style={styles.tag}>
               <Text style={styles.tagIcon}>🔮</Text>
               <Text style={styles.tagText}>牌阵{history.spread_id}</Text>
@@ -118,7 +132,7 @@ export const HistoryListItem: React.FC<HistoryListItemProps> = ({
                 <Text style={styles.tagText}>AI增强</Text>
               </View>
             )}
-          </View>
+          </View> */}
         </View>
 
         {/* 装饰线条 */}
