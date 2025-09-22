@@ -22,4 +22,6 @@ taskkill /PID 27620 /F
 cd my-tarot-app
 npm run start
 
+cd my-tarot-app && npm install --legacy-peer-deps
+
 

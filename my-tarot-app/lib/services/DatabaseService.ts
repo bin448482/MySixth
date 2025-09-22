@@ -4,7 +4,7 @@
  */
 
 import * as SQLite from 'expo-sqlite';
-import * as FileSystem from 'expo-file-system/legacy';
+import { Directory, File, Paths } from 'expo-file-system';
 import { Asset } from 'expo-asset';
 import { DatabaseMigrations } from '../database/migrations';
 import { DATABASE_NAME } from '../database/schema';
@@ -23,6 +23,14 @@ export class DatabaseService {
   private constructor() {
     // Database will be opened after asset copy in initialize()
     this.migrations = new DatabaseMigrations();
+  }
+
+  private getSQLiteDirectory(): Directory {
+    return new Directory(Paths.document, 'SQLite');
+  }
+
+  private getDatabaseFile(): File {
+    return new File(this.getSQLiteDirectory(), DATABASE_NAME);
   }
 
   /**
@@ -47,7 +55,8 @@ export class DatabaseService {
       
       // 2. 打开数据库连接
       if (!this.db) {
-        const dbPath = `${FileSystem.documentDirectory}SQLite/${DATABASE_NAME}`;
+        const dbFile = this.getDatabaseFile();
+        const dbPath = dbFile.uri;
         // console.log(`[DatabaseService] Opening database at: ${dbPath}`);
         this.db = SQLite.openDatabaseSync(dbPath);
         this.migrations = new DatabaseMigrations(this.db);
@@ -80,29 +89,32 @@ export class DatabaseService {
    * 确保预置数据库已复制到可写目录
    */
   private async ensureAssetDatabaseCopied(): Promise<void> {
-    const dbPath = `${FileSystem.documentDirectory}SQLite/${DATABASE_NAME}`;
-    
+    const sqliteDir = this.getSQLiteDirectory();
+    const dbFile = this.getDatabaseFile();
+
     try {
-      // 检查数据库文件是否已存在
-      const fileInfo = await FileSystem.getInfoAsync(dbPath);
-      
+      const dirInfo = sqliteDir.info();
+      if (!dirInfo.exists) {
+        sqliteDir.create({ intermediates: true, idempotent: true });
+      }
+
+      const fileInfo = dbFile.info();
+
       if (!fileInfo.exists) {
         // console.log('[DatabaseService] Copying bundled database to writable directory...');
-        
-        // 确保SQLite目录存在
-        const sqliteDir = `${FileSystem.documentDirectory}SQLite`;
-        await FileSystem.makeDirectoryAsync(sqliteDir, { intermediates: true });
-        
-        // 加载预置数据库资产
+
+        // 加载预置数据库资�?
         const asset = Asset.fromModule(require('../../assets/db/tarot_config.db'));
         await asset.downloadAsync();
-        
-        // 复制到可写目录
-        await FileSystem.copyAsync({
-          from: asset.localUri!,
-          to: dbPath
-        });
-        
+
+        if (!asset.localUri) {
+          throw new Error('Bundled database asset path unavailable after download');
+        }
+
+        // 复制到可写目�?
+        const assetFile = new File(asset.localUri);
+        assetFile.copy(dbFile);
+
         // console.log('[DatabaseService] Bundled database copied successfully');
       } else {
         // console.log('[DatabaseService] Database already exists in writable directory');
@@ -112,6 +124,7 @@ export class DatabaseService {
       throw new Error(`Failed to copy bundled database: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
+
 
   /**
    * 确保用户表存在（仅创建用户相关表，不创建静态数据表）

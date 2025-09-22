@@ -4,7 +4,7 @@
  */
 
 import * as SQLite from 'expo-sqlite';
-import * as FileSystem from 'expo-file-system/legacy';
+import { Directory, File, Paths } from 'expo-file-system';
 import { Asset } from 'expo-asset';
 import type {
   ServiceResponse,
@@ -25,6 +25,31 @@ export class DatabaseConnectionManager {
 
   private constructor() {
     // 数据库将在 initialize() 中开启
+  }
+
+  private getSQLiteDirectory(): Directory {
+    return new Directory(Paths.document, 'SQLite');
+  }
+
+  private ensureSQLiteDirectoryExists(): Directory {
+    const directory = this.getSQLiteDirectory();
+    const info = directory.info();
+    if (!info.exists) {
+      directory.create({ intermediates: true, idempotent: true });
+    }
+    return directory;
+  }
+
+  private getDatabaseFile(name: string): File {
+    return new File(this.getSQLiteDirectory(), name);
+  }
+
+  private getConfigDatabaseFile(): File {
+    return this.getDatabaseFile(CONFIG_DATABASE_NAME);
+  }
+
+  private getUserDatabaseFile(): File {
+    return this.getDatabaseFile(USER_DATABASE_NAME);
   }
 
   /**
@@ -80,7 +105,8 @@ export class DatabaseConnectionManager {
       await this.ensureConfigDatabaseCopied();
 
       // 打开配置数据库连接
-      const configDbPath = `${FileSystem.documentDirectory}SQLite/${CONFIG_DATABASE_NAME}`;
+      const configDbFile = this.getConfigDatabaseFile();
+      const configDbPath = configDbFile.uri;
       this.configDb = SQLite.openDatabaseSync(configDbPath);
 
       // 验证配置数据库完整性
@@ -101,12 +127,12 @@ export class DatabaseConnectionManager {
     try {
       console.log('[ConnectionManager] Initializing user database...');
 
-      // 创建用户数据库文件
-      const userDbPath = `${FileSystem.documentDirectory}SQLite/${USER_DATABASE_NAME}`;
+      // 创建用户数据库文件引用
+      const userDbFile = this.getUserDatabaseFile();
+      const userDbPath = userDbFile.uri;
 
       // 确保SQLite目录存在
-      const sqliteDir = `${FileSystem.documentDirectory}SQLite`;
-      await FileSystem.makeDirectoryAsync(sqliteDir, { intermediates: true });
+      this.ensureSQLiteDirectoryExists();
 
       // 打开用户数据库连接
       this.userDb = SQLite.openDatabaseSync(userDbPath);
@@ -122,22 +148,22 @@ export class DatabaseConnectionManager {
     }
   }
 
+
   /**
    * 确保配置数据库已复制到可写目录
    * 每次启动都会重新复制以确保配置数据最新
    */
   private async ensureConfigDatabaseCopied(): Promise<void> {
-    const configDbPath = `${FileSystem.documentDirectory}SQLite/${CONFIG_DATABASE_NAME}`;
+    const configDbFile = this.getConfigDatabaseFile();
 
     try {
       console.log('[ConnectionManager] Force copying bundled config database on every startup...');
 
       // 确保SQLite目录存在
-      const sqliteDir = `${FileSystem.documentDirectory}SQLite`;
-      await FileSystem.makeDirectoryAsync(sqliteDir, { intermediates: true });
+      this.ensureSQLiteDirectoryExists();
 
       try {
-        // 加载预置配置数据库资产
+        // 加载预置配置数据库资源
         const asset = Asset.fromModule(require('../../assets/db/tarot_config.db'));
         await asset.downloadAsync();
 
@@ -145,11 +171,14 @@ export class DatabaseConnectionManager {
           throw new Error('Failed to download config database asset');
         }
 
+        const existingFileInfo = configDbFile.info();
+        if (existingFileInfo.exists) {
+          configDbFile.delete();
+        }
+
         // 每次启动都复制，覆盖现有文件
-        await FileSystem.copyAsync({
-          from: asset.localUri,
-          to: configDbPath
-        });
+        const assetFile = new File(asset.localUri);
+        assetFile.copy(configDbFile);
 
         console.log('[ConnectionManager] Config database force copied successfully');
       } catch (assetError) {
@@ -161,6 +190,7 @@ export class DatabaseConnectionManager {
       throw new Error(`Failed to copy config database: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
+
 
   /**
    * 验证配置数据库完整性
@@ -476,17 +506,23 @@ export class DatabaseConnectionManager {
       }
 
       // 删除数据库文件
-      const configDbPath = `${FileSystem.documentDirectory}SQLite/${CONFIG_DATABASE_NAME}`;
-      const userDbPath = `${FileSystem.documentDirectory}SQLite/${USER_DATABASE_NAME}`;
+      const configDbFile = this.getConfigDatabaseFile();
+      const userDbFile = this.getUserDatabaseFile();
 
       try {
-        await FileSystem.deleteAsync(configDbPath);
+        const configInfo = configDbFile.info();
+        if (configInfo.exists) {
+          configDbFile.delete();
+        }
       } catch {
         // 文件可能不存在，忽略错误
       }
 
       try {
-        await FileSystem.deleteAsync(userDbPath);
+        const userInfo = userDbFile.info();
+        if (userInfo.exists) {
+          userDbFile.delete();
+        }
       } catch {
         // 文件可能不存在，忽略错误
       }
@@ -507,4 +543,5 @@ export class DatabaseConnectionManager {
       };
     }
   }
+
 }
