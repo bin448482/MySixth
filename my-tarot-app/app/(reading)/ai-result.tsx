@@ -169,13 +169,18 @@ export default function AIResultScreen() {
       Alert.alert(
         '保存成功',
         `占卜记录已保存到历史记录 (ID: ${savedId})`,
-        [{ text: '了解', onPress: () => {} }]
+        [{ text: '了解', onPress: handleComplete }]
       );
     } catch (error) {
       console.error('保存AI占卜记录失败:', error);
       const errorMessage = error instanceof Error ? error.message : '保存记录失败，请重试';
       Alert.alert('保存失败', errorMessage);
     }
+  };
+
+  const handleComplete = () => {
+    resetFlow();
+    router.replace('/(tabs)');
   };
 
   const handleNewReading = () => {
@@ -267,19 +272,12 @@ export default function AIResultScreen() {
       showsVerticalScrollIndicator={false}
     >
       <View style={styles.header}>
-        <View style={styles.typeIndicator}>
-          <Text style={styles.typeText}>✨ AI解读</Text>
-        </View>
-        <Text style={styles.title}>您的塔罗牌与解读</Text>
-        <View style={styles.questionContainer}>
-          <Text style={styles.questionLabel}>基于您的问题：</Text>
-          <Text style={styles.questionText}>{state.userDescription}</Text>
-        </View>
+        <Text style={styles.title}>{state.userDescription}</Text>
       </View>
 
       {/* 各维度解读 - 包含卡牌图片和基础牌意 */}
       <View style={styles.dimensionsContainer}>
-        <Text style={styles.sectionTitle}>您的塔罗牌与解读</Text>
+        {/* <Text style={styles.sectionTitle}>{state.userDescription}</Text> */}
         {aiResult.card_interpretations && aiResult.card_interpretations.length > 0 ? (
           aiResult.card_interpretations.map((cardInterpretation, index) => {
             const card = state.selectedCards[index];
@@ -372,17 +370,27 @@ export default function AIResultScreen() {
       {/* 操作按钮 */}
       <View style={styles.actionsContainer}>
         <TouchableOpacity
-          style={[styles.actionButton, styles.saveButton]}
+          style={[styles.actionButton, styles.primaryButton]}
           onPress={handleSaveToHistory}
+          activeOpacity={0.8}
         >
-          <Text style={styles.saveButtonText}>保存记录</Text>
+          <Text style={styles.primaryButtonText}>保存记录</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.actionButton, styles.newReadingButton]}
+          style={[styles.actionButton, styles.secondaryButton]}
           onPress={handleNewReading}
+          activeOpacity={0.8}
         >
-          <Text style={styles.newReadingButtonText}>重新占卜</Text>
+          <Text style={styles.secondaryButtonText}>重新占卜</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.actionButton, styles.tertiaryButton]}
+          onPress={handleComplete}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.tertiaryButtonText}>返回首页</Text>
         </TouchableOpacity>
       </View>
 
@@ -453,7 +461,7 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   title: {
-    fontSize: 28,
+    fontSize: 20,
     fontWeight: 'bold',
     color: '#FFD700',
     textAlign: 'center',
@@ -640,34 +648,49 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   actionsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    gap: 12,
     marginBottom: 32,
-    gap: 16,
   },
   actionButton: {
-    flex: 1,
     borderRadius: 25,
+    paddingHorizontal: 48,
     paddingVertical: 16,
+    minWidth: 200,
     alignItems: 'center',
   },
-  saveButton: {
-    backgroundColor: '#16213E',
-    borderWidth: 2,
-    borderColor: '#FFD700',
-  },
-  saveButtonText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#FFD700',
-  },
-  newReadingButton: {
+  primaryButton: {
     backgroundColor: '#FFD700',
+    elevation: 4,
+    shadowColor: '#FFD700',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
   },
-  newReadingButtonText: {
+  primaryButtonText: {
     fontSize: 16,
     fontWeight: 'bold',
     color: '#0F0F1A',
+  },
+  secondaryButton: {
+    backgroundColor: '#4ECDC4',
+  },
+  secondaryButtonText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+  },
+  tertiaryButton: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: '#FFD700',
+  },
+  tertiaryButtonText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#FFD700',
   },
   footer: {
     alignItems: 'center',
