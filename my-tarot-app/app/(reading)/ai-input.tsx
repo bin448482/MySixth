@@ -83,11 +83,7 @@ export default function AIInputScreen() {
           updateAIDimensions(mockResult.recommended_dimensions);
           setDimensions(mockResult.recommended_dimensions);
 
-          // 显示推荐维度一段时间后自动跳转
-          setTimeout(() => {
-            updateStep(3);
-            router.push('/(reading)/draw');
-          }, 3000);
+          // 移除自动跳转，只能手动点击继续
 
           return;
         } else {
@@ -107,11 +103,7 @@ export default function AIInputScreen() {
       updateAIDimensions(result.recommended_dimensions);
       setDimensions(result.recommended_dimensions);
 
-      // 显示推荐维度一段时间后自动跳转
-      setTimeout(() => {
-        updateStep(3);
-        router.push('/(reading)/draw');
-      }, 3000); // 增加到3秒让用户有时间查看推荐维度
+      // 移除自动跳转，只能手动点击继续
 
     } catch (error) {
       console.error('AI分析失败:', error);
@@ -218,7 +210,7 @@ export default function AIInputScreen() {
           ))}
           <View style={styles.continueContainer}>
             <Text style={styles.autoRedirectText}>
-              3秒后自动跳转到抽牌页面
+              点击下方按钮继续
             </Text>
             <TouchableOpacity
               style={styles.continueButton}
