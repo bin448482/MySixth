@@ -267,10 +267,14 @@ export default function AIResultScreen() {
       showsVerticalScrollIndicator={false}
     >
       <View style={styles.header}>
-        <Text style={styles.title}>AI塔罗解读</Text>
-        <Text style={styles.subtitle}>
-          基于您的问题：{state.userDescription}
-        </Text>
+        <View style={styles.typeIndicator}>
+          <Text style={styles.typeText}>✨ AI解读</Text>
+        </View>
+        <Text style={styles.title}>您的塔罗牌与解读</Text>
+        <View style={styles.questionContainer}>
+          <Text style={styles.questionLabel}>基于您的问题：</Text>
+          <Text style={styles.questionText}>{state.userDescription}</Text>
+        </View>
       </View>
 
       {/* 各维度解读 - 包含卡牌图片和基础牌意 */}

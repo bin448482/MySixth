@@ -334,16 +334,18 @@ export const HistoryDetail: React.FC<HistoryDetailProps> = ({
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* 占卜信息和操作 */}
+        {/* 简化的头部信息 */}
         <Animated.View style={[styles.infoSection, headerAnimatedStyle]}>
-          {/* AI占卜用户问题显示 */}
-          {isAI && interpretation?.user_description && (
-            <Text style={styles.aiSubtitle}>
-              基于您的问题：{interpretation.user_description}
-            </Text>
-          )}
-          <View style={styles.metaInfo}>
-            <Text style={styles.dateTime}>{formatDateTime(history.timestamp)}</Text>
+          <View style={styles.typeAndActions}>
+            <View style={[
+              styles.typeBadge,
+              { backgroundColor: isAI ? '#00ced1' : '#ffd700' }
+            ]}>
+              <Text style={styles.typeBadgeText}>
+                {isAI ? '✨ AI解读' : '📖 基础解读'}
+              </Text>
+            </View>
+
             <View style={styles.headerActions}>
               <TouchableOpacity style={styles.actionButton} onPress={handleShare}>
                 <Text style={styles.actionIcon}>↗</Text>
@@ -353,26 +355,14 @@ export const HistoryDetail: React.FC<HistoryDetailProps> = ({
               </TouchableOpacity>
             </View>
           </View>
-
-          <View style={styles.badges}>
-            <View style={[
-              styles.badge,
-              { backgroundColor: isAI ? '#00ced1' : '#ffd700' }
-            ]}>
-              <Text style={styles.badgeText}>
-                {isAI ? 'AI解读' : '基础解读'}
-              </Text>
-            </View>
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>{history.card_ids.length}张牌</Text>
-            </View>
-          </View>
         </Animated.View>
 
         {/* AI占卜的各维度解读 */}
         {isAI && interpretation?.card_interpretations && (
           <View style={styles.aiDimensionsContainer}>
-            <Text style={styles.aiSectionTitle}>您的塔罗牌与解读</Text>
+            <Text style={styles.aiSectionTitle}>
+              {interpretation?.user_description || '您的塔罗牌与解读'}
+            </Text>
             {interpretation.card_interpretations.map((cardInterpretation: any, index: number) =>
               renderAICardInterpretation(cardInterpretation, index)
             )}
@@ -491,6 +481,31 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#2a2a3e',
   },
+  questionSection: {
+    marginBottom: 16,
+  },
+  questionText: {
+    fontSize: 16,
+    color: '#e6e6fa',
+    lineHeight: 24,
+    textAlign: 'center',
+  },
+  typeAndActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  typeBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+    alignSelf: 'flex-start',
+  },
+  typeBadgeText: {
+    color: '#1a1a2e',
+    fontSize: 12,
+    fontWeight: '600',
+  },
   header: {
     padding: 20,
     borderBottomWidth: 1,
@@ -569,6 +584,7 @@ const styles = StyleSheet.create({
   // AI占卜各维度解读样式（与ai-result.tsx一致）
   aiDimensionsContainer: {
     paddingHorizontal: 24,
+    paddingTop: 24,
     marginBottom: 32,
   },
   aiSectionTitle: {
