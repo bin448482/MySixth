@@ -58,6 +58,11 @@ export function CardFlipAnimation({
   const [starPositions, setStarPositions] = useState(() =>
     generateRandomPositions()
   );
+  
+  // 特效触发状态
+  const [shouldShowStars, setShouldShowStars] = useState(false);
+  const [canTriggerStars, setCanTriggerStars] = useState(false);
+  const [hasCheckedTrigger, setHasCheckedTrigger] = useState(false);
 
   // 生成随机位置的函数
   function generateRandomPositions() {
@@ -94,9 +99,6 @@ export function CardFlipAnimation({
   // 根据card.revealed状态自动翻转
   useEffect(() => {
     if (card.revealed && !isFlipped) {
-      // 开始星星特效
-      startStarsEffect();
-      
       // 自动翻转到正面
       Animated.spring(animatedValue, {
         toValue: 1,
@@ -106,8 +108,29 @@ export function CardFlipAnimation({
       }).start(() => {
         setIsFlipped(true);
       });
+      
+      // 抽牌后等待3秒，然后允许触发星星特效
+      if (!canTriggerStars) {
+        setTimeout(() => {
+          setCanTriggerStars(true);
+        }, 3000);
+      }
     }
-  }, [card.revealed, isFlipped, animatedValue]);
+  }, [card.revealed, isFlipped, animatedValue, canTriggerStars]);
+
+  // 当卡牌放入卡槽时检查是否触发星星特效
+  useEffect(() => {
+    if (isInSlot && canTriggerStars && !hasCheckedTrigger) {
+      setHasCheckedTrigger(true);
+      
+      // 1/5的几率触发特效
+      const shouldTrigger = Math.random() < 0.2; // 20% = 1/5
+      if (shouldTrigger) {
+        setShouldShowStars(true);
+        startStarsEffect();
+      }
+    }
+  }, [isInSlot, canTriggerStars, hasCheckedTrigger]);
 
   // 星星特效函数
   const startStarsEffect = () => {
@@ -242,8 +265,8 @@ export function CardFlipAnimation({
       activeOpacity={0.9}
     >
       <View style={[styles.cardContainer, { width: CARD_WIDTH, height: CARD_HEIGHT }]} >
-        {/* 星星特效层 - 只在翻牌时显示 */}
-        {card.revealed && (
+        {/* 星星特效层 - 只在满足条件时显示 */}
+        {card.revealed && shouldShowStars && (
           <Animated.View style={[styles.starsContainer, starsContainerStyle]}>
             {/* 创建6颗星星随机分布在卡牌内 */}
             {starPositions.map((position, index) => (
