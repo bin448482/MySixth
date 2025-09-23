@@ -1,3 +1,8 @@
+## 历史页面重构 (2025-09-23)
+- 将 `app/(tabs)/history.tsx` 移动到 `app/(history)/_layout.tsx`
+- 更新 `NavigationGrid.tsx` 中的历史页面导航路径
+- 重构目录结构以保持项目一致性
+
 # 塔罗牌应用前端开发指南 (CLAUDE.md)
 
 ## 📱 项目信息
@@ -18,7 +23,6 @@ my-tarot-app/
 ├── app/                    # Expo Router 页面
 │   ├── (tabs)/             # 主导航标签页
 │   │   ├── index.tsx       # 首页
-│   │   ├── history.tsx     # 占卜历史
 │   │   └── cards.tsx       # 卡牌说明（新增）
 │   ├── cards/              # 卡牌说明功能页面组（新增）
 │   │   ├── _layout.tsx     # 卡牌页面布局

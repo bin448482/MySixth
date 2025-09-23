@@ -1,19 +1,47 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   ScrollView,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useReadingFlow } from '@/lib/contexts/ReadingContext';
+import AIReadingService from '@/lib/services/AIReadingService';
 
 export default function TypeSelectionScreen() {
   const router = useRouter();
   const { updateStep, updateType } = useReadingFlow();
+  const [isAIServiceAvailable, setIsAIServiceAvailable] = useState(false);
+  const [isCheckingService, setIsCheckingService] = useState(true);
+
+  const aiReadingService = AIReadingService.getInstance();
+
+  useEffect(() => {
+    checkAIServiceHealth();
+  }, []);
+
+  const checkAIServiceHealth = async () => {
+    try {
+      setIsCheckingService(true);
+      const isHealthy = await aiReadingService.checkServiceHealth();
+      setIsAIServiceAvailable(isHealthy);
+      console.log('AI Service Health:', isHealthy);
+    } catch (error) {
+      console.error('AI Service Health Check Failed:', error);
+      setIsAIServiceAvailable(false);
+    } finally {
+      setIsCheckingService(false);
+    }
+  };
 
   const handleTypeSelect = async (type: 'offline' | 'ai') => {
+    if (type === 'ai' && !isAIServiceAvailable) {
+      return; // Prevent selection if AI service is unavailable
+    }
+
     updateType(type);
     updateStep(2);
 
@@ -57,22 +85,55 @@ export default function TypeSelectionScreen() {
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.optionCard, styles.availableOption]}
+          style={[
+            styles.optionCard,
+            isAIServiceAvailable ? styles.availableOption : styles.disabledOption
+          ]}
           onPress={() => handleTypeSelect('ai')}
-          activeOpacity={0.8}
+          activeOpacity={isAIServiceAvailable ? 0.8 : 1}
+          disabled={!isAIServiceAvailable}
         >
           <View style={styles.iconContainer}>
-            <Text style={[styles.icon, styles.availableIcon]}>🤖</Text>
+            <Text style={[
+              styles.icon,
+              isAIServiceAvailable ? styles.availableIcon : styles.disabledIcon
+            ]}>🤖</Text>
           </View>
-          <Text style={[styles.optionTitle, styles.availableTitle]}>
+          <Text style={[
+            styles.optionTitle,
+            isAIServiceAvailable ? styles.availableTitle : styles.disabledTitle
+          ]}>
             AI占卜
           </Text>
-          <Text style={[styles.optionDescription, styles.availableDescription]}>
-            智能解读服务，个性化分析
+          <Text style={[
+            styles.optionDescription,
+            isAIServiceAvailable ? styles.availableDescription : styles.disabledDescription
+          ]}>
+            {isCheckingService
+              ? '正在检查服务状态...'
+              : isAIServiceAvailable
+                ? '智能解读服务，个性化分析'
+                : 'AI服务暂时不可用，请稍后重试'
+            }
           </Text>
-          <Text style={[styles.optionStatus, styles.availableStatus]}>
-            [可用]
+          <Text style={[
+            styles.optionStatus,
+            isAIServiceAvailable ? styles.availableStatus : styles.disabledStatus
+          ]}>
+            {isCheckingService
+              ? '[检查中...]'
+              : isAIServiceAvailable
+                ? '[可用]'
+                : '[不可用]'
+            }
           </Text>
+          {isCheckingService && (
+            <ActivityIndicator
+              size="small"
+              color="#888888"
+              style={{ marginTop: 8 }}
+            />
+          )}
         </TouchableOpacity>
       </View>
 
@@ -131,6 +192,11 @@ const styles = StyleSheet.create({
     borderColor: '#FFD700',
     backgroundColor: '#16213E',
   },
+  disabledOption: {
+    borderColor: '#666666',
+    backgroundColor: '#1A1A2E',
+    opacity: 0.6,
+  },
   iconContainer: {
     marginBottom: 16,
   },
@@ -140,6 +206,9 @@ const styles = StyleSheet.create({
   availableIcon: {
     opacity: 1,
   },
+  disabledIcon: {
+    opacity: 0.5,
+  },
   optionTitle: {
     fontSize: 20,
     fontWeight: 'bold',
@@ -147,6 +216,9 @@ const styles = StyleSheet.create({
   },
   availableTitle: {
     color: '#FFD700',
+  },
+  disabledTitle: {
+    color: '#888888',
   },
   optionDescription: {
     fontSize: 14,
@@ -156,6 +228,9 @@ const styles = StyleSheet.create({
   availableDescription: {
     color: '#CCCCCC',
   },
+  disabledDescription: {
+    color: '#666666',
+  },
   optionStatus: {
     fontSize: 12,
     fontWeight: 'bold',
@@ -163,6 +238,9 @@ const styles = StyleSheet.create({
   },
   availableStatus: {
     color: '#FFD700',
+  },
+  disabledStatus: {
+    color: '#F44336',
   },
   footer: {
     alignItems: 'center',
