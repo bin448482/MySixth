@@ -21,12 +21,14 @@ my-tarot-app/
 │   │   └── cards.tsx        # 卡牌说明
 │   ├── cards/               # 卡牌说明功能页面组
 │   ├── (reading)/           # 占卜流程页面组
-│   └── (history)/           # 历史记录页面组
+│   ├── (history)/           # 历史记录页面组
+│   └── settings/            # 系统说明页面组
 ├── components/              # 可复用组件库
 │   ├── home/                # 首页组件 -> 详见 components/home/CLAUDE.md
 │   ├── cards/               # 卡牌说明组件 -> 详见 components/cards/CLAUDE.md
 │   ├── reading/             # 占卜流程组件 -> 详见 components/reading/CLAUDE.md
 │   ├── history/             # 历史记录组件
+│   ├── settings/            # 系统说明组件 -> 详见 components/settings/CLAUDE.md
 │   └── common/              # 通用组件
 ├── lib/                     # 核心业务逻辑
 │   ├── database/            # 数据库层 -> 详见 lib/database/CLAUDE.md
@@ -67,6 +69,14 @@ my-tarot-app/
 - **数据持久化**：本地SQLite存储
 - **离线同步**：与后端API同步机制
 
+#### 5. 系统说明模块 (`app/settings/`)
+- **应用信息展示**：版本信息、愿景使命声明
+- **积分管理功能**：余额查询、充值套餐、充值记录
+- **使用声明**：免责声明、使用建议、注意事项
+- **隐私政策**：数据收集、使用方式、保护承诺
+- **帮助支持**：联系方式、用户反馈、版本检查
+- **详细设计**: 参考 `components/settings/CLAUDE.md`
+
 ## 🔄 数据管理架构
 
 ### 双数据库设计
@@ -103,10 +113,11 @@ lib/services/
 ## 🎯 开发重点
 
 ### 当前开发优先级
-1. **占卜流程完善**：AI占卜功能集成和优化
-2. **历史记录功能**：完整的历史管理和同步机制
-3. **支付集成**：Stripe支付流程集成
-4. **性能优化**：图片加载、动画性能、内存管理
+1. **系统说明模块**：应用信息、充值管理、使用声明、隐私政策
+2. **占卜流程完善**：AI占卜功能集成和优化
+3. **历史记录功能**：完整的历史管理和同步机制
+4. **支付集成**：Stripe支付流程集成
+5. **性能优化**：图片加载、动画性能、内存管理
 
 ### 关键技术要点
 - **类型安全**：完整的TypeScript类型定义系统
@@ -120,10 +131,12 @@ lib/services/
 - **数据库架构**: `lib/database/CLAUDE.md`
 - **AI占卜功能**: `lib/ai/CLAUDE.md`
 - **卡牌说明功能**: `components/cards/CLAUDE.md`
+- **系统说明功能**: `components/settings/CLAUDE.md`
 
 ### 组件特定文档
 - **首页组件**: `components/home/CLAUDE.md`
 - **占卜组件**: `components/reading/CLAUDE.md`
+- **系统说明组件**: `components/settings/CLAUDE.md`
 - **通用组件**: `components/common/CLAUDE.md`
 
 ## 🛠️ 开发指导
