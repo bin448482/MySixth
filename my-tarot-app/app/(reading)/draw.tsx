@@ -206,8 +206,8 @@ export default function DrawCardsScreen() {
         <Text style={styles.title}>抽取塔罗牌</Text>
         <Text style={styles.subtitle}>
           {state.type === 'ai'
-            ? '将卡牌拖拽到对应位置，AI将为您生成个性化解读'
-            : '将卡牌拖拽到对应位置或点击按钮抽牌'
+            ? '点击抽牌后，通过冥想与牌建立精神连线，会可能召唤出牌灵。将卡牌拖拽到对应位置，AI将为您生成个性化解读'
+            : '点击抽牌后，通过冥想与牌建立精神连线，会可能召唤出牌灵。将卡牌拖拽到对应位置，然后生成牌意个性化解读'
           }
         </Text>
       </View>

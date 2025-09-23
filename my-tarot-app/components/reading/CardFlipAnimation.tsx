@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Image } from 'react-native';
 import {
   View,
@@ -38,6 +38,63 @@ export function CardFlipAnimation({
 }: CardFlipAnimationProps) {
   const [animatedValue] = useState(new Animated.Value(0));
   const [isFlipped, setIsFlipped] = useState(false);
+  
+  // 星星特效动画
+  const starsOpacity = useRef(new Animated.Value(0)).current;
+  // 为每颗星星创建独立的闪烁动画
+  const starAnimations = useRef(
+    Array.from({ length: 6 }, () => new Animated.Value(0))
+  ).current;
+  
+  // 为每颗星星创建位置动画
+  const starPositionAnimations = useRef(
+    Array.from({ length: 6 }, () => ({
+      x: new Animated.Value(0),
+      y: new Animated.Value(0),
+    }))
+  ).current;
+  
+  // 星星位置状态，会动态更新
+  const [starPositions, setStarPositions] = useState(() =>
+    generateRandomPositions()
+  );
+  
+  // 特效触发状态
+  const [shouldShowStars, setShouldShowStars] = useState(false);
+  const [canTriggerStars, setCanTriggerStars] = useState(false);
+  const [hasCheckedTrigger, setHasCheckedTrigger] = useState(false);
+
+  // 生成随机位置的函数
+  function generateRandomPositions() {
+    const positions: { x: number; y: number }[] = [];
+    const minDistance = 25; // 稍微减少最小距离，给更多空间
+    const maxAttempts = 30; // 减少尝试次数，提高性能
+    
+    for (let i = 0; i < 6; i++) {
+      let attempts = 0;
+      let newPosition: { x: number; y: number };
+      
+      do {
+        newPosition = {
+          x: Math.random() * (CARD_WIDTH - 30) + 15,
+          y: Math.random() * (CARD_HEIGHT - 30) + 15,
+        };
+        attempts++;
+      } while (
+        attempts < maxAttempts &&
+        positions.some(pos => {
+          const distance = Math.sqrt(
+            Math.pow(pos.x - newPosition.x, 2) + Math.pow(pos.y - newPosition.y, 2)
+          );
+          return distance < minDistance;
+        })
+      );
+      
+      positions.push(newPosition);
+    }
+    
+    return positions;
+  }
 
   // 根据card.revealed状态自动翻转
   useEffect(() => {
@@ -51,8 +108,93 @@ export function CardFlipAnimation({
       }).start(() => {
         setIsFlipped(true);
       });
+      
+      // 抽牌后等待3秒，然后允许触发星星特效
+      if (!canTriggerStars) {
+        setTimeout(() => {
+          setCanTriggerStars(true);
+        }, 3000);
+      }
     }
-  }, [card.revealed, isFlipped, animatedValue]);
+  }, [card.revealed, isFlipped, animatedValue, canTriggerStars]);
+
+  // 当卡牌放入卡槽时检查是否触发星星特效
+  useEffect(() => {
+    if (isInSlot && canTriggerStars && !hasCheckedTrigger) {
+      setHasCheckedTrigger(true);
+      
+      // 1/5的几率触发特效
+      const shouldTrigger = Math.random() < 0.2; // 20% = 1/5
+      if (shouldTrigger) {
+        setShouldShowStars(true);
+        startStarsEffect();
+      }
+    }
+  }, [isInSlot, canTriggerStars, hasCheckedTrigger]);
+
+  // 星星特效函数
+  const startStarsEffect = () => {
+    // 初始化星星位置动画
+    starPositions.forEach((pos, index) => {
+      starPositionAnimations[index].x.setValue(pos.x);
+      starPositionAnimations[index].y.setValue(pos.y);
+    });
+
+    // 星星淡入
+    Animated.timing(starsOpacity, {
+      toValue: 1,
+      duration: 500,
+      useNativeDriver: true,
+    }).start();
+
+    // 为每颗星星创建随机闪烁动画，每次闪烁后换位置
+    starAnimations.forEach((animation, index) => {
+      const startRandomTwinkle = () => {
+        // 每颗星星不同的随机延迟开始时间 (0-3秒)
+        const randomDelay = Math.random() * 3000 + index * 500; // 加上索引偏移，确保不同步
+        // 每颗星星不同的随机闪烁持续时间 (150-500毫秒)
+        const randomDuration = 150 + Math.random() * 350 + index * 50; // 加上索引偏移
+        
+        setTimeout(() => {
+          const twinkleSequence = () => {
+            Animated.sequence([
+              // 闪烁亮起
+              Animated.timing(animation, {
+                toValue: 1,
+                duration: randomDuration,
+                useNativeDriver: true,
+              }),
+              // 闪烁熄灭
+              Animated.timing(animation, {
+                toValue: 0,
+                duration: randomDuration,
+                useNativeDriver: true,
+              }),
+            ]).start(() => {
+              // 闪烁完成后，为当前星星生成新的随机位置
+              const newPos = {
+                x: Math.random() * (CARD_WIDTH - 30) + 15,
+                y: Math.random() * (CARD_HEIGHT - 30) + 15,
+              };
+              
+              // 瞬间跳跃到新位置（恢复跳跃效果）
+              starPositionAnimations[index].x.setValue(newPos.x);
+              starPositionAnimations[index].y.setValue(newPos.y);
+              
+              // 每颗星星独立的随机暂停时间后继续下一次闪烁
+              setTimeout(() => {
+                twinkleSequence();
+              }, 800 + Math.random() * 2000); // 增加随机范围，让节奏更分散
+            });
+          };
+          
+          twinkleSequence();
+        }, randomDelay);
+      };
+      
+      startRandomTwinkle();
+    });
+  };
 
   // 点击处理 - 只在已翻开时触发onPress
   const handlePress = () => {
@@ -94,6 +236,27 @@ export function CardFlipAnimation({
   // 获取卡牌图片资源
   const cardImageSource = getCardImage(card.imageUrl);
 
+  // 星星容器样式
+  const starsContainerStyle = {
+    opacity: starsOpacity,
+  };
+
+  // 获取单个星星的闪烁样式
+  const getStarTwinkleStyle = (index: number) => ({
+    opacity: starAnimations[index]?.interpolate({
+      inputRange: [0, 1],
+      outputRange: [0.2, 1],
+    }) || 0.2,
+    transform: [
+      {
+        scale: starAnimations[index]?.interpolate({
+          inputRange: [0, 1],
+          outputRange: [0.6, 1.4],
+        }) || 0.6,
+      },
+    ],
+  });
+
   return (
     <TouchableOpacity
       style={styles.container}
@@ -102,6 +265,30 @@ export function CardFlipAnimation({
       activeOpacity={0.9}
     >
       <View style={[styles.cardContainer, { width: CARD_WIDTH, height: CARD_HEIGHT }]} >
+        {/* 星星特效层 - 只在满足条件时显示 */}
+        {card.revealed && shouldShowStars && (
+          <Animated.View style={[styles.starsContainer, starsContainerStyle]}>
+            {/* 创建6颗星星随机分布在卡牌内 */}
+            {starPositions.map((position, index) => (
+              <Animated.View
+                key={index}
+                style={[
+                  styles.star,
+                  getStarTwinkleStyle(index),
+                  {
+                    position: 'absolute',
+                    transform: [
+                      { translateX: starPositionAnimations[index].x },
+                      { translateY: starPositionAnimations[index].y },
+                    ],
+                  },
+                ]}
+              >
+                <Text style={styles.starText}>★</Text>
+              </Animated.View>
+            ))}
+          </Animated.View>
+        )}
         {/* 卡背 */}
         <Animated.View
           style={[
@@ -252,5 +439,28 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 4,
     right: 4,
+  },
+  // 星星特效样式
+  starsContainer: {
+    position: 'absolute',
+    width: '100%',
+    height: '100%',
+    top: 0,
+    left: 0,
+    zIndex: 5, // 确保星星在卡牌上方但不会遮挡交互
+  },
+  star: {
+    width: 16,
+    height: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  starText: {
+    fontSize: 12,
+    color: '#87CEEB', // 淡蓝色 (SkyBlue)
+    textShadowColor: '#E0F6FF',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 3,
+    fontWeight: 'bold',
   },
 });

@@ -43,52 +43,9 @@ export default function AIInputScreen() {
       // 检查服务健康状态
       const isHealthy = await aiService.checkServiceHealth();
       if (!isHealthy) {
-        // 在开发模式下，如果后端服务不可用，使用模拟数据
-        if (__DEV__) {
-          console.log('开发模式：使用模拟AI分析数据');
-
-          // 模拟AI分析结果
-          const mockResult = {
-            recommended_dimensions: [
-              {
-                id: 1,
-                name: '情感维度',
-                category: '情感',
-                description: '关于情感关系的深度分析',
-                aspect: '情感状态',
-                aspect_type: 1
-              },
-              {
-                id: 2,
-                name: '现状维度',
-                category: '现状',
-                description: '当前情况的客观分析',
-                aspect: '当前状况',
-                aspect_type: 2
-              },
-              {
-                id: 3,
-                name: '发展维度',
-                category: '未来',
-                description: '未来发展的可能性',
-                aspect: '发展方向',
-                aspect_type: 3
-              }
-            ],
-            user_description: userDescription.trim()
-          };
-
-          // 更新状态
-          updateUserDescription(userDescription.trim());
-          updateAIDimensions(mockResult.recommended_dimensions);
-          setDimensions(mockResult.recommended_dimensions);
-
-          // 移除自动跳转，只能手动点击继续
-
-          return;
-        } else {
-          throw new Error('AI服务暂时不可用，请稍后重试');
-        }
+        alert('AI服务当前不可用，请稍后再试');
+        setLoading(false);
+        return;
       }
 
       const result = await aiService.analyzeDescription(userDescription.trim());
@@ -198,16 +155,32 @@ export default function AIInputScreen() {
       {dimensions && !loading && (
         <View style={styles.dimensionsContainer}>
           <Text style={styles.dimensionsTitle}>推荐的解读维度：</Text>
-          {dimensions.map((dimension, index) => (
-            <View key={dimension.id} style={styles.dimensionItem}>
-              <Text style={styles.dimensionName}>
-                {index + 1}. {dimension.aspect}
-              </Text>
-              <Text style={styles.dimensionDescription}>
-                {dimension.description}
-              </Text>
-            </View>
-          ))}
+          {dimensions.map((dimension, index) => {
+            const isLast = index === (dimensions as any[]).length - 1;
+            console.log(`🎯 Debug - Dimension ${index + 1}:`, {
+              isLast,
+              dimensionName: dimension.aspect,
+              appliedStyles: isLast ? 'dimensionItem + dimensionItemLast' : 'dimensionItem',
+              totalDimensions: (dimensions as any[]).length
+            });
+            
+            return (
+              <View
+                key={dimension.id}
+                style={[
+                  styles.dimensionItem,
+                  isLast && styles.dimensionItemLast
+                ]}
+              >
+                <Text style={styles.dimensionName}>
+                  {index + 1}. {dimension.aspect}
+                </Text>
+                {/* <Text style={styles.dimensionDescription}>
+                  {dimension.description}
+                </Text> */}
+              </View>
+            );
+          })}
           <View style={styles.continueContainer}>
             <Text style={styles.autoRedirectText}>
               点击下方按钮继续
@@ -367,7 +340,7 @@ const styles = StyleSheet.create({
     padding: 20,
     marginBottom: 32,
     borderWidth: 1,
-    borderColor: '#FFD700',
+    borderColor: '#333333', // 改为更低调的灰色边框
   },
   dimensionsTitle: {
     fontSize: 18,
@@ -380,6 +353,11 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#333333',
+  },
+  dimensionItemLast: {
+    borderBottomWidth: 0,
+    marginBottom: 0, // 移除底部间距，因为后面有continueContainer
+    paddingBottom: 0, // 移除底部内边距，保持视觉一致性
   },
   dimensionName: {
     fontSize: 16,
