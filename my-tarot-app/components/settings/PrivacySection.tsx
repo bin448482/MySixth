@@ -5,7 +5,6 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withTiming,
-  interpolate,
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -25,24 +24,14 @@ interface PrivacyCardProps {
 
 const PrivacyCard: React.FC<PrivacyCardProps> = ({ item, expanded, onToggle }) => {
   const rotation = useSharedValue(0);
-  const height = useSharedValue(0);
 
   React.useEffect(() => {
     rotation.value = withTiming(expanded ? 180 : 0, { duration: 300 });
-    height.value = withTiming(expanded ? 1 : 0, { duration: 300 });
   }, [expanded]);
 
   const iconStyle = useAnimatedStyle(() => {
     return {
       transform: [{ rotate: `${rotation.value}deg` }],
-    };
-  });
-
-  const contentStyle = useAnimatedStyle(() => {
-    const opacity = interpolate(height.value, [0, 1], [0, 1]);
-    return {
-      opacity,
-      maxHeight: height.value * 200, // 预估最大高度
     };
   });
 
@@ -61,9 +50,11 @@ const PrivacyCard: React.FC<PrivacyCardProps> = ({ item, expanded, onToggle }) =
         </Animated.View>
       </TouchableOpacity>
 
-      <Animated.View style={[styles.expandableContent, contentStyle]}>
-        <Text style={styles.privacyDetails}>{item.details}</Text>
-      </Animated.View>
+      {expanded && (
+        <View style={styles.expandableContent}>
+          <Text style={styles.privacyDetails}>{item.details}</Text>
+        </View>
+      )}
     </View>
   );
 };
@@ -208,7 +199,7 @@ const styles = StyleSheet.create({
 
   privacyDetails: {
     fontSize: 14,
-    lineHeight: 20,
+    lineHeight: 22, // 增加行高，改善可读性
     color: '#e6e6fa',
     marginLeft: 32, // 对齐图标后的内容
   },
