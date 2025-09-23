@@ -31,7 +31,7 @@ const navigationItems: NavigationItem[] = [
     id: 'history',
     title: '占卜历史',
     icon: '📜',
-    route: '/history',
+    route: '/(history)',
     color: '#3498db',
   },
   {

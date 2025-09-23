@@ -20,11 +20,6 @@ const getTabsConfig = () => {
         title: 'Home',
         icon: 'house.fill'
       },
-      history: {
-        enabled: true,
-        title: 'History',
-        icon: 'clock.fill'
-      },
       explore: {
         enabled: true,
         title: 'Explore',
@@ -54,7 +49,6 @@ export default function TabLayout() {
         }}>
         {/* 仍然保留所有标签页，但不显示 */}
         <Tabs.Screen name="index" options={{ headerShown: false }} />
-        <Tabs.Screen name="history" options={{ headerShown: false }} />
         <Tabs.Screen name="explore" options={{ headerShown: false }} />
       </Tabs>
     );
@@ -78,16 +72,6 @@ export default function TabLayout() {
         />
       )}
       
-      {/* History 标签页 */}
-      {tabsConfig.tabs.history?.enabled && (
-        <Tabs.Screen
-          name="history"
-          options={{
-            title: tabsConfig.tabs.history.title,
-            tabBarIcon: ({ color }) => <IconSymbol size={28} name={tabsConfig.tabs.history.icon} color={color} />,
-          }}
-        />
-      )}
       
       {/* Explore 标签页 */}
       {tabsConfig.tabs.explore?.enabled && (

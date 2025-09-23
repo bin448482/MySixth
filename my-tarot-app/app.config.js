@@ -3,7 +3,7 @@ const { getDefaultConfig } = require('expo/metro-config');
 // 标签页配置
 const tabsConfig = {
   // 控制标签栏的显示/隐藏
-  tabBarEnabled: false,
+  tabBarEnabled: true,
   
   // 可选：如果需要保留单个标签页的配置
   tabs: {
@@ -11,11 +11,6 @@ const tabsConfig = {
       enabled: true,
       title: 'Home',
       icon: 'house.fill'
-    },
-    history: {
-      enabled: true,
-      title: 'History',
-      icon: 'clock.fill'
     },
     explore: {
       enabled: true,
