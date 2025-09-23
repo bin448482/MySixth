@@ -394,5 +394,69 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 > 以上定义同时写入 `app/utils/dimension_definitions.py` 并由后端服务加载校验，确保 API 返回值与数据库中的维度数据保持一致。
 
 <!-- 执行测试脚本的时候 -->
-执行测试脚本的时候，加上这个命令：PYTHONIOENCODING=utf-8 
+执行测试脚本的时候，加上这个命令：PYTHONIOENCODING=utf-8
+
+## 🗄️ 数据库设计详情
+
+### 核心表结构设计
+1. **card** - 卡牌基础信息
+   - 78张塔罗牌完整信息
+   - 大小阿卡纳分类
+   - 花色、编号等属性
+
+2. **card_style** - 牌面风格
+   - 支持多种卡牌艺术风格
+   - 预留未来扩展
+
+3. **dimension** - 解读维度定义
+   - 三牌阵维度（3个）
+   - 凯尔特十字维度（10个）
+   - 支持动态维度生成
+
+4. **card_interpretation** - 牌意主表
+   - 正逆位解读（156条）
+   - 基础牌意和详细说明
+
+5. **card_interpretation_dimension** - 牌意维度关联
+   - 卡牌与解读维度的多对多关系
+   - 支持AI生成的个性化解读
+
+6. **spread** - 牌阵定义
+   - 三牌阵布局
+   - 凯尔特十字布局
+   - 预留扩展牌阵类型
+
+7. **user_history** - 用户历史记录
+   - 匿名用户占卜记录
+   - 支持离线同步
+
+### 数据库文件管理
+- **开发数据库**: `./backend_tarot.db`
+- **源数据库**: `../tarot-ai-generator/data/tarot_config.db`
+- **迁移策略**: 独立数据库确保后端服务稳定性
+
+## 💡 LLM集成架构
+
+### 双API支持设计
+- **智谱AI**: 主要LLM提供商（glm-4-flash）
+- **OpenAI**: 备用LLM提供商（gpt-4）
+- **配置方式**: 环境变量控制API选择
+
+### 解读生成流程
+#### 第一步 - 问题分析 (`/readings/analyze`)
+1. 接收用户200字以内问题描述
+2. 支持三牌阵和凯尔特十字两种牌阵类型
+3. LLM分析问题并推荐相关维度
+4. 返回推荐维度列表供用户选择
+
+#### 第二步 - 解读生成 (`/readings/generate`)
+1. 接收用户选择的维度和卡牌信息
+2. 验证维度数量匹配牌阵类型
+3. 调用LLM生成多维度详细解读
+4. 返回完整解读结果（dimension_summaries + overall_summary）
+
+### 提示词工程
+- 基于 `../tarot-ai-generator/prompt_template.txt`
+- 支持维度定制和风格调整
+- 多语言解读支持预留
 

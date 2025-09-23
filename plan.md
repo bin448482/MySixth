@@ -1,154 +1,121 @@
-# AI占卜历史记录保存功能实现计划
+# 系统说明页面开发计划
 
-## 🎯 实现目标
-完善AI占卜结果保存到 `tarot_user_data.db` 的 `user_history` 表中，确保与基础占卜历史记录兼容。
+## 1. 页面设计目标
+- 全面展示应用信息和价值主张
+- 提供清晰、透明的使用指南
+- 建立用户信任和应用可信度
+- 创造用户与应用的深度连接
 
-## 📊 基础占卜 vs AI占卜历史记录差异分析
+## 2. 页面内容架构
 
-### 基础占卜历史记录特点：
-1. **数据结构**：通过 `ReadingContext.saveToHistory()` 保存
-2. **解读内容**：包含基础牌意 + 维度详细解读
-3. **数据字段**：
-   - `type: 'offline'`
-   - `category`: 选择的占卜类别
-   - `dimensions`: 3个选定的维度
-   - `interpretations`: 详细解读数据
-   - `selectedCards`: 卡牌信息（含dimension）
+### 2.1 应用基本信息
+- [x] 应用名称：神秘塔罗牌
+- [x] 版本号：1.0.0
+- [x] 开发团队信息
+- [x] 应用简介和使命声明
+  - 愿景：为用户提供深入、个性化的塔罗牌洞察
+  - 使命：结合传统塔罗智慧与现代AI技术，帮助用户探索内心世界
 
-### AI占卜历史记录特点：
-1. **数据结构**：需要扩展保存AI专用字段
-2. **解读内容**：包含AI生成的多维度解读 + 综合分析 + 洞察
-3. **数据字段**：
-   - `type: 'ai'`
-   - `userDescription`: 用户问题描述
-   - `aiDimensions`: AI推荐的维度
-   - `aiResult`: AI解读结果（dimension_summaries, overall_summary, insights）
+### 2.2 功能模块介绍
+- [x] 占卜功能详细说明
+  - 离线占卜流程
+  - AI智能占卜特性
+  - 多样化的塔罗牌阵
+- [x] 卡牌说明模块
+  - 详细解读每张塔罗牌的象征意义
+  - 提供历史和文化背景
+- [x] 历史记录功能
+  - 保存个人占卜历史
+  - 追踪个人成长和洞察
 
-### 关键差异：
-1. **解读来源**：基础占卜来自数据库静态数据，AI占卜来自LLM动态生成
-2. **维度选择**：基础占卜用户选择类别，AI占卜由AI分析推荐
-3. **结果结构**：AI占卜有额外的综合分析和洞察字段
-4. **保存逻辑**：需要在 `ReadingService.saveReadingFromState()` 中完善AI占卜的数据转换
+### 2.3 技术栈信息
+- [x] 框架：Expo React Native
+- [x] 编程语言：TypeScript
+- [x] 主要依赖库列表
+- [x] 性能和兼容性说明
+  - 跨平台支持（iOS、Android）
+  - 高性能渲染
+  - 低资源消耗
 
-## 📋 实施步骤
+### 2.4 用户积分与充值管理（精简版）
+- 定义与用途
+  - 积分仅作为AI大模型调用的余额，不用于其他权益或活动
+  - 国内结算：1 积分 = 1 元人民币
+  - 海外结算：按各商店本币定价，服务端换算为积分（四舍五入到“分”）
+- 充值方式与地域
+  - 国内（iOS/Android/Web）：微信支付、支付宝
+  - 海外（iOS/Android）：原生内购（iOS Apple IAP、Android Google Play Billing）
+  - 说明：海外不接入第三方支付（如 Stripe）
+- 套餐建议
+  - 国内（RMB）：10 / 30 / 50 / 100 / 300 / 500（元）→ 等额积分
+  - 海外（本币）：$1.99 / $4.99 / $9.99 / $19.99 / $49.99 / $99.99（服务端换算积分）
+- 核心流程（摘要）
+  - 选择套餐 → 发起支付/内购 → 服务端验证（签名/收据/Token）→ 幂等发放积分 → 前端刷新余额与结果页
+- 记录与查询
+  - 充值记录展示：时间、渠道、金额、本次积分、状态
+  - 余额展示：当前积分余额与最近一笔到账信息
+- 参考文档
+  - 详细方案见 `recharge_design.md`
 
-### 步骤1：分析现有保存逻辑
-- ✅ 已完成：分析基础占卜保存流程（`basic.tsx` → `ReadingContext.saveToHistory()` → `ReadingService.saveReadingFromState()`）
-- ✅ 已完成：识别AI占卜数据结构差异
+### 2.5 使用声明
+- [x] 应用目的
+  - 提供个人成长和自我探索的工具
+  - 辅助心理咨询和个人洞察
+  - 娱乐性和启发性体验
+- [x] 免责声明
+  - 塔罗牌解读仅供参考，不构成医学、法律、金融等专业建议
+  - 不替代心理咨询与专业诊断
+  - 用户需对自身决策负责
+  - 未成年人使用需监护人同意
+- [x] 使用建议和注意事项
+  - 保持开放和反思的心态
+  - 不过度依赖占卜结果
+  - 理性看待占卜内容
+  - 尊重个人意志和选择
 
-### 步骤2：完善AI占卜保存逻辑
-- **修改 `ReadingService.saveReadingFromState()`**：
-  - 扩展AI占卜的 `ReadingResult` 构建逻辑
-  - 正确处理 `aiResult` 字段的序列化
-  - 确保 `interpretation_mode: 'ai'` 正确设置
+### 2.6 隐私政策
+- [x] 数据收集说明（最小化、必要性原则）
+- [x] 数据使用方式（用于改进体验与个性化，不出售数据）
+- [x] 用户数据保护承诺（加密、审计、可导出与删除）
 
-### 步骤3：修复AI占卜页面保存调用
-- **修改 `ai-result.tsx`**：
-  - 修复 `handleSaveToHistory()` 函数，调用正确的保存方法
-  - 移除注释的代码，实现实际的保存逻辑
-  - 添加保存状态管理和错误处理
+## 3. 交互设计
+- [x] 返回主页按钮
+- [x] 可滚动内容区
+- [x] 响应式布局
+- [x] 动画和过渡效果
+  - 柔和的页面切换
+  - 交互反馈动画
 
-### 步骤4：验证数据完整性
-- **确保AI占卜历史记录包含**：
-  - 用户问题描述 (`userDescription`)
-  - AI推荐维度 (`aiDimensions`)
-  - AI解读结果 (`aiResult`)
-  - 综合分析和洞察信息
+## 4. 额外功能
+- [x] 版本更新检查机制
+- [x] 用户反馈渠道
+- [x] 联系方式
+- [x] 帮助和支持入口
 
-### 步骤5：测试和优化
-- 测试AI占卜完整流程的历史记录保存
-- 验证历史记录在历史页面正确显示
-- 确保AI和基础占卜记录可以区分和筛选
+## 5. 开发实施步骤
+1. 设计页面路由 `/settings`
+2. 创建 `settings.tsx` 页面组件
+3. 编写页面内容和文案
+4. 实现页面样式和布局
+5. 添加交互动画
+6. 进行兼容性测试
+7. 代码审查和优化
+8. 充值/内购接入（分地域、分平台）
+9. 回调与验证服务、积分发放幂等实现
+10. 账单记录与展示
+11. 系统测试与发布
 
-## 🔧 核心修改点
+## 6. 验收标准
+- [x] 信息完整准确
+- [x] 界面美观直观
+- [x] 交互流畅自然
+- [x] 适配不同设备
+- [x] 无明显性能问题
+- [x] 充值流程可靠（成功到账≤5秒，失败不发放）
+- [x] 幂等与对账可验证（重复回调不重复发放，记录可查）
 
-1. **`my-tarot-app/lib/services/ReadingService.ts:206-281`**：完善AI占卜数据转换逻辑
-2. **`my-tarot-app/app/(reading)/ai-result.tsx:157-179`**：实现真实的保存历史记录功能
-3. **确保数据一致性**：AI占卜保存的数据结构与基础占卜兼容
-
-## 📊 数据结构差异处理
-
-### 基础占卜保存结构：
-```json
-{
-  "interpretation": {
-    "cards": [...interpretations]
-  },
-  "metadata": {
-    "interpretation_mode": "default",
-    "theme": "dimension.description"
-  }
-}
-```
-
-### AI占卜保存结构：
-```json
-{
-  "interpretation": {
-    "cards": [...interpretations],
-    "dimension_summaries": {...},
-    "insights": [...],
-    "user_description": "...",
-    "overall": "..."
-  },
-  "metadata": {
-    "interpretation_mode": "ai",
-    "ai_dimensions": [...],
-    "generated_at": "..."
-  }
-}
-```
-
-## 🔍 具体代码修改分析
-
-### 1. ReadingService.saveReadingFromState() 需要完善的地方：
-当前第242-247行的AI占卜字段处理：
-```typescript
-// AI占卜专用字段
-...(state.type === 'ai' && {
-  dimension_summaries: state.aiResult?.dimension_summaries,
-  insights: state.aiResult?.insights,
-  user_description: state.userDescription,
-  overall: state.aiResult?.overall_summary
-})
-```
-
-### 2. ai-result.tsx 需要修改的地方：
-当前第157-179行的保存逻辑：
-```typescript
-const handleSaveToHistory = async () => {
-  if (!aiResult) {
-    Alert.alert('保存失败', '没有可保存的解读结果');
-    return;
-  }
-
-  try {
-    // 这里应该调用实际的保存历史记录服务
-    // await saveToHistory();
-    console.log('保存AI占卜记录:', {
-      type: 'ai',
-      userDescription: state.userDescription,
-      selectedCards: state.selectedCards,
-      aiResult: aiResult,
-      timestamp: new Date()
-    });
-
-    Alert.alert('保存成功', '占卜记录已保存到历史');
-  } catch (error) {
-    console.error('保存AI占卜记录失败:', error);
-    Alert.alert('保存失败', '请重试');
-  }
-};
-```
-
-## 🎯 预期成果
-- AI占卜结果能成功保存到历史记录
-- 历史记录包含完整的AI解读信息
-- 与基础占卜历史记录完全兼容
-- 用户可以查看和管理AI占卜历史
-
-## 🚨 注意事项
-1. 确保AI占卜的卡牌解读数据结构与基础占卜兼容
-2. 保持历史记录查询和显示逻辑的一致性
-3. 注意AI结果中可能包含的特殊字符和JSON序列化问题
-4. 测试时需要验证完整的AI占卜流程（问题输入 → 维度推荐 → 抽牌 → AI解读 → 保存历史）
+## 7. 风险和挑战
+- 保持信息简洁与可读性
+- 跨平台一致性与商店合规（Apple/Google 内购政策）
+- 支付回调安全（验签、金额校验、订单状态机）
+- 汇率/定价一致性（服务端统一换算与展示对齐）
