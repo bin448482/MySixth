@@ -24,7 +24,7 @@ import ollama
 
 from config import Config
 
-console = Console()
+console = Console(force_terminal=True, width=120)
 
 class TarotAIGenerator:
     def __init__(self):
@@ -350,16 +350,229 @@ class TarotAIGenerator:
         table.add_column("维度名称", style="cyan")
         table.add_column("类别", style="magenta")
         table.add_column("描述", style="green")
-        
+
         for dimension in self.dimensions_data:
             table.add_row(
                 dimension['name'],
                 dimension['category'],
                 dimension['description']
             )
-        
+
         console.print(table)
         console.print(f"[yellow]共 {len(self.dimensions_data)} 个维度[/yellow]")
+
+    def load_existing_results(self) -> Tuple[List[Dict], Dict[str, List[Dict]]]:
+        """加载现有结果并按维度分组"""
+        output_path = Path(self.config.OUTPUT_PATH)
+
+        if not output_path.exists():
+            console.print(f"[yellow]输出文件不存在: {output_path}[/yellow]")
+            return [], {}
+
+        try:
+            with open(output_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                existing_results = data.get('data', [])
+
+            # 按维度分组现有结果
+            grouped_results = {}
+            for result in existing_results:
+                dimension_name = result['dimension_name']
+                if dimension_name not in grouped_results:
+                    grouped_results[dimension_name] = []
+                grouped_results[dimension_name].append(result)
+
+            console.print(f"[green]加载了 {len(existing_results)} 条现有记录，涵盖 {len(grouped_results)} 个维度[/green]")
+            return existing_results, grouped_results
+
+        except Exception as e:
+            console.print(f"[red]加载现有结果时出错: {str(e)}[/red]")
+            return [], {}
+
+    def get_incomplete_dimensions(self, grouped_results: Dict[str, List[Dict]]) -> List[str]:
+        """识别需要重新生成的维度（记录数不等于156的维度）"""
+        incomplete_dimensions = []
+        total_cards = len(self.cards_data)  # 应该是156
+
+        console.print(f"[blue]检查维度完成状态（期望每个维度有 {total_cards} 条记录）[/blue]")
+
+        for dimension in self.dimensions_data:
+            dimension_name = dimension['name']
+            current_count = len(grouped_results.get(dimension_name, []))
+
+            if current_count != total_cards:
+                incomplete_dimensions.append(dimension_name)
+                status = f"[red]不完整 ({current_count}/{total_cards})[/red]"
+            else:
+                status = f"[green]完整 ({current_count}/{total_cards})[/green]"
+
+            console.print(f"  {dimension_name}: {status}")
+
+        return incomplete_dimensions
+
+    def remove_incomplete_records(self, existing_results: List[Dict], incomplete_dimensions: List[str]) -> List[Dict]:
+        """移除不完整维度的所有记录"""
+        if not incomplete_dimensions:
+            return existing_results
+
+        console.print(f"[yellow]移除 {len(incomplete_dimensions)} 个不完整维度的记录[/yellow]")
+
+        # 保留完整维度的记录
+        cleaned_results = [
+            result for result in existing_results
+            if result['dimension_name'] not in incomplete_dimensions
+        ]
+
+        removed_count = len(existing_results) - len(cleaned_results)
+        console.print(f"[yellow]移除了 {removed_count} 条不完整记录[/yellow]")
+
+        return cleaned_results
+
+    def check_generation_status(self) -> None:
+        """检查当前生成状态"""
+        existing_results, grouped_results = self.load_existing_results()
+        total_cards = len(self.cards_data)
+        total_dimensions = len(self.dimensions_data)
+        total_expected = total_cards * total_dimensions
+
+        incomplete_dimensions = self.get_incomplete_dimensions(grouped_results)
+
+        console.print("\n[bold blue]生成状态总览[/bold blue]")
+        console.print(f"期望总记录数: {total_expected} ({total_dimensions} 维度 × {total_cards} 卡牌)")
+        console.print(f"当前记录数: {len(existing_results)}")
+        console.print(f"完成维度数: {total_dimensions - len(incomplete_dimensions)}/{total_dimensions}")
+        console.print(f"不完整维度数: {len(incomplete_dimensions)}")
+
+        if incomplete_dimensions:
+            console.print("\n[yellow]需要生成的维度:[/yellow]")
+            for dimension_name in incomplete_dimensions:
+                current_count = len(grouped_results.get(dimension_name, []))
+                console.print(f"  - {dimension_name} ({current_count}/{total_cards})")
+        else:
+            console.print("\n[green]所有维度都已完成生成！[/green]")
+
+    def generate_all_dimensions(self, force: bool = False) -> None:
+        """生成所有维度的完整解读（支持断点续传）"""
+        console.print("[bold blue]开始生成完整的维度解读数据集[/bold blue]")
+
+        # 加载现有结果并分析
+        existing_results, grouped_results = self.load_existing_results()
+        incomplete_dimensions = self.get_incomplete_dimensions(grouped_results)
+
+        if not incomplete_dimensions:
+            console.print("[green]所有维度已完成，无需生成！[/green]")
+            return
+
+        # 清理不完整的记录
+        cleaned_results = self.remove_incomplete_records(existing_results, incomplete_dimensions)
+
+        # 计算成本预估
+        total_cards = len(self.cards_data)
+        total_to_generate = len(incomplete_dimensions) * total_cards
+        estimated_tokens = total_to_generate * 500
+
+        console.print(f"\n[blue]生成计划:[/blue]")
+        console.print(f"需要生成的维度: {len(incomplete_dimensions)}")
+        console.print(f"需要生成的记录: {total_to_generate}")
+        console.print(f"预估Token消耗: {estimated_tokens:,}")
+
+        if not force and not Confirm.ask("确认开始批量生成？"):
+            return
+
+        # 开始生成
+        console.print(f"[green]开始生成 {len(incomplete_dimensions)} 个不完整维度的解读[/green]")
+
+        with Progress() as progress:
+            # 总进度条
+            main_task = progress.add_task(
+                "整体进度",
+                total=len(incomplete_dimensions)
+            )
+
+            # 当前维度进度条
+            dimension_task = progress.add_task(
+                "当前维度",
+                total=total_cards
+            )
+
+            for dim_index, dimension_name in enumerate(incomplete_dimensions, 1):
+                dimension = next(d for d in self.dimensions_data if d['name'] == dimension_name)
+
+                progress.update(
+                    dimension_task,
+                    description=f"生成维度: {dimension_name} ({dim_index}/{len(incomplete_dimensions)})",
+                    completed=0
+                )
+
+                # 为当前维度生成所有卡牌解读
+                dimension_results = []
+
+                async def generate_dimension():
+                    """异步生成当前维度的所有卡牌解读"""
+                    sem = asyncio.Semaphore(self.config.BATCH_SIZE)
+                    min_interval = 60 / self.config.RATE_LIMIT_PER_MINUTE if self.config.RATE_LIMIT_PER_MINUTE > 0 else 0.0
+                    rate_lock = asyncio.Lock()
+                    next_allowed = 0.0
+
+                    async def worker(card: Dict) -> Optional[Dict]:
+                        nonlocal next_allowed
+                        async with sem:
+                            # 速率限制
+                            if min_interval > 0:
+                                async with rate_lock:
+                                    now = asyncio.get_running_loop().time()
+                                    wait = max(0.0, next_allowed - now)
+                                    if wait > 0:
+                                        await asyncio.sleep(wait)
+                                    next_allowed = asyncio.get_running_loop().time() + min_interval
+
+                            # 重试机制
+                            for attempt in range(3):
+                                try:
+                                    result = await asyncio.to_thread(
+                                        self.generate_single_interpretation,
+                                        card,
+                                        dimension
+                                    )
+                                    if result:
+                                        return result
+                                except Exception as e:
+                                    console.print(f"[red]生成失败 {card['card_name']} ({card['direction']}) 第{attempt+1}次: {e}[/red]")
+                                    await asyncio.sleep(2 * (attempt + 1))
+
+                            console.print(f"[yellow]跳过失败的卡牌: {card['card_name']} ({card['direction']})[/yellow]")
+                            return None
+
+                    # 生成所有卡牌
+                    tasks = [asyncio.create_task(worker(card)) for card in self.cards_data]
+
+                    for coro in asyncio.as_completed(tasks):
+                        result = await coro
+                        if result:
+                            dimension_results.append(result)
+                        progress.advance(dimension_task)
+
+                # 运行异步生成
+                asyncio.run(generate_dimension())
+
+                # 将当前维度的结果添加到总结果中
+                cleaned_results.extend(dimension_results)
+
+                # 实时保存进度
+                self.save_results(cleaned_results, "")
+
+                console.print(f"[green]维度 '{dimension_name}' 完成，生成了 {len(dimension_results)} 条记录[/green]")
+                progress.advance(main_task)
+
+        final_count = len(cleaned_results)
+        console.print(f"\n[green]批量生成完成！[/green]")
+        console.print(f"总记录数: {final_count}")
+        console.print(f"预期记录数: {len(self.dimensions_data) * len(self.cards_data)}")
+
+        if final_count == len(self.dimensions_data) * len(self.cards_data):
+            console.print("[green]所有维度解读生成完成！[/green]")
+        else:
+            console.print("[yellow]部分记录可能生成失败，请检查日志并重新运行[/yellow]")
 
 def main():
     parser = argparse.ArgumentParser(description="塔罗牌维度解读生成工具")
@@ -369,17 +582,23 @@ def main():
     parser.add_argument("--sample", type=int, help="生成指定数量的样本数据")
     parser.add_argument("--list-cards", action="store_true", help="列出所有卡牌")
     parser.add_argument("--list-dimensions", action="store_true", help="列出所有维度")
+    parser.add_argument("--generate-all", action="store_true", help="生成所有维度的完整解读（支持断点续传）")
+    parser.add_argument("--check-status", action="store_true", help="检查当前生成状态")
     parser.add_argument("--force", action="store_true", help="跳过确认直接生成")
-    
+
     args = parser.parse_args()
-    
+
     try:
         generator = TarotAIGenerator()
-        
+
         if args.list_cards:
             generator.list_cards()
         elif args.list_dimensions:
             generator.list_dimensions()
+        elif args.check_status:
+            generator.check_generation_status()
+        elif args.generate_all:
+            generator.generate_all_dimensions(force=args.force)
         elif args.card and args.direction:
             generator.generate_for_card(args.card, args.direction, force=args.force)
         elif args.dimension:
@@ -388,7 +607,10 @@ def main():
             generator.generate_sample(args.sample, force=args.force)
         else:
             console.print("[yellow]请指定操作参数，使用 --help 查看帮助[/yellow]")
-            
+            console.print("\n[blue]新功能:[/blue]")
+            console.print("  --generate-all   生成所有维度的完整解读（支持断点续传）")
+            console.print("  --check-status   检查当前生成状态")
+
     except Exception as e:
         console.print(f"[red]程序运行错误: {str(e)}[/red]")
 
