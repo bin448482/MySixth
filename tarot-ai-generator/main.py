@@ -20,6 +20,7 @@ from rich.table import Table
 from rich.prompt import Confirm
 from zhipuai import ZhipuAI
 from openai import OpenAI
+import ollama
 
 from config import Config
 
@@ -29,8 +30,7 @@ class TarotAIGenerator:
     def __init__(self):
         self.config = Config()
         self.config.validate()
-        
-        # 根据配置选择API客户端
+
         if self.config.API_PROVIDER == 'zhipu':
             self.client = ZhipuAI(api_key=self.config.ZHIPUAI_API_KEY)
         elif self.config.API_PROVIDER == 'openai':
@@ -38,12 +38,13 @@ class TarotAIGenerator:
                 api_key=self.config.OPENAI_API_KEY,
                 base_url=self.config.OPENAI_BASE_URL
             )
-        
+        elif self.config.API_PROVIDER == 'ollama':
+            self.client = ollama.Client(host=self.config.OLLAMA_BASE_URL)
+
         self.cards_data = self.load_cards_data()
         self.dimensions_data = self.load_dimensions_data()
         self.prompt_template = self.load_prompt_template()
-        
-        # 确保输出目录存在
+
         Path(self.config.OUTPUT_PATH).parent.mkdir(parents=True, exist_ok=True)
     
     def load_cards_data(self) -> List[Dict]:
@@ -78,7 +79,6 @@ class TarotAIGenerator:
         )
     
     def call_ai_api(self, prompt: str) -> Optional[str]:
-        """调用AI API生成内容"""
         try:
             if self.config.API_PROVIDER == 'zhipu':
                 response = self.client.chat.completions.create(
@@ -98,11 +98,25 @@ class TarotAIGenerator:
                     temperature=self.config.TEMPERATURE,
                     max_tokens=self.config.MAX_TOKENS
                 )
-            
+            elif self.config.API_PROVIDER == 'ollama':
+                response = self.client.chat(
+                    model=self.config.OLLAMA_MODEL,
+                    messages=[
+                        {"role": "user", "content": prompt}
+                    ],
+                    options={
+                        "temperature": self.config.TEMPERATURE,
+                        "num_predict": self.config.MAX_TOKENS
+                    }
+                )
+                if response and 'message' in response and 'content' in response['message']:
+                    return response['message']['content'].strip()
+                return None
+
             if response.choices:
                 return response.choices[0].message.content.strip()
             return None
-            
+
         except Exception as e:
             console.print(f"[red]API调用错误 ({self.config.API_PROVIDER}): {str(e)}[/red]")
             return None
@@ -291,10 +305,13 @@ class TarotAIGenerator:
     
     def save_results(self, results: List[Dict], filename_suffix: str = "") -> None:
         """保存结果到JSON文件"""
+        # 根据API提供商选择正确的模型名称
+        model_name = self.config.OLLAMA_MODEL if self.config.API_PROVIDER == 'ollama' else self.config.MODEL_NAME
+
         output_data = {
             "version": "1.0.0",
             "generated_at": datetime.now().isoformat(),
-            "model": self.config.MODEL_NAME,
+            "model": model_name,
             "count": len(results),
             "data": results
         }

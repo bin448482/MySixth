@@ -2,7 +2,15 @@
 
 ## 📖 项目简介
 
-**塔罗牌维度解读生成工具** 是一个基于智谱AI的Python工具，用于生成详细的塔罗牌维度解读内容。该工具可以根据现有的塔罗牌基础解读数据和维度定义，调用智谱AI生成更加详细和个性化的解读文本。
+**塔罗牌维度解读生成工具** 是一个支持多种AI模型的Python工具，用于生成详细的塔罗牌维度解读内容。该工具可以根据现有的塔罗牌基础解读数据和维度定义，调用AI模型（智谱AI、OpenAI或Ollama本地模型）生成更加详细和个性化的解读文本。
+
+## 📌 重要说明
+
+**本项目为独立工具**，所有文件修改和更新均在 `tarot-ai-generator/` 目录下进行，除非特别说明需要访问其他项目目录（如读取 `../my-tarot-app/` 的数据文件）。开发时请确保：
+- 所有代码文件位于当前目录
+- 配置文件（.env）在当前目录
+- 输出文件默认保存到 `./output/` 目录
+- 仅在需要读取源数据时访问其他项目目录
 
 ## 🎯 核心功能
 
@@ -12,6 +20,7 @@
 - **数据查看**: 列出所有可用的塔罗牌和解读维度
 - **成本控制**: 预估API调用成本，支持用户确认后执行
 - **进度跟踪**: 实时显示生成进度和预估完成时间
+- **多模型支持**: 支持智谱AI、OpenAI和Ollama本地模型
 
 ## 📁 项目结构
 
@@ -53,8 +62,20 @@ pip install -r requirements.txt
 # 复制环境变量模板
 cp .env.example .env
 
-# 编辑 .env 文件，填入你的智谱AI API密钥
+# 编辑 .env 文件，配置API提供商
+# 方式1: 使用智谱AI
+# API_PROVIDER=zhipu
 # ZHIPUAI_API_KEY=your_api_key_here
+
+# 方式2: 使用OpenAI
+# API_PROVIDER=openai
+# OPENAI_API_KEY=your_api_key_here
+# OPENAI_BASE_URL=https://api.openai.com/v1
+
+# 方式3: 使用Ollama本地模型
+# API_PROVIDER=ollama
+# OLLAMA_BASE_URL=http://localhost:11434
+# OLLAMA_MODEL=llama3
 ```
 
 ### 2. 使用方法
@@ -94,18 +115,46 @@ python main.py --sample 5
 
 ## 🔧 配置说明
 
+### 支持的AI模型提供商
+
+| 提供商 | 说明 | 优势 | 配置要求 |
+|--------|------|------|----------|
+| **智谱AI** | 智谱AI的GLM系列模型 | 中文理解能力强，性价比高 | ZHIPUAI_API_KEY |
+| **OpenAI** | OpenAI的GPT系列模型 | 生成质量高，功能强大 | OPENAI_API_KEY, OPENAI_BASE_URL |
+| **Ollama** | 本地部署的开源模型 | 免费使用，数据隐私，无网络依赖 | OLLAMA_BASE_URL, OLLAMA_MODEL |
+
 ### 环境变量配置 (.env)
 
+#### 通用配置
 | 变量名 | 说明 | 默认值 |
 |--------|------|--------|
-| `ZHIPUAI_API_KEY` | 智谱AI的API密钥 | 必填 |
-| `CARD_INTERPRETATIONS_PATH` | 塔罗牌数据文件路径 | `../my-tarot-app/assets/data/card_interpretations.json` |
-| `DIMENSIONS_PATH` | 维度数据文件路径 | `../my-tarot-app/assets/data/dimensions.json` |
+| `API_PROVIDER` | API提供商选择 (zhipu/openai/ollama) | `zhipu` |
+| `CARD_INTERPRETATIONS_PATH` | 塔罗牌数据文件路径 | `data/config_jsons/card_interpretations.json` |
+| `DIMENSIONS_PATH` | 维度数据文件路径 | `data/config_jsons/dimensions.json` |
 | `OUTPUT_PATH` | 输出文件路径 | `./output/card_interpretation_dimensions.json` |
-| `MODEL_NAME` | 使用的AI模型 | `glm-4` |
 | `TEMPERATURE` | AI生成温度参数 | `0.7` |
 | `MAX_TOKENS` | 最大token数量 | `1000` |
 | `RATE_LIMIT_PER_MINUTE` | API调用频率限制 | `60` |
+| `BATCH_SIZE` | 并发批处理大小 | `10` |
+
+#### 智谱AI配置
+| 变量名 | 说明 | 默认值 |
+|--------|------|--------|
+| `ZHIPUAI_API_KEY` | 智谱AI的API密钥 | 必填（当API_PROVIDER=zhipu） |
+| `MODEL_NAME` | 使用的模型名称 | `glm-4` |
+
+#### OpenAI配置
+| 变量名 | 说明 | 默认值 |
+|--------|------|--------|
+| `OPENAI_API_KEY` | OpenAI的API密钥 | 必填（当API_PROVIDER=openai） |
+| `OPENAI_BASE_URL` | OpenAI API基础URL | `https://api.openai.com/v1` |
+| `MODEL_NAME` | 使用的模型名称 | `gpt-4` |
+
+#### Ollama配置
+| 变量名 | 说明 | 默认值 |
+|--------|------|--------|
+| `OLLAMA_BASE_URL` | Ollama服务地址 | `http://localhost:11434` |
+| `OLLAMA_MODEL` | Ollama模型名称 | `llama3` |
 
 ### 提示词模板
 
