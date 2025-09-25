@@ -119,6 +119,18 @@ export default function BasicReadingScreen() {
 
       updateInterpretations(interpretationData);
       console.log('[BasicReading] Updated interpretations in context:', interpretationData);
+
+      // 解读数据生成完成后自动保存（仅在未保存的情况下）
+      if (!state.savedToHistory) {
+        try {
+          await saveToHistory();
+          console.log('基础解读自动保存成功');
+        } catch (error) {
+          console.error('自动保存失败:', error);
+        }
+      } else {
+        console.log('基础解读已经保存过，跳过自动保存');
+      }
     } catch (error) {
       console.error('[BasicReading] Error generating detailed reading:', error);
       Alert.alert('错误', '生成解读失败，请重试');
@@ -127,23 +139,23 @@ export default function BasicReadingScreen() {
     }
   };
 
-  const handleSaveToHistory = async () => {
-    try {
-      setSaving(true);
-      const savedId = await saveToHistory();
-      Alert.alert(
-        '保存成功',
-        `占卜记录已保存到历史记录 (ID: ${savedId})`,
-        [{ text: '了解', onPress: handleComplete }]
-      );
-    } catch (error) {
-      console.error('Error saving to history:', error);
-      const errorMessage = error instanceof Error ? error.message : '保存记录失败，请重试';
-      Alert.alert('错误', errorMessage);
-    } finally {
-      setSaving(false);
-    }
-  };
+  // const handleSaveToHistory = async () => {
+  //   try {
+  //     setSaving(true);
+  //     const savedId = await saveToHistory();
+  //     Alert.alert(
+  //       '保存成功',
+  //       '请到占卜历史中查阅。',
+  //       [{ text: '了解', onPress: handleComplete }]
+  //     );
+  //   } catch (error) {
+  //     console.error('Error saving to history:', error);
+  //     const errorMessage = error instanceof Error ? error.message : '保存记录失败，请重试';
+  //     Alert.alert('错误', errorMessage);
+  //   } finally {
+  //     setSaving(false);
+  //   }
+  // };
 
   const handleComplete = () => {
     resetFlow();
@@ -227,7 +239,7 @@ export default function BasicReadingScreen() {
       </View>
 
       <View style={styles.actionsContainer}>
-        <TouchableOpacity
+        {/* <TouchableOpacity
           style={[styles.actionButton, styles.primaryButton]}
           onPress={handleSaveToHistory}
           disabled={saving}
@@ -238,7 +250,7 @@ export default function BasicReadingScreen() {
           ) : (
             <Text style={styles.primaryButtonText}>保存记录</Text>
           )}
-        </TouchableOpacity>
+        </TouchableOpacity> */}
 
         <TouchableOpacity
           style={[styles.actionButton, styles.secondaryButton]}

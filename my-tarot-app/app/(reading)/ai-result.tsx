@@ -55,7 +55,7 @@ export default function AIResultScreen() {
   useEffect(() => {
     // 检查是否已经有AI解读结果
     if (state.aiResult) {
-      // 如果已经有结果，直接使用，不重新调用API
+      // 如果已经有结果，直接使用，不重新调用API，也不重复保存
       console.log('使用已有的AI解读结果，避免重复调用API');
       setAiResult(state.aiResult);
       setLoading(false);
@@ -139,6 +139,18 @@ export default function AIResultScreen() {
       console.log('AI解读生成成功，保存到Context');
       updateAIResult(result);
       setAiResult(result);
+
+      // 自动保存到历史记录（仅在未保存的情况下）
+      if (!state.savedToHistory) {
+        try {
+          const savedId = await saveToHistory();
+          console.log('AI解读自动保存成功, ID:', savedId);
+        } catch (saveError) {
+          console.error('自动保存失败:', saveError);
+        }
+      } else {
+        console.log('AI解读已经保存过，跳过自动保存');
+      }
     } catch (error) {
       console.error('AI解读生成失败:', error);
       let errorMessage = '网络连接失败，请检查网络设置';
@@ -156,27 +168,27 @@ export default function AIResultScreen() {
     }
   };
 
-  const handleSaveToHistory = async () => {
-    if (!aiResult) {
-      Alert.alert('保存失败', '没有可保存的解读结果');
-      return;
-    }
+  // const handleSaveToHistory = async () => {
+  //   if (!aiResult) {
+  //     Alert.alert('保存失败', '没有可保存的解读结果');
+  //     return;
+  //   }
 
-    try {
-      // 调用ReadingContext的saveToHistory方法
-      // 该方法会调用ReadingService.saveReadingFromState()处理AI占卜数据保存
-      const savedId = await saveToHistory();
-      Alert.alert(
-        '保存成功',
-        `占卜记录已保存到历史记录 (ID: ${savedId})`,
-        [{ text: '了解', onPress: handleComplete }]
-      );
-    } catch (error) {
-      console.error('保存AI占卜记录失败:', error);
-      const errorMessage = error instanceof Error ? error.message : '保存记录失败，请重试';
-      Alert.alert('保存失败', errorMessage);
-    }
-  };
+  //   try {
+  //     // 调用ReadingContext的saveToHistory方法
+  //     // 该方法会调用ReadingService.saveReadingFromState()处理AI占卜数据保存
+  //     const savedId = await saveToHistory();
+  //     Alert.alert(
+  //       '保存成功',
+  //       '请到占卜历史中查阅。',
+  //       [{ text: '了解', onPress: handleComplete }]
+  //     );
+  //   } catch (error) {
+  //     console.error('保存AI占卜记录失败:', error);
+  //     const errorMessage = error instanceof Error ? error.message : '保存记录失败，请重试';
+  //     Alert.alert('保存失败', errorMessage);
+  //   }
+  // };
 
   const handleComplete = () => {
     resetFlow();
@@ -370,13 +382,13 @@ export default function AIResultScreen() {
 
       {/* 操作按钮 */}
       <View style={styles.actionsContainer}>
-        <TouchableOpacity
+        {/* <TouchableOpacity
           style={[styles.actionButton, styles.primaryButton]}
           onPress={handleSaveToHistory}
           activeOpacity={0.8}
         >
           <Text style={styles.primaryButtonText}>保存记录</Text>
-        </TouchableOpacity>
+        </TouchableOpacity> */}
 
         <TouchableOpacity
           style={[styles.actionButton, styles.secondaryButton]}

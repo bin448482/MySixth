@@ -41,6 +41,7 @@ export interface ReadingFlowState {
   createdAt: Date;
   isLoading: boolean;
   error: string | null;
+  savedToHistory: boolean;          // 新增：标记是否已保存到历史记录
 }
 
 interface ReadingContextType {
@@ -72,6 +73,7 @@ const initialState: ReadingFlowState = {
   createdAt: new Date(),
   isLoading: false,
   error: null,
+  savedToHistory: false,            // 初始化为未保存状态
 };
 
 type ReadingAction =
@@ -86,6 +88,7 @@ type ReadingAction =
   | { type: 'UPDATE_INTERPRETATIONS'; payload: any[] }
   | { type: 'SET_LOADING'; payload: boolean }
   | { type: 'SET_ERROR'; payload: string | null }
+  | { type: 'SET_SAVED_TO_HISTORY'; payload: boolean }
   | { type: 'RESET_STATE' }
   | { type: 'RESTORE_STATE'; payload: ReadingFlowState };
 
@@ -113,6 +116,8 @@ function readingReducer(state: ReadingFlowState, action: ReadingAction): Reading
       return { ...state, isLoading: action.payload };
     case 'SET_ERROR':
       return { ...state, error: action.payload };
+    case 'SET_SAVED_TO_HISTORY':
+      return { ...state, savedToHistory: action.payload };
     case 'RESET_STATE':
       return { ...initialState, createdAt: new Date() };
     case 'RESTORE_STATE':
@@ -177,6 +182,8 @@ export function ReadingProvider({ children }: { children: React.ReactNode }) {
 
       if (result.success) {
         console.log('占卜记录保存成功，ID:', result.data);
+        // 设置保存标记
+        dispatch({ type: 'SET_SAVED_TO_HISTORY', payload: true });
         return result.data; // 返回保存的记录ID
       } else {
         const errorMessage = result.error || '保存失败，原因未知';
