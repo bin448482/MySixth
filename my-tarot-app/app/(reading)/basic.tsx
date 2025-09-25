@@ -209,7 +209,7 @@ export default function BasicReadingScreen() {
 
               <View style={styles.dimensionInfo}>
                 <Text style={styles.dimensionTitle}>{reading.dimension.name}</Text>
-                <Text style={styles.dimensionAspect}>{reading.dimension.aspect}</Text>
+                {/* <Text style={styles.dimensionAspect}>{reading.dimension.aspect}</Text> */}
               </View>
 
               <View style={styles.basicInterpretationContainer}>
@@ -363,6 +363,16 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#333333',
     width: '100%',
+  },
+  dimensionTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    marginBottom: 4,
+  },
+  dimensionAspect: {
+    fontSize: 14,
+    color: '#FFFFFF',
   },
   basicInterpretationContainer: {
     width: '100%',
