@@ -42,6 +42,7 @@ export default function BasicReadingScreen() {
   const [readings, setReadings] = useState<DetailedReading[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [hasSaved, setHasSaved] = useState(false); // 本地保存状态标记
 
   const interpretationService = CardInterpretationService.getInstance();
   const dimensionService = DimensionService.getInstance();
@@ -49,6 +50,23 @@ export default function BasicReadingScreen() {
   useEffect(() => {
     generateDetailedReading();
   }, []);
+
+  // 新增：在解读数据更新且渲染完成后自动保存
+  useEffect(() => {
+    // 检查条件：1. 数据加载完成 2. 有解读数据 3. 未保存过(使用本地状态)
+    if (!loading && readings.length > 0 && !hasSaved) {
+      const autoSave = async () => {
+        try {
+          await saveToHistory();
+          setHasSaved(true); // 设置本地保存标记
+          console.log('基础解读渲染完成后自动保存成功');
+        } catch (error) {
+          console.error('自动保存失败:', error);
+        }
+      };
+      autoSave();
+    }
+  }, [loading, readings, hasSaved]); // 使用本地状态而不是Context状态
 
   const generateDetailedReading = async () => {
     try {
@@ -120,17 +138,7 @@ export default function BasicReadingScreen() {
       updateInterpretations(interpretationData);
       console.log('[BasicReading] Updated interpretations in context:', interpretationData);
 
-      // 解读数据生成完成后自动保存（仅在未保存的情况下）
-      if (!state.savedToHistory) {
-        try {
-          await saveToHistory();
-          console.log('基础解读自动保存成功');
-        } catch (error) {
-          console.error('自动保存失败:', error);
-        }
-      } else {
-        console.log('基础解读已经保存过，跳过自动保存');
-      }
+      // 移除这里的自动保存逻辑，移到useEffect中处理
     } catch (error) {
       console.error('[BasicReading] Error generating detailed reading:', error);
       Alert.alert('错误', '生成解读失败，请重试');

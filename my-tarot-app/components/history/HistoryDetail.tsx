@@ -433,9 +433,11 @@ export const HistoryDetail: React.FC<HistoryDetailProps> = ({
             <Text style={styles.aiSectionTitle}>
               {history.result?.metadata?.theme || '卡牌解读'}
             </Text>
-            {interpretation.cards.map((cardData: any, index: number) =>
-              renderBasicCardInterpretation(cardData, index)
-            )}
+            {console.log('基础占卜 interpretation.cards:', interpretation.cards)}
+            {interpretation.cards.map((cardData: any, index: number) => {
+              console.log(`基础占卜 cardData ${index}:`, cardData);
+              return renderBasicCardInterpretation(cardData, index);
+            })}
           </View>
         )}
 
