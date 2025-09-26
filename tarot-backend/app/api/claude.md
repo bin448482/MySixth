@@ -1,237 +1,438 @@
-# Readings API 重构设计文档 (简化版)
+# API路由设计 (app/api/CLAUDE.md)
 
-## 📖 概述
+## 🔗 API架构概述
 
-本文档描述了塔罗牌应用中 Readings API 的简化重构设计。由于是开发阶段，无需考虑向后兼容性，直接修改现有模型以支持多维度解读功能。
-
-## 🎯 重构目标
-
-### 核心问题
-1. **单维度限制**：现有设计只支持单一维度解读
-2. **数据依赖性过强**：过度依赖客户端与服务端数据库ID的一致性
-
-### 改进目标
-1. **多维度支持**：支持用户选择多个维度进行综合解读
-2. **数据自包含**：客户端传递完整对象信息，减少对数据库ID的依赖
-
-## 🚀 重构设计方案
-
-### 数据模型变更
-
-#### 1. 新增 CardInfo - 卡牌信息自包含
-```python
-class CardInfo(BaseModel):
-    """客户端传递的完整卡牌信息"""
-    id: Optional[int] = None  # 可选的数据库ID
-    name: str = Field(..., description="卡牌名称")
-    arcana: str = Field(..., description="Major/Minor")
-    suit: Optional[str] = None  # 花色（小牌适用）
-    number: int = Field(..., description="牌序号")
-    direction: str = Field("正位", description="正位/逆位")
-    position: int = Field(..., description="在牌阵中的位置")
+### API组织结构
+```
+app/api/
+├── __init__.py          # 路由注册
+├── auth.py              # 匿名认证
+├── readings.py          # 解读相关API (✅ 已实现)
+├── payments.py          # 支付相关API (🔄 待实现)
+├── users.py             # 用户API路由 (🔄 待实现)
+└── sync.py              # 离线同步API (🔄 待实现)
 ```
 
-#### 2. DimensionInfo - 保持不变
+### API版本管理
+- **核心API**: `/` 根路径 (解读功能)
+- **用户API**: `/api/v1/` (支付、用户管理)
+- **管理API**: `/admin/` (管理Portal)
+- **同步API**: `/sync/` (离线同步)
+
+## 📋 核心API接口
+
+### 认证相关 (auth.py)
+
+#### POST /auth/anon - 生成匿名用户ID
+**状态**: ✅ 已实现
+
 ```python
-class DimensionInfo(BaseModel):
-    """维度信息（保持现有结构）"""
-    id: int
-    name: str
-    category: str
-    description: str
-    aspect: Optional[str] = None
-    aspect_type: Optional[int] = None
+@router.post("/anon", response_model=AuthResponse)
+async def create_anonymous_user(db: Session = Depends(get_db)):
+    """生成匿名用户ID和JWT token"""
+
+# 请求: 无需body
+# 响应:
+{
+    "user_id": "uuid_string",
+    "token": "jwt_token_string",
+    "expires_in": 3600
+}
 ```
 
-#### 3. 修改 GenerateRequest
+### 解读相关 (readings.py)
+
+#### POST /readings/analyze - 分析用户描述
+**状态**: ✅ 已实现
+
 ```python
-class GenerateRequest(BaseModel):
-    """生成解读的请求（直接修改）"""
-    cards: List[CardInfo] = Field(..., min_items=1, max_items=10)
-    dimensions: List[DimensionInfo] = Field(..., min_items=1, max_items=3)  # 改为多个维度
-    description: str = Field(..., max_length=200)
-    spread_type: str = Field(default="three-card")
+@router.post("/analyze", response_model=AnalyzeResponse)
+async def analyze_reading_request(
+    request: AnalyzeRequest,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """分析用户描述，返回推荐维度"""
+
+# 请求:
+{
+    "question": "我想知道我的感情状况",
+    "spread_type": "three-card"  # 或 "celtic-cross"
+}
+
+# 响应:
+{
+    "question": "我想知道我的感情状况",
+    "spread_type": "three-card",
+    "recommended_dimensions": [
+        {
+            "id": 1,
+            "name": "情感-自我感受",
+            "description": "分析你内心对当前感情状态的真实感受",
+            "category": "情感",
+            "aspect": "自我感受",
+            "aspect_type": 1
+        }
+    ]
+}
 ```
 
-#### 4. 修改 GenerateResponse
+#### POST /readings/generate - 生成多维度解读
+**状态**: ✅ 已实现
+
 ```python
-class GenerateResponse(BaseModel):
-    """生成解读的响应（直接修改）"""
-    dimensions: List[DimensionInfo]  # 改为多个维度
-    user_description: str
-    spread_type: str
-    card_interpretations: List[CardInterpretationInfo]
-    overall_summary: str
-    insights: List[str] = []  # 新增：关键洞察点
-    generated_at: str
+@router.post("/generate", response_model=ReadingResponse)
+async def generate_reading(
+    request: ReadingRequest,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """基于选定维度生成多维度解读"""
+
+# 请求:
+{
+    "question": "我想知道我的感情状况",
+    "spread_type": "three-card",
+    "selected_dimensions": [1, 2, 3],
+    "cards": [
+        {"card_id": 1, "orientation": "upright", "position": 1},
+        {"card_id": 2, "orientation": "reversed", "position": 2},
+        {"card_id": 3, "orientation": "upright", "position": 3}
+    ]
+}
+
+# 响应:
+{
+    "reading_id": "uuid_string",
+    "question": "我想知道我的感情状况",
+    "spread_type": "three-card",
+    "cards": [...],
+    "dimension_summaries": {
+        "1": "在自我感受维度上...",
+        "2": "在对方态度维度上...",
+        "3": "在关系发展维度上..."
+    },
+    "overall_summary": "综合来看，你的感情状况...",
+    "created_at": "2024-01-01T00:00:00Z"
+}
 ```
 
-### 核心功能重构
+## 💳 支付API接口 (payments.py)
 
-#### 1. 多维度解读核心逻辑
+### 用户余额管理
+
+#### GET /api/v1/me/balance - 查询用户余额
+**状态**: 🔄 待实现
+
 ```python
-async def generate_interpretation(
-    self,
-    cards: List[Dict],           # 卡牌字典列表，包含完整卡牌信息
-    dimensions: List[Dict],      # 维度字典列表，包含完整维度信息
-    user_description: str,
-    spread_type: str,
-    db: Session
-) -> Dict[str, Any]:
-    """重构现有方法支持多维度"""
+@router.get("/balance", response_model=UserBalanceResponse)
+async def get_user_balance(
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """查询用户当前积分余额"""
 
-    # 1. 解析卡牌信息
-    resolved_cards = []
-    for card_dict in cards:
-        db_card = await self._resolve_card_dict(card_dict, db)
-        resolved_cards.append((card_dict, db_card))
+# 响应:
+{
+    "user_id": "uuid_string",
+    "credits": 10,
+    "total_purchased": 15,
+    "total_consumed": 5,
+    "last_updated": "2024-01-01T00:00:00Z"
+}
+```
 
-    # 2. 为每个维度生成解读
-    all_card_interpretations = []
+#### GET /api/v1/me/transactions - 消费历史
+**状态**: 🔄 待实现
 
-    for dimension_dict in dimensions:
-        # 为当前维度生成卡牌解读（基于现有逻辑）
-        card_interpretations = []
-        for card_dict, db_card in resolved_cards:
-            # 使用现有的单张卡牌解读逻辑
-            interpretation = await self._generate_single_card_interpretation(
-                card_dict, db_card, dimension_dict, user_description
-            )
-            card_interpretations.append(interpretation)
+```python
+@router.get("/transactions", response_model=List[TransactionResponse])
+async def get_user_transactions(
+    page: int = 1,
+    limit: int = 20,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """查询用户积分交易历史"""
 
-        # 收集所有卡牌解读
-        all_card_interpretations.extend(card_interpretations)
-
-    # 3. 生成跨维度综合分析
-    overall_summary = await self._generate_cross_dimension_summary(
-        all_card_interpretations, user_description
-    )
-
-    # 4. 提取关键洞察
-    insights = await self._extract_key_insights(
-        dimension_summaries, overall_summary
-    )
-
-    return {
-        "dimensions": dimensions,
-        "user_description": user_description,
-        "spread_type": spread_type,
-        "card_interpretations": all_card_interpretations,
-        "overall_summary": overall_summary,
-        "insights": insights,
-        "generated_at": "now"
+# 响应:
+[
+    {
+        "id": 1,
+        "type": "consume",
+        "credits": -1,
+        "balance_after": 9,
+        "description": "AI解读服务消费",
+        "created_at": "2024-01-01T00:00:00Z"
     }
+]
 ```
 
-#### 2. 卡牌信息解析
+### 兑换码功能
+
+#### POST /api/v1/redeem - 兑换码验证兑换
+**状态**: 🔄 待实现
+
 ```python
-async def _resolve_card_dict(self, card_dict: Dict, db: Session) -> Card:
-    """解析客户端传递的卡牌字典信息，匹配数据库中的卡牌"""
+@router.post("/redeem", response_model=RedeemResponse)
+async def redeem_code(
+    request: RedeemRequest,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """兑换码验证和积分发放"""
 
-    # 优先使用名称精确匹配
-    card = db.query(Card).filter(
-        Card.name == card_dict["name"]
-    ).first()
+# 请求:
+{
+    "code": "TAROT123456789ABCD"
+}
 
-    if not card:
-        raise ValueError(f"无法找到卡牌: {card_dict['name']}")
-
-    return card
+# 响应:
+{
+    "success": true,
+    "credits_earned": 5,
+    "new_balance": 15,
+    "message": "兑换成功，获得5积分"
+}
 ```
 
-#### 3. 跨维度综合分析
+### Google Play支付
+
+#### POST /api/v1/payments/google/verify - 购买验证
+**状态**: 🔄 待实现
+
 ```python
-async def _generate_cross_dimension_summary(
-    self,
-    dimension_results: Dict[str, Any],
-    user_description: str
-) -> str:
-    """生成维度间的综合分析"""
+@router.post("/google/verify", response_model=PaymentResponse)
+async def verify_google_purchase(
+    request: GooglePlayRequest,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """验证Google Play购买凭证"""
 
-    # 构建跨维度分析提示词
-    dimensions_summary = "\n".join([
-        f"【{dim_name}】: {result.get('summary', '')}"
-        for dim_name, result in dimension_results.items()
-    ])
+# 请求:
+{
+    "purchase_token": "google_purchase_token",
+    "product_id": "credits_pack_5",
+    "order_id": "google_order_id"
+}
 
-    cross_analysis_prompt = f"""
-基于以下多维度塔罗解读结果，请生成一个综合分析（150-200字）：
-
-用户问题：{user_description}
-各维度解读：{dimensions_summary}
-
-请综合分析各维度信息的一致性、互补性和整体发展趋势，给出具体的行动指导。
-"""
-
-    try:
-        result = await self.llm_service.call_ai_api(cross_analysis_prompt)
-        return result if result else "综合来看，建议您保持开放的心态，相信自己的直觉。"
-    except Exception as e:
-        print(f"生成跨维度分析失败: {e}")
-        return "综合来看，建议您保持开放的心态，相信自己的直觉。"
+# 响应:
+{
+    "success": true,
+    "order_id": "internal_order_id",
+    "credits_earned": 5,
+    "new_balance": 20,
+    "purchase_status": "completed"
+}
 ```
 
-## 🔧 实施细节
+#### POST /api/v1/payments/google/consume - 标记消费完成
+**状态**: 🔄 待实现
 
-### 替换策略
-1. **直接替换**：由于是开发阶段，直接替换现有接口
-2. **保持接口路径不变**：`/readings/generate` 路径保持不变
-3. **渐进式更新**：先实现核心功能，再逐步添加高级特性
-
-### 测试策略
 ```python
-# 重点测试用例
-def test_generate_multi_dimension():
-    """测试多维度解读功能"""
-    request_data = {
-                        "cards": [
-                            {"name": "愚者", "arcana": "Major", "number": 0,
-                    "direction": "正位", "position": 1},
-                            {"name": "魔术师", "arcana": "Major", "number": 1,
-                    "direction": "逆位", "position": 2},
-                            {"name": "女祭司", "arcana": "Major", "number": 2,
-                    "direction": "正位", "position": 3}
-                        ],
-                        "dimensions": [
-                            {"id": 1, "name": "事业-过去", "category": "事业",
-                    "description": "过去经历"},
-                            {"id": 2, "name": "事业-现在", "category": "事业",
-                    "description": "当前状况"},
-                            {"id": 3, "name": "事业-未来", "category": "事业",
-                    "description": "未来发展"}
-                        ],
-                        "description": "关于事业发展的困惑",
-                        "spread_type": "three-card"
-                    }
+@router.post("/google/consume", response_model=ConsumeResponse)
+async def consume_google_purchase(
+    request: ConsumeRequest,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """标记Google Play购买已消费"""
 
-    response = client.post("/api/v1/readings/generate", json=request_data)
+# 请求:
+{
+    "purchase_token": "google_purchase_token"
+}
+
+# 响应:
+{
+    "success": true,
+    "message": "购买已标记为消费完成"
+}
+```
+
+### 积分消费
+
+#### POST /api/v1/consume - LLM调用前扣点
+**状态**: 🔄 待实现
+
+```python
+@router.post("/consume", response_model=ConsumeCreditsResponse)
+async def consume_credits(
+    request: ConsumeCreditsRequest,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """LLM解读前的积分扣减"""
+
+# 请求:
+{
+    "service_type": "ai_reading",
+    "credits_required": 1,
+    "reading_id": "uuid_string"
+}
+
+# 响应:
+{
+    "success": true,
+    "credits_consumed": 1,
+    "remaining_balance": 9,
+    "transaction_id": 123
+}
+```
+
+## 🔄 离线同步API (sync.py)
+
+### 数据同步接口
+
+#### GET /sync/initial - 初始全量同步
+**状态**: 🔄 待实现
+
+```python
+@router.get("/initial", response_model=InitialSyncResponse)
+async def initial_sync(
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """客户端初始化时的全量数据同步"""
+
+# 响应:
+{
+    "cards": [...],
+    "dimensions": [...],
+    "spreads": [...],
+    "user_history": [...],
+    "sync_timestamp": "2024-01-01T00:00:00Z"
+}
+```
+
+#### GET /sync/delta - 增量更新
+**状态**: 🔄 待实现
+
+```python
+@router.get("/delta", response_model=DeltaSyncResponse)
+async def delta_sync(
+    last_sync: datetime = Query(...),
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """基于时间戳的增量数据同步"""
+
+# 响应:
+{
+    "updated_records": [...],
+    "deleted_records": [...],
+    "sync_timestamp": "2024-01-01T00:00:00Z"
+}
+```
+
+## 🔒 中间件和依赖项
+
+### 认证依赖
+```python
+# app/api/deps.py
+async def get_current_user(token: str = Depends(oauth2_scheme)) -> dict:
+    """解析JWT token获取当前用户"""
+    pass
+
+async def get_current_user_optional(token: str = Depends(oauth2_scheme)) -> Optional[dict]:
+    """可选的用户认证（支持匿名访问）"""
+    pass
+
+async def require_credits(credits_needed: int = 1) -> bool:
+    """检查用户积分是否充足"""
+    pass
+```
+
+### 验证模型
+```python
+# app/schemas/ 中定义的Pydantic模型
+
+class AnalyzeRequest(BaseModel):
+    question: str = Field(..., max_length=200)
+    spread_type: str = Field(..., regex="^(three-card|celtic-cross)$")
+
+class ReadingRequest(BaseModel):
+    question: str
+    spread_type: str
+    selected_dimensions: List[int]
+    cards: List[CardSelection]
+
+class RedeemRequest(BaseModel):
+    code: str = Field(..., regex="^[A-Z0-9]{16}$")
+```
+
+## ⚡ 性能优化
+
+### 缓存策略
+- Redis缓存用户余额查询
+- 静态数据缓存（cards, dimensions）
+- LLM解读结果缓存（相同问题+卡牌组合）
+
+### 限流控制
+```python
+# 每个用户每小时支付API限制
+@limiter.limit("10 per hour")
+@router.post("/payments/google/verify")
+async def verify_google_purchase(...):
+    pass
+
+# 每个用户每分钟解读限制
+@limiter.limit("5 per minute")
+@router.post("/readings/generate")
+async def generate_reading(...):
+    pass
+```
+
+### 异步处理
+- 支付验证异步处理
+- 邮件通知异步发送
+- 数据统计异步计算
+
+## 🧪 API测试
+
+### 测试组织
+```
+tests/api/
+├── test_auth.py              # 认证API测试
+├── test_readings.py          # 解读API测试
+├── test_payments.py          # 支付API测试
+├── test_sync.py              # 同步API测试
+└── conftest.py               # 测试配置
+```
+
+### 测试示例
+```python
+# tests/api/test_readings.py
+def test_analyze_reading_request(client, auth_headers):
+    response = client.post("/readings/analyze", json={
+        "question": "测试问题",
+        "spread_type": "three-card"
+    }, headers=auth_headers)
+
     assert response.status_code == 200
-
-    data = response.json()
-    assert len(data["dimensions"]) == 3
-    assert "overall_summary" in data
-    assert "insights" in data
+    assert len(response.json()["recommended_dimensions"]) == 3
 ```
 
-### 质量保证
-- 单元测试覆盖率 > 90%
-- 集成测试覆盖主要业务流程
-- 性能测试验证响应时间 < 10秒
-- 错误处理覆盖所有异常情况
+## 🔐 安全考虑
 
-## ⚠️ 风险控制
+### API安全
+- 所有API强制HTTPS
+- JWT token过期时间控制
+- 请求参数验证和过滤
+- SQL注入防护（SQLAlchemy ORM）
 
-### 技术风险
-1. **多维度处理复杂度**：通过模块化设计和充分测试缓解
-2. **LLM调用失败**：实现降级策略和重试机制
-3. **数据解析错误**：完善验证和错误提示
+### 支付安全
+- Google Play购买凭证签名验证
+- 支付状态原子性更新
+- 幂等性控制防重复订单
+- 敏感信息环境变量管理
 
-### 缓解措施
-- 保留现有V1接口作为回滚方案
-- 分阶段发布，先内部测试
-- 详细的日志记录和监控
-- 充分的单元测试和集成测试
+### 兑换码安全
+- 防爆破连续失败锁定
+- 设备级别使用限制
+- 批次管理和过期控制
 
 ---
 
-**实施原则**：简单、直接、有效，专注于多维度解读的核心功能实现。
+*此文档定义了塔罗牌应用后端的完整API架构，为前端集成提供详细的接口规范。*
