@@ -1,0 +1,431 @@
+{% extends "base.html" %}
+
+{% block title %}个人资料 - 塔罗牌应用管理后台{% endblock %}
+{% block page_title %}个人资料{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-user me-2"></i>账户信息
+                </h5>
+            </div>
+            <div class="card-body">
+                <form id="profileForm">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="username" class="form-label">用户名</label>
+                                <input type="text" class="form-control" id="username" value="admin" readonly>
+                                <div class="form-text">用户名不可修改</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="email" class="form-label">邮箱地址</label>
+                                <input type="email" class="form-control" id="email" placeholder="admin@example.com">
+                                <div class="form-text">用于接收系统通知</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="displayName" class="form-label">显示名称</label>
+                                <input type="text" class="form-control" id="displayName" placeholder="管理员">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="timezone" class="form-label">时区</label>
+                                <select class="form-select" id="timezone">
+                                    <option value="Asia/Shanghai" selected>Asia/Shanghai (UTC+8)</option>
+                                    <option value="UTC">UTC (UTC+0)</option>
+                                    <option value="America/New_York">America/New_York (UTC-5)</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-2"></i>保存修改
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-key me-2"></i>修改密码
+                </h5>
+            </div>
+            <div class="card-body">
+                <form id="passwordForm">
+                    <div class="mb-3">
+                        <label for="currentPassword" class="form-label">当前密码</label>
+                        <input type="password" class="form-control" id="currentPassword" required>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="newPassword" class="form-label">新密码</label>
+                                <input type="password" class="form-control" id="newPassword" required minlength="8">
+                                <div class="form-text">密码长度至少8位</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="confirmPassword" class="form-label">确认新密码</label>
+                                <input type="password" class="form-control" id="confirmPassword" required minlength="8">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <button type="submit" class="btn btn-warning">
+                            <i class="fas fa-key me-2"></i>修改密码
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-info-circle me-2"></i>账户统计
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="text-center mb-3">
+                    <div class="bg-primary rounded-circle d-inline-flex align-items-center justify-content-center"
+                         style="width: 80px; height: 80px;">
+                        <i class="fas fa-user-shield fa-2x text-white"></i>
+                    </div>
+                    <h5 class="mt-3 mb-1">管理员</h5>
+                    <p class="text-muted">系统管理员账户</p>
+                </div>
+
+                <hr>
+
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between">
+                        <span>账户创建时间:</span>
+                        <strong id="accountCreated">--</strong>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between">
+                        <span>最后登录时间:</span>
+                        <strong id="lastLogin">--</strong>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between">
+                        <span>登录次数:</span>
+                        <strong id="loginCount">--</strong>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between">
+                        <span>会话有效期:</span>
+                        <strong id="sessionExpiry">24小时</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-cog me-2"></i>系统设置
+                </h5>
+            </div>
+            <div class="card-body">
+                <form id="systemSettingsForm">
+                    <div class="mb-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="emailNotifications" checked>
+                            <label class="form-check-label" for="emailNotifications">
+                                邮件通知
+                            </label>
+                        </div>
+                        <small class="text-muted">接收系统异常和重要事件通知</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="securityAlerts" checked>
+                            <label class="form-check-label" for="securityAlerts">
+                                安全警告
+                            </label>
+                        </div>
+                        <small class="text-muted">接收登录异常和安全相关警告</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="systemReports">
+                            <label class="form-check-label" for="systemReports">
+                                系统报表
+                            </label>
+                        </div>
+                        <small class="text-muted">接收每日/周系统运行报表</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="sessionTimeout" class="form-label">会话超时时间</label>
+                        <select class="form-select" id="sessionTimeout">
+                            <option value="1">1小时</option>
+                            <option value="4">4小时</option>
+                            <option value="8">8小时</option>
+                            <option value="24" selected>24小时</option>
+                            <option value="72">3天</option>
+                        </select>
+                    </div>
+
+                    <button type="submit" class="btn btn-outline-primary">
+                        <i class="fas fa-save me-2"></i>保存设置
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-shield-alt me-2"></i>安全操作
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <button type="button" class="btn btn-outline-warning" onclick="clearAllSessions()">
+                        <i class="fas fa-sign-out-alt me-2"></i>清除所有会话
+                    </button>
+                    <button type="button" class="btn btn-outline-danger" onclick="downloadSecurityLog()">
+                        <i class="fas fa-download me-2"></i>下载安全日志
+                    </button>
+                </div>
+                <hr>
+                <small class="text-muted">
+                    <i class="fas fa-info-circle me-1"></i>
+                    安全操作将记录在系统日志中
+                </small>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// 页面加载完成后初始化
+document.addEventListener('DOMContentLoaded', function() {
+    loadProfileData();
+
+    // 绑定表单提交事件
+    document.getElementById('profileForm').addEventListener('submit', handleProfileSubmit);
+    document.getElementById('passwordForm').addEventListener('submit', handlePasswordSubmit);
+    document.getElementById('systemSettingsForm').addEventListener('submit', handleSettingsSubmit);
+});
+
+// 加载用户资料数据
+function loadProfileData() {
+    fetch('/api/v1/admin/profile')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                updateProfileForm(data.profile);
+                updateAccountStats(data.stats);
+            }
+        })
+        .catch(error => {
+            console.error('Error loading profile:', error);
+        });
+}
+
+// 更新资料表单
+function updateProfileForm(profile) {
+    document.getElementById('username').value = profile.username || 'admin';
+    document.getElementById('email').value = profile.email || '';
+    document.getElementById('displayName').value = profile.display_name || '';
+    document.getElementById('timezone').value = profile.timezone || 'Asia/Shanghai';
+
+    // 更新系统设置
+    document.getElementById('emailNotifications').checked = profile.settings?.email_notifications !== false;
+    document.getElementById('securityAlerts').checked = profile.settings?.security_alerts !== false;
+    document.getElementById('systemReports').checked = profile.settings?.system_reports !== false;
+    document.getElementById('sessionTimeout').value = profile.settings?.session_timeout || '24';
+}
+
+// 更新账户统计
+function updateAccountStats(stats) {
+    document.getElementById('accountCreated').textContent = formatDateTime(stats.account_created) || '--';
+    document.getElementById('lastLogin').textContent = formatDateTime(stats.last_login) || '--';
+    document.getElementById('loginCount').textContent = stats.login_count || '--';
+}
+
+// 处理资料表单提交
+function handleProfileSubmit(e) {
+    e.preventDefault();
+
+    const profileData = {
+        email: document.getElementById('email').value,
+        display_name: document.getElementById('displayName').value,
+        timezone: document.getElementById('timezone').value
+    };
+
+    fetch('/api/v1/admin/profile', {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(profileData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showSuccess('个人资料更新成功');
+        } else {
+            showError('更新失败: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showError('网络错误，请稍后重试');
+    });
+}
+
+// 处理密码修改提交
+function handlePasswordSubmit(e) {
+    e.preventDefault();
+
+    const currentPassword = document.getElementById('currentPassword').value;
+    const newPassword = document.getElementById('newPassword').value;
+    const confirmPassword = document.getElementById('confirmPassword').value;
+
+    // 验证新密码
+    if (newPassword !== confirmPassword) {
+        showError('新密码和确认密码不匹配');
+        return;
+    }
+
+    if (newPassword.length < 8) {
+        showError('密码长度至少8位');
+        return;
+    }
+
+    const passwordData = {
+        current_password: currentPassword,
+        new_password: newPassword
+    };
+
+    fetch('/api/v1/admin/change-password', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(passwordData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showSuccess('密码修改成功');
+            // 清空表单
+            document.getElementById('passwordForm').reset();
+        } else {
+            showError('密码修改失败: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showError('网络错误，请稍后重试');
+    });
+}
+
+// 处理系统设置提交
+function handleSettingsSubmit(e) {
+    e.preventDefault();
+
+    const settingsData = {
+        email_notifications: document.getElementById('emailNotifications').checked,
+        security_alerts: document.getElementById('securityAlerts').checked,
+        system_reports: document.getElementById('systemReports').checked,
+        session_timeout: parseInt(document.getElementById('sessionTimeout').value)
+    };
+
+    fetch('/api/v1/admin/settings', {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(settingsData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showSuccess('系统设置保存成功');
+        } else {
+            showError('设置保存失败: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showError('网络错误，请稍后重试');
+    });
+}
+
+// 清除所有会话
+function clearAllSessions() {
+    if (confirm('确定要清除所有会话吗？这将强制所有已登录的管理员重新登录。')) {
+        fetch('/api/v1/admin/clear-sessions', {
+            method: 'POST'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showSuccess('所有会话已清除');
+                // 延迟跳转到登录页面
+                setTimeout(() => {
+                    window.location.href = '/admin/login';
+                }, 2000);
+            } else {
+                showError('清除会话失败: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showError('网络错误，请稍后重试');
+        });
+    }
+}
+
+// 下载安全日志
+function downloadSecurityLog() {
+    window.open('/api/v1/admin/security-log/download', '_blank');
+}
+
+// 工具函数
+function formatDateTime(dateString) {
+    if (!dateString) return null;
+    return new Date(dateString).toLocaleString('zh-CN');
+}
+
+function showSuccess(message) {
+    // TODO: 实现成功提示
+    alert('成功: ' + message);
+}
+
+function showError(message) {
+    // TODO: 实现错误提示
+    alert('错误: ' + message);
+}
+</script>
+{% endblock %}
