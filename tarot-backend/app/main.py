@@ -117,12 +117,19 @@ async def health_check():
 
 
 # TODO: 注册API路由
-from app.api import auth, readings, cards, dimensions, spreads
+from app.api import auth, readings, cards, dimensions, spreads, users, payments
+from app.admin import admin_router
+from app.admin.web_routes import router as admin_web_router
+
 app.include_router(auth.router, prefix="/api/v1")
 app.include_router(readings.router, prefix="/api/v1")
 app.include_router(cards.router, prefix="/api/v1")
 app.include_router(dimensions.router, prefix="/api/v1")
 app.include_router(spreads.router, prefix="/api/v1")
+app.include_router(users.router)  # Users router already includes /api/v1 prefix
+app.include_router(payments.router)  # Payments router already includes /api/v1 prefix
+app.include_router(admin_router)  # Admin auth routes
+app.include_router(admin_web_router)  # Admin web interface routes
 
 
 if __name__ == "__main__":

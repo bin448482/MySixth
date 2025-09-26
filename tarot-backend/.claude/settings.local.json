@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "Bash(alembic current:*)",
+      "Bash(pip install:*)"
     ],
     "deny": [],
     "ask": []

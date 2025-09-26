@@ -40,6 +40,30 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     JWT_EXPIRE_HOURS: int = 24 * 7  # 7天
 
+    # 管理员认证
+    ADMIN_USERNAME: str = "admin"
+    ADMIN_PASSWORD: str = "your-secure-admin-password"
+    ADMIN_SESSION_EXPIRE_HOURS: int = 24
+
+    # Google Play API配置
+    GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: Optional[str] = None
+    GOOGLE_PACKAGE_NAME: str = "com.mysixth.tarot"
+    GOOGLE_PLAY_ENABLED: bool = False
+
+    # 兑换码配置
+    REDEEM_CODE_LENGTH: int = 16
+    REDEEM_CODE_PREFIX: Optional[str] = "TAROT"
+    REDEEM_CODE_EXPIRES_DAYS: int = 365
+    REDEEM_CODE_DAILY_LIMIT_PER_DEVICE: int = 5
+
+    # 积分系统配置
+    DEFAULT_CREDITS_PER_AI_READING: int = 1
+    CREDITS_EXPIRE_DAYS: int = 0  # 0表示永不过期
+
+    # 支付安全配置
+    PAYMENT_RATE_LIMIT_PER_HOUR: int = 10
+    WEBHOOK_SECRET_KEY: str = "your-webhook-secret"
+
     # CORS settings
     CORS_ORIGINS: list[str] = ["*"]  # 开发环境允许所有来源
     CORS_CREDENTIALS: bool = True

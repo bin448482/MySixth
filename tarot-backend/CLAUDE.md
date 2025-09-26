@@ -8,8 +8,8 @@
 
 - 支持匿名用户系统，降低使用门槛
 - 提供静态基础解读 + 付费LLM动态解读
-- 实现完整的离线同步机制
-- 集成Stripe支付系统
+- 完整的管理Portal + 支付系统集成
+- 支持兑换码和Google Play多平台支付
 - 单体架构快速上线，支持后续扩展
 
 ## 📁 项目结构
@@ -27,30 +27,48 @@ tarot-backend/
 │   │   ├── dimension.py      # 解读维度模型
 │   │   ├── interpretation.py # 解读模型
 │   │   ├── spread.py         # 牌阵模型
-│   │   └── user_history.py   # 用户历史模型
+│   │   ├── user.py           # 用户相关模型
+│   │   ├── payment.py        # 支付相关模型
+│   │   └── transaction.py    # 交易记录模型
 │   ├── api/                   # API路由
 │   │   ├── __init__.py
 │   │   ├── auth.py           # 匿名认证
 │   │   ├── readings.py       # 解读相关API
 │   │   ├── payments.py       # 支付相关API
+│   │   ├── users.py          # 用户API路由
 │   │   └── sync.py           # 离线同步API
+│   ├── admin/                 # 管理Portal
+│   │   ├── __init__.py
+│   │   ├── auth.py           # 管理员认证
+│   │   ├── routes.py         # 管理页面路由
+│   │   └── templates/        # HTML模板
+│   │       ├── base.html
+│   │       ├── dashboard.html
+│   │       ├── users.html
+│   │       └── orders.html
 │   ├── services/             # 业务逻辑层
 │   │   ├── __init__.py
 │   │   ├── reading_service.py # 解读业务逻辑
 │   │   ├── llm_service.py    # LLM调用服务
 │   │   ├── payment_service.py # 支付服务
+│   │   ├── user_service.py   # 用户业务逻辑
+│   │   ├── google_play.py    # Google Play集成
 │   │   └── sync_service.py   # 同步服务
 │   ├── schemas/              # Pydantic数据模型
 │   │   ├── __init__.py
 │   │   ├── card.py          # 卡牌数据模型
 │   │   ├── reading.py       # 解读数据模型
 │   │   ├── payment.py       # 支付数据模型
+│   │   ├── user.py          # 用户相关Schema
 │   │   └── sync.py          # 同步数据模型
 │   └── utils/                # 工具函数
 │       ├── __init__.py
 │       ├── auth.py          # 认证工具
+│       ├── redeem_code.py   # 兑换码生成工具
+│       ├── security.py      # 安全相关工具
 │       └── helpers.py       # 辅助函数
 ├── static/                  # 静态资源
+│   ├── admin/              # 管理端静态资源
 │   └── images/             # 卡牌图片资源
 ├── migrations/             # 数据库迁移文件
 ├── tests/                  # 测试文件目录
@@ -74,9 +92,10 @@ tarot-backend/
 
 ### 外部服务集成
 - **LLM服务**: 智谱AI + OpenAI API
-- **支付系统**: Stripe Checkout
+- **支付系统**: Google Play + 兑换码系统
+- **模板引擎**: Jinja2 (管理Portal)
 - **定时任务**: APScheduler
-- **认证**: JWT (匿名用户)
+- **认证**: JWT (匿名用户 + 管理员)
 
 ### 部署相关
 - **Web服务器**: Uvicorn + Gunicorn
@@ -92,6 +111,7 @@ tarot-backend/
 - **状态**: 需要实施数据库独立化
 
 ### 数据库表结构
+**现有表**:
 1. **card** - 卡牌基础信息
 2. **card_style** - 牌面风格
 3. **dimension** - 解读维度定义
@@ -99,6 +119,13 @@ tarot-backend/
 5. **card_interpretation_dimension** - 牌意维度关联
 6. **spread** - 牌阵定义
 7. **user_history** - 用户历史记录
+
+**新增支付系统表**:
+8. **users** - 匿名用户管理 (installation_id, credits统计)
+9. **user_balance** - 用户积分余额 (乐观锁版本控制)
+10. **redeem_codes** - 兑换码管理 (状态跟踪, 批次管理)
+11. **purchases** - 订单记录 (多平台支付支持)
+12. **credit_transactions** - 积分交易记录 (完整审计追踪)
 
 ## 🔗 API接口设计
 
@@ -115,8 +142,40 @@ POST /readings/generate  # 第二步：根据选定维度生成多维度解读
 
 ### 支付相关
 ```
-POST /payments/checkout  # 创建Stripe支付会话
-POST /webhooks/stripe    # Stripe回调处理
+# 用户余额和信息
+GET  /api/v1/me/balance          # 查询用户余额
+GET  /api/v1/me/transactions     # 消费历史记录
+POST /api/v1/users/register      # 匿名用户注册
+
+# 兑换码相关
+POST /api/v1/redeem              # 兑换码验证兑换
+
+# Google Play支付
+POST /api/v1/payments/google/verify    # Google Play购买验证
+POST /api/v1/payments/google/consume   # 标记消费完成
+
+# 积分消费
+POST /api/v1/consume             # LLM调用前扣点
+
+# Webhook接口
+POST /api/v1/webhooks/google     # Google Play服务端通知
+POST /api/v1/webhooks/stripe     # Stripe支付回调（预留）
+```
+
+### 管理Portal路由
+```
+# 认证系统
+GET  /admin/login               # 管理员登录页面
+POST /admin/login               # 管理员认证
+POST /admin/logout              # 退出登录
+
+# 仪表板和管理
+GET  /admin/dashboard           # 仪表板首页
+GET  /admin/users               # 用户管理
+GET  /admin/redeem-codes        # 兑换码管理
+GET  /admin/orders              # 订单管理
+GET  /admin/reports             # 财务报表
+GET  /admin/monitor             # 系统监控
 ```
 
 ### 离线同步
@@ -129,92 +188,71 @@ WebSocket /sync/updates  # 实时更新推送
 
 ## 📅 开发阶段规划
 
-### 第一阶段：项目基础搭建 (2-3天)
+### 阶段1: 数据库与基础架构 (1天) 🔥
 
-#### 1.1 项目初始化 ✅
-- [x] 创建项目目录结构
-- [x] 配置Python虚拟环境
-- [x] 安装核心依赖包
-- [x] 设置开发环境配置文件
+#### 1.1 数据库模型创建
+- [ ] 创建用户相关模型 (`app/models/user.py`, `payment.py`, `transaction.py`)
+- [ ] 编写Alembic迁移脚本添加新表
+- [ ] 初始数据填充（默认管理员账户）
 
-#### 1.2 数据库独立化实现 🔥
-- [x] 修改数据库配置指向独立数据库文件
-- [x] 创建数据库初始化脚本从源数据库复制数据
-- [x] 复制核心表（card, dimension, card_interpretation）
-- [x] 确保_create_dynamic_dimension保存到后台数据库
-- [x] 验证数据库表结构和数据完整性
+#### 1.2 基础服务层
+- [ ] 用户服务: 注册、认证、余额管理 (`app/services/user_service.py`)
+- [ ] 支付服务: CRUD操作、状态管理 (`app/services/payment_service.py`)
+- [ ] Google Play集成服务 (`app/services/google_play.py`)
 
-#### 1.3 FastAPI基础框架
-- [ ] 创建FastAPI应用入口
-- [ ] 配置CORS和安全中间件
-- [ ] 实现全局异常处理
-- [ ] 设置日志系统
+### 阶段2: 支付API开发 (2天)
 
-### 第二阶段：核心API开发 (3-4天)
+#### 2.1 兑换码功能
+- [ ] 兑换码生成算法 (`app/utils/redeem_code.py`)
+- [ ] 兑换验证逻辑和API (`POST /api/v1/redeem`)
+- [ ] 积分发放和交易记录
 
-#### 2.1 认证系统
-- [ ] 实现匿名用户ID生成 (`POST /auth/anon`)
-- [ ] JWT token生成和验证
-- [ ] 用户身份识别中间件
-- [ ] 认证装饰器实现
+#### 2.2 Google Play集成
+- [ ] Google Play Developer API集成
+- [ ] 购买凭证验证流程 (`POST /api/v1/payments/google/verify`)
+- [ ] 订单状态同步机制
 
-### 第三阶段：高级功能开发 (3-4天)
+#### 2.3 积分系统
+- [ ] 余额查询和更新API (`GET /api/v1/me/balance`)
+- [ ] 消费扣点原子操作 (`POST /api/v1/consume`)
+- [ ] 交易历史记录查询 (`GET /api/v1/me/transactions`)
 
-#### 3.1 LLM集成服务
-- [ ] 参考 `../tarot-ai-generator/.env` 配置LLM服务
-- [ ] 支持智谱AI和OpenAI两种API提供商
-- [ ] 实现维度分析接口（第一步API）
-- [ ] 实现解读生成接口（第二步API，参考 `generate_single_interpretation`）
-- [ ] 配置提示词模板和参数
-- [ ] 实现API调用限流和错误处理
+### 阶段3: 管理Portal开发 (2天)
 
-#### 3.2 解读系统API设计 ✅
-- [x] `POST /readings/analyze` - 分析用户描述，返回推荐维度
-  - 接收用户200字以内描述，支持三牌阵和凯尔特十字
-  - 调用LLM解析需求（通过reading_service.analyze_user_description）
-  - 返回推荐维度列表
-- [x] `POST /readings/generate` - 生成多维度解读内容
-  - 接收用户选择的多个维度和卡牌信息（支持完整CardInfo对象）
-  - 验证维度数量与牌阵类型匹配（三牌阵3个维度，凯尔特十字10个维度）
-  - 调用reading_service.generate_interpretation生成多维度解读
-  - 返回详细的GenerateResponse（包含overall_summary）
-- [x] 解读结果实时返回（无需存储历史）
-- [x] 支持数据自包含设计，客户端传递完整对象信息，减少数据库ID依赖
+#### 3.1 认证和基础框架
+- [ ] 管理员登录系统 (`app/admin/auth.py`)
+- [ ] Jinja2模板集成和基础布局 (`app/admin/templates/`)
+- [ ] 路由保护和会话管理
 
-#### 3.3 支付系统集成
-- [ ] Stripe Checkout会话创建
-- [ ] `POST /payments/checkout` - 创建支付会话
-- [ ] `POST /webhooks/stripe` - 支付成功回调处理
-- [ ] 支付状态管理和验证
-- [ ] 付费解读权限控制
+#### 3.2 核心管理功能
+- [ ] 仪表板数据统计 (`/admin/dashboard`)
+- [ ] 用户管理界面 (`/admin/users`)
+- [ ] 兑换码管理系统 (`/admin/redeem-codes`)
+- [ ] 订单管理界面 (`/admin/orders`)
 
-### 第四阶段：离线同步系统 (2-3天)
+### 阶段4: 高级功能和优化 (1天)
 
-#### 4.1 同步API设计
-- [ ] `GET /sync/initial` - 初始全量数据同步
-- [ ] `GET /sync/delta` - 增量更新数据获取
-- [ ] `POST /sync/manual` - 手动触发同步
-- [ ] WebSocket实时更新推送 (`/sync/updates`)
+#### 4.1 报表和监控
+- [ ] 财务报表生成 (`/admin/reports`)
+- [ ] 系统监控指标 (`/admin/monitor`)
+- [ ] 日志查看功能
 
-#### 4.2 版本控制系统
-- [ ] 数据版本时间戳管理
-- [ ] 增量更新算法实现
-- [ ] 冲突解决机制（服务端优先）
-- [ ] 同步状态跟踪
+#### 4.2 安全加固
+- [ ] API限流中间件 (`app/utils/security.py`)
+- [ ] 操作审计日志
+- [ ] CSRF防护和异常监控
 
-### 第五阶段：部署和优化 (2-3天)
+### 阶段5: 集成测试和部署 (1天)
 
-#### 5.1 容器化部署
-- [ ] 编写Dockerfile
-- [ ] 创建docker-compose配置
-- [ ] 环境变量配置管理
-- [ ] 生产环境优化设置
+#### 5.1 测试覆盖
+- [ ] 支付系统单元测试
+- [ ] 管理Portal功能测试
+- [ ] 安全性测试
 
-#### 5.2 性能优化
-- [ ] 数据库查询优化（索引、连接池）
-- [ ] API响应缓存（Redis集成准备）
-- [ ] 异步处理优化
-- [ ] 内存使用优化
+#### 5.2 部署配置
+- [ ] Docker配置更新 (Jinja2依赖)
+- [ ] 环境变量配置完善
+- [ ] Nginx配置调整
 
 ## 🔑 关键技术实现点
 
@@ -235,14 +273,34 @@ WebSocket /sync/updates  # 实时更新推送
 - 返回详细的卡牌解读内容
 
 ### 3. 支付流程实现
-- Stripe Checkout创建支付会话
-- Webhook验证支付结果
-- 付费解读权限管理
+**兑换码系统**:
+- 16位混合字符生成，避免易混淆字符
+- 批次管理和过期设置
+- 防爆破和使用限制
 
-### 4. 离线同步机制
-- 时间戳版本控制
-- 增量更新传输
-- 冲突解决（服务端优先）
+**Google Play集成**:
+- Google Play Developer API购买验证
+- 订单状态同步和幂等性控制
+- 并发安全的余额扣减（乐观锁）
+
+**积分系统**:
+- 原子操作积分扣减
+- 完整的交易记录审计
+- 乐观锁防并发冲突
+
+### 4. 管理Portal架构
+**单体应用集成**:
+- FastAPI + Jinja2模板引擎
+- 路径前缀区分(`/admin/*` vs `/api/*`)
+- JWT token + Cookie会话管理
+
+**核心功能模块**:
+- 仪表板: 关键指标、趋势图表
+- 用户管理: 列表查询、积分调整
+- 兑换码管理: 批量生成、状态跟踪
+- 订单管理: 多维度筛选、异常处理
+- 财务报表: 收入分析、用户分析
+- 系统监控: 服务状态、性能指标
 
 ## 🚀 快速开始
 
@@ -264,11 +322,35 @@ ZHIPUAI_API_KEY=your_zhipu_key
 OPENAI_API_KEY=your_openai_key
 MODEL_NAME=glm-4-flash
 
-# 支付配置
-STRIPE_SECRET_KEY=your_stripe_secret
-
 # JWT配置
 JWT_SECRET_KEY=your_jwt_secret
+
+# 管理员认证
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=your_secure_admin_password
+ADMIN_SESSION_EXPIRE_HOURS=24
+
+# Google Play API配置
+GOOGLE_PLAY_SERVICE_ACCOUNT_JSON=./google_play_service_account.json
+GOOGLE_PACKAGE_NAME=com.mysixth.tarot
+GOOGLE_PLAY_ENABLED=true
+
+# 兑换码配置
+REDEEM_CODE_LENGTH=16
+REDEEM_CODE_PREFIX=TAROT
+REDEEM_CODE_EXPIRES_DAYS=365
+REDEEM_CODE_DAILY_LIMIT_PER_DEVICE=5
+
+# 积分系统配置
+DEFAULT_CREDITS_PER_AI_READING=1
+CREDITS_EXPIRE_DAYS=0  # 0表示永不过期
+
+# 支付安全配置
+PAYMENT_RATE_LIMIT_PER_HOUR=10
+WEBHOOK_SECRET_KEY=your_webhook_secret
+
+# Stripe配置（预留）
+STRIPE_SECRET_KEY=your_stripe_secret
 ```
 
 ### 2. 安装依赖
@@ -290,28 +372,59 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 - XSS攻击防护
 
 ### 支付安全
-- Stripe webhook签名验证
+- Google Play购买凭证签名验证
 - 支付状态原子性更新
 - 敏感信息环境变量管理
+- 幂等性控制防重复订单
+
+### 管理Portal安全
+- JWT Token + Cookie双重认证
+- CSRF防护和表单令牌验证
+- 操作审计日志记录
+- IP白名单限制（可选）
+
+### 兑换码安全
+- 防爆破连续失败锁定
+- 设备级别使用限制
+- 批次管理和过期控制
+- 避免易混淆字符
 
 ### 数据安全
 - 用户数据最小化收集
 - 匿名用户隐私保护
 - 定期数据备份策略
+- 乐观锁防并发竞争
 
 ## 🧪 测试策略
 
 - 测试要创建到tests目录下
 
 ### 单元测试
-- 业务逻辑层测试
-- API接口测试
+- 支付服务业务逻辑测试 (`tests/services/`)
+- 兑换码生成和验证测试 (`tests/utils/`)
+- 积分扣减原子操作测试
+- API接口输入验证测试
 - 数据模型验证测试
 
 ### 集成测试
-- 数据库操作测试
-- 外部API集成测试
-- 支付流程测试
+- Google Play API集成测试 (`tests/integration/`)
+- 数据库事务完整性测试
+- 管理Portal认证流程测试
+- 支付流程端到端测试
+- 并发场景压力测试
+
+### 安全测试
+- SQL注入防护测试
+- XSS攻击防护测试
+- CSRF防护测试
+- API限流效果验证
+- 兑换码防爆破测试
+
+### 性能测试
+- 数据库查询性能测试
+- 大量用户并发测试
+- 内存使用和泄漏测试
+- API响应时间基准测试
 
 ## 📈 扩展性考虑
 
@@ -322,10 +435,83 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 - 同步服务：数据同步和缓存
 
 ### 性能扩展点
-- Redis缓存集成
-- Celery异步任务队列
+- Redis缓存集成（用户余额、商品信息缓存）
+- Celery异步任务队列（兑换码批量生成）
 - 数据库读写分离
 - CDN静态资源加速
+
+## 🚢 部署架构
+
+### 单体应用架构
+```
+FastAPI应用 (端口8000)
+├── /api/v1/*          (用户API - 支付系统)
+├── /api/v1/readings/* (解读API - 现有)
+├── /admin/*           (管理Portal - 新增)
+├── /static/*          (静态资源)
+└── /docs              (API文档)
+```
+
+### Docker配置更新
+```dockerfile
+# 新增依赖
+RUN pip install jinja2 google-api-python-client
+
+# 挂载Google服务账户密钥
+VOLUME ["/app/credentials"]
+
+# 暴露管理端口（可选，用于分离部署）
+EXPOSE 8001
+```
+
+### Nginx配置示例
+```nginx
+server {
+    listen 80;
+    server_name your-domain.com;
+
+    # 用户API
+    location /api/ {
+        proxy_pass http://localhost:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    # 管理Portal
+    location /admin/ {
+        proxy_pass http://localhost:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+
+        # 可选：IP白名单限制
+        # allow 192.168.1.0/24;
+        # deny all;
+    }
+
+    # 静态文件
+    location /static/ {
+        proxy_pass http://localhost:8000;
+    }
+}
+```
+
+## ⚡ 性能优化考虑
+
+### 1. 数据库优化
+- 关键字段添加索引（installation_id, code, order_id）
+- 读写分离准备（主从配置）
+- 连接池配置优化
+
+### 2. 缓存策略
+- Redis集成准备（用户余额缓存）
+- 商品信息缓存（较少变化）
+- 统计数据缓存（仪表板数据）
+
+### 3. 监控告警
+- 支付成功率监控
+- 兑换码库存预警
+- API响应时间监控
+- 数据库连接监控
 
 ## 📝 关键实现要点
 
@@ -349,16 +535,132 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 - 环境配置: `../tarot-ai-generator/.env`
 - 解读逻辑: `../tarot-ai-generator/main.py` 中的 `generate_single_interpretation` 方法
 
-## ⚠️ 注意事项
+## ⚠️ 风险和注意事项
 
-- 严格按照本架构设计进行开发
-- 优先实现 MVP 功能，避免过度设计
-- 保持代码质量和文档完整性
-- 及时进行代码审查和测试
+### 1. 技术风险
+- Google Play API配额限制和服务可用性
+- 数据库并发锁竞争和死锁风险
+- 第三方服务依赖和故障恢复
+
+### 2. 业务风险
+- 兑换码被批量恶意尝试和滥用
+- 支付欺诈检测和退款纠纷处理
+- 积分系统账务不一致和审计追踪
+
+### 3. 合规风险
+- 各地区支付法规差异和合规要求
+- 用户数据隐私保护和GDPR合规
+- 财务记录审计要求和税务处理
+
+### 4. 安全风险
+- 管理Portal暴露面和权限控制
+- API接口攻击和频率限制绕过
+- 敏感配置泄露和密钥管理
+
+## 📈 后续扩展规划
+
+### 1. 多平台支付集成
+- iOS App Store内购集成
+- 微信支付H5（国内版本）
+- Stripe信用卡支付（国际版本）
+
+### 2. 高级功能开发
+- 用户等级和VIP系统
+- 积分兑换礼品功能
+- 推荐奖励和分销机制
+
+### 3. 运营工具建设
+- A/B测试框架集成
+- 优惠券和促销系统
+- 用户行为分析和漏斗优化
+
+## 📚 数据库表结构详细设计
+
+### 新增支付系统表SQL定义
+
+#### 1. users表 - 匿名用户管理
+```sql
+CREATE TABLE users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    installation_id VARCHAR(255) UNIQUE NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    last_active_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    total_credits_purchased INTEGER DEFAULT 0,
+    total_credits_consumed INTEGER DEFAULT 0
+);
+```
+
+#### 2. user_balance表 - 用户积分余额
+```sql
+CREATE TABLE user_balance (
+    user_id INTEGER PRIMARY KEY,
+    credits INTEGER DEFAULT 0,
+    version INTEGER DEFAULT 1,  -- 乐观锁版本号
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users (id)
+);
+```
+
+#### 3. redeem_codes表 - 兑换码管理
+```sql
+CREATE TABLE redeem_codes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    code VARCHAR(32) UNIQUE NOT NULL,
+    product_id INTEGER NOT NULL,
+    credits INTEGER NOT NULL,
+    status VARCHAR(20) DEFAULT 'active',  -- active, used, expired, disabled
+    used_by INTEGER NULL,
+    used_at TIMESTAMP NULL,
+    expires_at TIMESTAMP NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    batch_id VARCHAR(50) NULL,  -- 批次ID
+    FOREIGN KEY (used_by) REFERENCES users (id)
+);
+```
+
+#### 4. purchases表 - 订单记录
+```sql
+CREATE TABLE purchases (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    order_id VARCHAR(100) UNIQUE NOT NULL,
+    platform VARCHAR(50) NOT NULL,  -- redeem_code, google_play, app_store
+    user_id INTEGER NOT NULL,
+    product_id INTEGER NOT NULL,
+    credits INTEGER NOT NULL,
+    amount_cents INTEGER,
+    currency VARCHAR(3),
+    status VARCHAR(20) DEFAULT 'pending',  -- pending, completed, failed, refunded
+    purchase_token TEXT NULL,  -- Google Play/App Store购买凭证
+    redeem_code VARCHAR(32) NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    completed_at TIMESTAMP NULL,
+    FOREIGN KEY (user_id) REFERENCES users (id)
+);
+```
+
+#### 5. credit_transactions表 - 积分交易记录
+```sql
+CREATE TABLE credit_transactions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    type VARCHAR(20) NOT NULL,  -- earn, consume, refund, admin_adjust
+    credits INTEGER NOT NULL,  -- 正数表示增加，负数表示扣减
+    balance_after INTEGER NOT NULL,
+    reference_type VARCHAR(50) NULL,  -- purchase, reading, refund
+    reference_id INTEGER NULL,
+    description TEXT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users (id)
+);
+```
 
 ---
 
-*此文档用于指导塔罗牌应用后端开发工作，与主项目的CLAUDE.md配合使用。*
+**开发预计时间**: 7个工作日
+**开发人员要求**: 熟悉FastAPI、SQLAlchemy、支付系统集成
+**部署要求**: 具备Google Play开发者账户和服务账户密钥
+
+*此文档已根据管理Portal与支付服务开发计划全面更新，用于指导完整的后端开发工作。*
 
 ## 📚 解读维度规范
 

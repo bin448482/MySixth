@@ -1,0 +1,409 @@
+{% extends "base.html" %}
+
+{% block title %}管理仪表板 - 塔罗牌应用管理后台{% endblock %}
+
+{% block page_title %}仪表板{% endblock %}
+
+{% block page_actions %}
+<button type="button" class="btn btn-outline-primary" onclick="refreshDashboard()">
+    <i class="fas fa-sync-alt me-1"></i>
+    刷新数据
+</button>
+{% endblock %}
+
+{% block content %}
+<!-- Key metrics cards -->
+<div class="row mb-4">
+    <div class="col-xl-3 col-md-6 mb-3">
+        <div class="card stats-card h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <div class="metric-label">总用户数</div>
+                        <div class="metric-value" id="total-users">{{ metrics.total_users | default(0) }}</div>
+                        <div class="metric-change positive">
+                            <i class="fas fa-arrow-up me-1"></i>
+                            +{{ metrics.users_growth | default(0) }}% 本月
+                        </div>
+                    </div>
+                    <div class="text-primary">
+                        <i class="fas fa-users fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-3">
+        <div class="card stats-card h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <div class="metric-label">总收入（积分）</div>
+                        <div class="metric-value" id="total-revenue">{{ metrics.total_credits_sold | default(0) }}</div>
+                        <div class="metric-change positive">
+                            <i class="fas fa-arrow-up me-1"></i>
+                            +{{ metrics.revenue_growth | default(0) }}% 本月
+                        </div>
+                    </div>
+                    <div class="text-success">
+                        <i class="fas fa-coins fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-3">
+        <div class="card stats-card h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <div class="metric-label">活跃用户（30天）</div>
+                        <div class="metric-value" id="active-users">{{ metrics.active_users_30d | default(0) }}</div>
+                        <div class="metric-change positive">
+                            <i class="fas fa-arrow-up me-1"></i>
+                            {{ metrics.active_users_ratio | default(0) }}% 活跃度
+                        </div>
+                    </div>
+                    <div class="text-info">
+                        <i class="fas fa-chart-line fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-3">
+        <div class="card stats-card h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <div class="metric-label">今日订单</div>
+                        <div class="metric-value" id="today-orders">{{ metrics.orders_today | default(0) }}</div>
+                        <div class="metric-change positive">
+                            <i class="fas fa-arrow-up me-1"></i>
+                            +{{ metrics.orders_growth | default(0) }}% 较昨日
+                        </div>
+                    </div>
+                    <div class="text-warning">
+                        <i class="fas fa-shopping-cart fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts row -->
+<div class="row mb-4">
+    <!-- Revenue chart -->
+    <div class="col-lg-8 mb-3">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-chart-area me-2"></i>
+                    收入趋势（最近30天）
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="revenueChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- User growth chart -->
+    <div class="col-lg-4 mb-3">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-user-plus me-2"></i>
+                    用户增长（本周）
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="userGrowthChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Platform distribution and recent activities -->
+<div class="row mb-4">
+    <!-- Platform distribution -->
+    <div class="col-lg-6 mb-3">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-mobile-alt me-2"></i>
+                    支付平台分布
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="platformChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent activities -->
+    <div class="col-lg-6 mb-3">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-clock me-2"></i>
+                    最近活动
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>时间</th>
+                                <th>类型</th>
+                                <th>用户</th>
+                                <th>金额</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for activity in recent_activities | default([]) %}
+                            <tr>
+                                <td>
+                                    <small class="text-muted">{{ activity.created_at.strftime('%m-%d %H:%M') }}</small>
+                                </td>
+                                <td>
+                                    {% if activity.type == 'purchase' %}
+                                        <span class="badge bg-success">购买</span>
+                                    {% elif activity.type == 'redeem' %}
+                                        <span class="badge bg-info">兑换</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">{{ activity.type }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <small>{{ activity.installation_id[:8] }}...</small>
+                                </td>
+                                <td>
+                                    <small class="text-success">+{{ activity.credits }} 积分</small>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="4" class="text-center text-muted">
+                                    <i class="fas fa-inbox me-1"></i>
+                                    暂无最近活动
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- System status indicators -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-server me-2"></i>
+                    系统状态
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-lg-3 col-md-6 mb-3">
+                        <div class="d-flex align-items-center">
+                            <div class="me-3">
+                                <i class="fas fa-database fa-2x text-success"></i>
+                            </div>
+                            <div>
+                                <div class="fw-bold">数据库状态</div>
+                                <div class="text-success small">
+                                    <i class="fas fa-check-circle me-1"></i>
+                                    正常运行
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-lg-3 col-md-6 mb-3">
+                        <div class="d-flex align-items-center">
+                            <div class="me-3">
+                                <i class="fas fa-cloud fa-2x text-success"></i>
+                            </div>
+                            <div>
+                                <div class="fw-bold">Google Play API</div>
+                                <div class="text-success small">
+                                    <i class="fas fa-check-circle me-1"></i>
+                                    服务正常
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-lg-3 col-md-6 mb-3">
+                        <div class="d-flex align-items-center">
+                            <div class="me-3">
+                                <i class="fas fa-robot fa-2x text-success"></i>
+                            </div>
+                            <div>
+                                <div class="fw-bold">LLM服务</div>
+                                <div class="text-success small">
+                                    <i class="fas fa-check-circle me-1"></i>
+                                    智谱AI正常
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-lg-3 col-md-6 mb-3">
+                        <div class="d-flex align-items-center">
+                            <div class="me-3">
+                                <i class="fas fa-memory fa-2x text-warning"></i>
+                            </div>
+                            <div>
+                                <div class="fw-bold">系统负载</div>
+                                <div class="text-warning small">
+                                    <i class="fas fa-exclamation-triangle me-1"></i>
+                                    中等负载 (65%)
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Chart configurations
+const chartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+        legend: {
+            display: true,
+            position: 'top'
+        }
+    },
+    scales: {
+        y: {
+            beginAtZero: true
+        }
+    }
+};
+
+// Initialize charts when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    initializeCharts();
+});
+
+function initializeCharts() {
+    // Revenue chart
+    const revenueCtx = document.getElementById('revenueChart').getContext('2d');
+    new Chart(revenueCtx, {
+        type: 'line',
+        data: {
+            labels: {{ chart_data.revenue_labels | tojson | safe }},
+            datasets: [{
+                label: '积分销售',
+                data: {{ chart_data.revenue_data | tojson | safe }},
+                borderColor: '#3498db',
+                backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                tension: 0.1,
+                fill: true
+            }]
+        },
+        options: {
+            ...chartOptions,
+            plugins: {
+                ...chartOptions.plugins,
+                title: {
+                    display: false
+                }
+            }
+        }
+    });
+
+    // User growth chart
+    const userGrowthCtx = document.getElementById('userGrowthChart').getContext('2d');
+    new Chart(userGrowthCtx, {
+        type: 'bar',
+        data: {
+            labels: {{ chart_data.user_growth_labels | tojson | safe }},
+            datasets: [{
+                label: '新用户',
+                data: {{ chart_data.user_growth_data | tojson | safe }},
+                backgroundColor: '#2ecc71',
+                borderColor: '#27ae60',
+                borderWidth: 1
+            }]
+        },
+        options: chartOptions
+    });
+
+    // Platform distribution chart
+    const platformCtx = document.getElementById('platformChart').getContext('2d');
+    new Chart(platformCtx, {
+        type: 'doughnut',
+        data: {
+            labels: {{ chart_data.platform_labels | tojson | safe }},
+            datasets: [{
+                data: {{ chart_data.platform_data | tojson | safe }},
+                backgroundColor: [
+                    '#3498db',  // Google Play
+                    '#e74c3c',  // 兑换码
+                    '#f39c12',  // 其他
+                ],
+                borderWidth: 2,
+                borderColor: '#fff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+}
+
+// Refresh dashboard data
+function refreshDashboard() {
+    // Show loading indicator
+    const refreshBtn = document.querySelector('button[onclick="refreshDashboard()"]');
+    const originalText = refreshBtn.innerHTML;
+    refreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>刷新中...';
+    refreshBtn.disabled = true;
+
+    // Simulate API call (replace with actual API call)
+    setTimeout(() => {
+        // In real implementation, this would fetch new data and update the charts
+        location.reload();
+    }, 1500);
+}
+
+// Auto-refresh every 5 minutes
+setInterval(() => {
+    console.log('Auto-refreshing dashboard...');
+    // In production, you might want to fetch only the data without full page reload
+    // fetchDashboardData();
+}, 300000);
+</script>
+{% endblock %}
