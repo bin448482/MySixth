@@ -70,11 +70,15 @@ CREATE TABLE spread (
 
 ### 新增支付系统表
 
-#### 5. users - 匿名用户管理
+#### 5. users - 用户管理 (支持匿名和邮箱登录)
 ```sql
 CREATE TABLE users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     installation_id VARCHAR(255) UNIQUE NOT NULL,
+    email VARCHAR(255) UNIQUE NULL,  -- 邮箱地址（可选）
+    password_hash VARCHAR(255) NULL,  -- 密码哈希（可选）
+    email_verified BOOLEAN DEFAULT FALSE,  -- 邮箱验证状态
+    email_verified_at TIMESTAMP NULL,  -- 邮箱验证时间
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     last_active_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     total_credits_purchased INTEGER DEFAULT 0,
@@ -83,6 +87,7 @@ CREATE TABLE users (
 
 -- 索引
 CREATE INDEX idx_users_installation_id ON users (installation_id);
+CREATE INDEX idx_users_email ON users (email);
 ```
 
 #### 6. user_balance - 用户积分余额 (乐观锁)
@@ -168,6 +173,26 @@ CREATE INDEX idx_credit_transactions_type ON credit_transactions (type);
 CREATE INDEX idx_credit_transactions_created_at ON credit_transactions (created_at);
 ```
 
+#### 10. email_verifications - 邮箱验证令牌管理
+```sql
+CREATE TABLE email_verifications (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    email VARCHAR(255) NOT NULL,
+    token VARCHAR(255) UNIQUE NOT NULL,
+    token_type VARCHAR(20) NOT NULL,  -- verify_email, reset_password
+    expires_at TIMESTAMP NOT NULL,
+    verified_at TIMESTAMP NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users (id)
+);
+
+-- 索引
+CREATE INDEX idx_email_verifications_token ON email_verifications (token);
+CREATE INDEX idx_email_verifications_user_id ON email_verifications (user_id);
+CREATE INDEX idx_email_verifications_email ON email_verifications (email);
+```
+
 ## 🔧 SQLAlchemy模型实现
 
 ### 模型文件组织
@@ -181,7 +206,8 @@ app/models/
 ├── spread.py            # 牌阵模型
 ├── user.py              # 用户相关模型
 ├── payment.py           # 支付相关模型
-└── transaction.py       # 交易记录模型
+├── transaction.py       # 交易记录模型
+└── email_verification.py # 邮箱验证模型
 ```
 
 ### 关键模型实现要点

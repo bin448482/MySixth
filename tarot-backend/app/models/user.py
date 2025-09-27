@@ -2,7 +2,7 @@
 User related SQLAlchemy models.
 """
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, func
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean, func
 from sqlalchemy.orm import relationship
 
 from ..database import Base
@@ -19,6 +19,29 @@ class User(Base):
         nullable=False,
         index=True,
         comment="设备唯一标识符"
+    )
+    email = Column(
+        String(255),
+        unique=True,
+        nullable=True,
+        index=True,
+        comment="用户邮箱地址（可选）"
+    )
+    password_hash = Column(
+        String(255),
+        nullable=True,
+        comment="密码哈希值（可选）"
+    )
+    email_verified = Column(
+        Boolean,
+        default=False,
+        nullable=False,
+        comment="邮箱验证状态"
+    )
+    email_verified_at = Column(
+        DateTime,
+        nullable=True,
+        comment="邮箱验证时间"
     )
     created_at = Column(
         DateTime,
@@ -56,6 +79,7 @@ class User(Base):
         back_populates="used_by_user",
         foreign_keys="RedeemCode.used_by"
     )
+    email_verifications = relationship("EmailVerification", back_populates="user")
 
     def __repr__(self):
         return f"<User(id={self.id}, installation_id='{self.installation_id}')>"

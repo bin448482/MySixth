@@ -668,6 +668,171 @@ def log_admin_action(
     db.commit()
 ```
 
+## 👥 用户管理功能实现
+
+### API路由实现 (app/api/admin.py)
+
+用户管理功能已完整实现，包含以下API接口：
+
+#### 1. GET /api/v1/admin/users - 用户列表查询
+```python
+@user_router.get("/users", response_model=UserListResponse)
+async def get_users(
+    page: int = Query(1, ge=1),
+    size: int = Query(20, ge=1, le=100),
+    installation_id: Optional[str] = Query(None),
+    min_credits: Optional[int] = Query(None),
+    date_range: Optional[str] = Query(None),
+    current_admin: str = Depends(get_current_admin),
+    db: Session = Depends(get_db)
+):
+    """
+    获取用户列表（分页），支持筛选：
+    - installation_id: 用户ID搜索
+    - min_credits: 最低积分筛选
+    - date_range: 注册时间筛选（today, week, month）
+    """
+```
+
+**功能特性**：
+- 分页查询（默认每页20条）
+- 多条件筛选支持
+- 关联查询用户余额信息
+- 返回格式化的用户数据
+
+#### 2. GET /api/v1/admin/users/{installation_id} - 用户详情
+```python
+@user_router.get("/users/{installation_id}", response_model=UserDetailResponse)
+async def get_user_detail(
+    installation_id: str,
+    current_admin: str = Depends(get_current_admin),
+    db: Session = Depends(get_db)
+):
+    """获取用户详情信息，包括最近10条交易记录"""
+```
+
+**功能特性**：
+- 用户基本信息展示
+- 积分余额和统计信息
+- 最近交易记录查询
+- 详细的用户画像数据
+
+#### 3. POST /api/v1/admin/users/adjust-credits - 积分调整
+```python
+@user_router.post("/users/adjust-credits", response_model=AdjustCreditsResponse)
+async def adjust_user_credits(
+    request: AdjustCreditsRequest,
+    current_admin: str = Depends(get_current_admin),
+    db: Session = Depends(get_db)
+):
+    """管理员调整用户积分"""
+```
+
+**功能特性**：
+- 支持增加或减少用户积分
+- 乐观锁保证数据一致性
+- 自动创建交易记录
+- 更新用户统计信息
+
+#### 4. GET /api/v1/admin/users/export - 数据导出
+```python
+@user_router.get("/users/export")
+async def export_users(
+    installation_id: Optional[str] = Query(None),
+    min_credits: Optional[int] = Query(None),
+    date_range: Optional[str] = Query(None),
+    current_admin: str = Depends(get_current_admin),
+    db: Session = Depends(get_db)
+):
+    """导出用户数据为CSV文件"""
+```
+
+**功能特性**：
+- 支持与列表相同的筛选条件
+- 生成时间戳文件名
+- UTF-8-BOM编码支持中文
+- 流式响应优化内存使用
+
+### Web界面实现 (app/admin/web_routes.py)
+
+#### 用户管理页面路由
+```python
+@router.get("/users", response_class=HTMLResponse)
+async def users_page(
+    request: Request,
+    admin_check: bool = Depends(require_web_admin)
+):
+    """User management page."""
+    if isinstance(admin_check, RedirectResponse):
+        return admin_check
+
+    return templates.TemplateResponse("users.html", {
+        "request": request
+    })
+```
+
+**实现说明**：
+- 移除了占位符代码
+- 直接渲染完整的用户管理模板
+- 前端JavaScript负责调用API获取数据
+
+### 前端模板功能 (app/admin/templates/users.html)
+
+用户管理模板已完整实现以下功能：
+
+#### 1. 搜索筛选功能
+- 用户ID搜索（支持部分匹配）
+- 最低积分筛选
+- 注册时间范围筛选（今天/本周/本月）
+- 实时搜索和结果更新
+
+#### 2. 用户列表展示
+- 分页展示用户数据
+- 显示用户ID（可复制完整ID）
+- 积分余额彩色徽章
+- 累计购买和消费统计
+- 注册时间和最后活跃时间
+
+#### 3. 用户操作功能
+- **查看详情**：弹窗显示用户完整信息和交易记录
+- **调整积分**：管理员可增加或减少用户积分
+- **数据导出**：支持筛选条件的CSV导出
+
+#### 4. 交互体验优化
+- 响应式设计适配各种屏幕
+- 加载状态和错误提示
+- 操作成功反馈
+- 数据实时刷新
+
+### 路由注册 (app/main.py)
+
+```python
+# 注册用户管理API路由
+app.include_router(admin.user_router)  # Admin user management API (/api/v1/admin/*)
+```
+
+### 数据模型支持
+
+用户管理功能依赖以下数据模型：
+- **User**: 用户基本信息
+- **UserBalance**: 用户积分余额（支持乐观锁）
+- **CreditTransaction**: 积分交易记录
+
+### 安全机制
+
+1. **管理员认证**：所有API都需要管理员JWT认证
+2. **权限验证**：使用 `get_current_admin` 依赖项
+3. **数据验证**：Pydantic模型验证请求数据
+4. **事务安全**：积分调整使用数据库事务
+5. **操作审计**：所有管理员操作自动记录
+
+### 性能优化
+
+1. **分页查询**：避免一次性加载大量数据
+2. **关联查询**：使用 `joinedload` 避免N+1查询
+3. **索引优化**：在常用查询字段建立索引
+4. **流式导出**：大量数据导出使用流式响应
+
 ---
 
 *此文档定义了塔罗牌应用后端的管理Portal设计，提供完整的后台管理系统架构和实现指南。*

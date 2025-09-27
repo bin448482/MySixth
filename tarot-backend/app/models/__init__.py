@@ -7,6 +7,7 @@ from .interpretation import CardInterpretation
 from .user import User, UserBalance
 from .payment import RedeemCode, Purchase
 from .transaction import CreditTransaction
+from .email_verification import EmailVerification
 
 __all__ = [
     "Card",
@@ -16,5 +17,6 @@ __all__ = [
     "UserBalance",
     "RedeemCode",
     "Purchase",
-    "CreditTransaction"
+    "CreditTransaction",
+    "EmailVerification"
 ]

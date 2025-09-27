@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     # Application settings
     APP_NAME: str = "Tarot Backend API"
     APP_VERSION: str = "1.0.0"
+    APP_BASE_URL: str = "http://localhost:8000"  # 生产环境需要修改
     DEBUG: bool = False
 
     # Database configuration
@@ -63,6 +64,15 @@ class Settings(BaseSettings):
     # 支付安全配置
     PAYMENT_RATE_LIMIT_PER_HOUR: int = 10
     WEBHOOK_SECRET_KEY: str = "your-webhook-secret"
+
+    # 邮箱SMTP配置 (QQ邮箱)
+    EMAIL_SMTP_HOST: str = "smtp.qq.com"
+    EMAIL_SMTP_PORT: int = 587
+    EMAIL_FROM_ADDRESS: str = ""
+    EMAIL_FROM_NAME: str = "塔罗牌应用"
+    EMAIL_PASSWORD: str = ""  # QQ邮箱授权码
+    EMAIL_USE_TLS: bool = True
+    EMAIL_TIMEOUT: int = 60  # 连接超时时间（秒）
 
     # CORS settings
     CORS_ORIGINS: list[str] = ["*"]  # 开发环境允许所有来源

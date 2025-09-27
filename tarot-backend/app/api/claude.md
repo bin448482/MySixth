@@ -6,8 +6,9 @@
 ```
 app/api/
 ├── __init__.py          # 路由注册
-├── auth.py              # 匿名认证
+├── auth.py              # 匿名认证 (✅ 已实现)
 ├── readings.py          # 解读相关API (✅ 已实现)
+├── admin.py             # 管理员API (✅ 已实现)
 ├── payments.py          # 支付相关API (🔄 待实现)
 ├── users.py             # 用户API路由 (🔄 待实现)
 └── sync.py              # 离线同步API (🔄 待实现)
@@ -16,7 +17,9 @@ app/api/
 ### API版本管理
 - **核心API**: `/` 根路径 (解读功能)
 - **用户API**: `/api/v1/` (支付、用户管理)
-- **管理API**: `/admin/` (管理Portal)
+- **管理认证API**: `/api/v1/admin-api/` (管理员登录、认证)
+- **管理用户API**: `/api/v1/admin/` (用户管理功能)
+- **管理Portal**: `/admin/` (Web界面)
 - **同步API**: `/sync/` (离线同步)
 
 ## 📋 核心API接口
@@ -115,6 +118,174 @@ async def generate_reading(
     "overall_summary": "综合来看，你的感情状况...",
     "created_at": "2024-01-01T00:00:00Z"
 }
+```
+
+## 🔐 管理员API接口 (admin.py)
+
+### 管理员认证
+
+#### POST /api/v1/admin-api/login - 管理员登录
+**状态**: ✅ 已实现
+
+```python
+@router.post("/login", response_model=AdminLoginResponse)
+async def admin_login(login_request: AdminLoginRequest):
+    """管理员登录认证"""
+
+# 请求:
+{
+    "username": "admin",
+    "password": "admin_password"
+}
+
+# 响应:
+{
+    "access_token": "jwt_token_string",
+    "token_type": "bearer",
+    "expires_in": 86400,
+    "username": "admin"
+}
+```
+
+#### GET /api/v1/admin-api/profile - 管理员信息
+**状态**: ✅ 已实现
+
+```python
+@router.get("/profile", response_model=AdminProfileResponse)
+async def get_admin_profile(current_admin: str = Depends(get_current_admin)):
+    """获取当前管理员信息"""
+
+# 响应:
+{
+    "username": "admin",
+    "role": "admin",
+    "authenticated": true
+}
+```
+
+### 用户管理
+
+#### GET /api/v1/admin/users - 用户列表查询
+**状态**: ✅ 已实现
+
+```python
+@user_router.get("/users", response_model=UserListResponse)
+async def get_users(
+    page: int = Query(1, ge=1),
+    size: int = Query(20, ge=1, le=100),
+    installation_id: Optional[str] = Query(None),
+    min_credits: Optional[int] = Query(None),
+    date_range: Optional[str] = Query(None),
+    current_admin: str = Depends(get_current_admin),
+    db: Session = Depends(get_db)
+):
+    """获取用户列表（分页）"""
+
+# 请求参数:
+# page: 页码（默认1）
+# size: 每页数量（默认20，最大100）
+# installation_id: 用户ID筛选（可选）
+# min_credits: 最低积分筛选（可选）
+# date_range: 注册时间筛选（today/week/month，可选）
+
+# 响应:
+{
+    "success": true,
+    "users": [
+        {
+            "installation_id": "uuid_string",
+            "credits": 10,
+            "total_credits_purchased": 15,
+            "total_credits_consumed": 5,
+            "created_at": "2024-01-01T00:00:00Z",
+            "last_active_at": "2024-01-01T12:00:00Z"
+        }
+    ],
+    "total": 100,
+    "page": 1,
+    "size": 20
+}
+```
+
+#### GET /api/v1/admin/users/{installation_id} - 用户详情
+**状态**: ✅ 已实现
+
+```python
+@user_router.get("/users/{installation_id}", response_model=UserDetailResponse)
+async def get_user_detail(
+    installation_id: str,
+    current_admin: str = Depends(get_current_admin),
+    db: Session = Depends(get_db)
+):
+    """获取用户详情信息"""
+
+# 响应:
+{
+    "success": true,
+    "user": {
+        "installation_id": "uuid_string",
+        "credits": 10,
+        "total_credits_purchased": 15,
+        "total_credits_consumed": 5,
+        "created_at": "2024-01-01T00:00:00Z",
+        "last_active_at": "2024-01-01T12:00:00Z",
+        "recent_transactions": [
+            {
+                "type": "admin_adjust",
+                "credits": 5,
+                "balance_after": 10,
+                "description": "管理员调整：充值奖励",
+                "created_at": "2024-01-01T10:00:00Z"
+            }
+        ]
+    }
+}
+```
+
+#### POST /api/v1/admin/users/adjust-credits - 积分调整
+**状态**: ✅ 已实现
+
+```python
+@user_router.post("/users/adjust-credits", response_model=AdjustCreditsResponse)
+async def adjust_user_credits(
+    request: AdjustCreditsRequest,
+    current_admin: str = Depends(get_current_admin),
+    db: Session = Depends(get_db)
+):
+    """管理员调整用户积分"""
+
+# 请求:
+{
+    "installation_id": "uuid_string",
+    "credits": 5,  # 正数增加，负数减少
+    "reason": "充值奖励"
+}
+
+# 响应:
+{
+    "success": true,
+    "message": "积分调整成功：+5",
+    "new_balance": 15
+}
+```
+
+#### GET /api/v1/admin/users/export - 用户数据导出
+**状态**: ✅ 已实现
+
+```python
+@user_router.get("/users/export")
+async def export_users(
+    installation_id: Optional[str] = Query(None),
+    min_credits: Optional[int] = Query(None),
+    date_range: Optional[str] = Query(None),
+    current_admin: str = Depends(get_current_admin),
+    db: Session = Depends(get_db)
+):
+    """导出用户数据为CSV文件"""
+
+# 请求参数: 与用户列表查询相同的筛选条件
+# 响应: CSV文件下载（Content-Type: text/csv）
+# 文件名格式: users_export_20240101_120000.csv
 ```
 
 ## 💳 支付API接口 (payments.py)

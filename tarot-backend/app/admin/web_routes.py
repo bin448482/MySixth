@@ -152,10 +152,8 @@ async def users_page(
     if isinstance(admin_check, RedirectResponse):
         return admin_check
 
-    # TODO: Implement user management page
-    return templates.TemplateResponse("base.html", {
-        "request": request,
-        "content": "<h2>用户管理页面开发中...</h2>"
+    return templates.TemplateResponse("users.html", {
+        "request": request
     })
 
 
