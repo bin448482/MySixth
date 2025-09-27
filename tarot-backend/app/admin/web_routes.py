@@ -42,13 +42,23 @@ async def login_page(request: Request, error: Optional[str] = None):
 
 @router.post("/login", response_class=HTMLResponse)
 async def login_submit(
-    request: Request,
-    username: str = Form(...),
-    password: str = Form(...),
-    remember: Optional[str] = Form(None)
+    request: Request
 ):
     """Handle login form submission."""
     try:
+        # Parse form data
+        form = await request.form()
+        username = form.get("username")
+        password = form.get("password")
+        remember = form.get("remember")
+
+        if not username or not password:
+            return templates.TemplateResponse("login.html", {
+                "request": request,
+                "error": "用户名和密码不能为空",
+                "username": username or ""
+            })
+
         # Verify credentials
         if not admin_auth_service.verify_credentials(username, password):
             return templates.TemplateResponse("login.html", {

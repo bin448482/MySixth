@@ -4,10 +4,12 @@ Tests for admin authentication system.
 import pytest
 from datetime import datetime, timedelta
 from unittest.mock import patch
+from fastapi.testclient import TestClient
 from jose import jwt
 
 from app.admin.auth import AdminAuthService, admin_auth_service
 from app.config import settings
+from app.main import app
 
 
 class TestAdminAuthService:
@@ -133,6 +135,12 @@ def mock_admin_credentials():
             yield
 
 
+@pytest.fixture
+def client():
+    """Create FastAPI test client."""
+    return TestClient(app)
+
+
 class TestAdminAuthDependencies:
     """Test admin authentication FastAPI dependencies."""
 
@@ -179,3 +187,32 @@ class TestAdminAuthDependencies:
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
+
+class TestAdminApiLogin:
+    """Test admin API login endpoint."""
+
+    def test_login_accepts_form_payload(self, client, mock_admin_credentials):
+        """Form-encoded submissions should authenticate successfully."""
+        with patch.object(admin_auth_service, 'create_admin_token', return_value='test_token'):
+            response = client.post(
+                '/api/v1/admin-api/login',
+                data={'username': 'testadmin', 'password': 'testpass123'},
+                headers={'Content-Type': 'application/x-www-form-urlencoded'}
+            )
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body['username'] == 'testadmin'
+        assert body['access_token'] == 'test_token'
+
+    def test_login_missing_form_fields_returns_422(self, client):
+        """Missing credentials should raise validation error for form payloads."""
+        response = client.post(
+            '/api/v1/admin-api/login',
+            data={'username': 'onlyuser'},
+            headers={'Content-Type': 'application/x-www-form-urlencoded'}
+        )
+
+        assert response.status_code == 422
+        body = response.json()
+        assert 'error' in body
