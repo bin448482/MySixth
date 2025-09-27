@@ -42,6 +42,7 @@ export default function BasicReadingScreen() {
   const [readings, setReadings] = useState<DetailedReading[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [hasSaved, setHasSaved] = useState(false); // 本地保存状态标记
 
   const interpretationService = CardInterpretationService.getInstance();
   const dimensionService = DimensionService.getInstance();
@@ -49,6 +50,23 @@ export default function BasicReadingScreen() {
   useEffect(() => {
     generateDetailedReading();
   }, []);
+
+  // 新增：在解读数据更新且渲染完成后自动保存
+  useEffect(() => {
+    // 检查条件：1. 数据加载完成 2. 有解读数据 3. 未保存过(使用本地状态)
+    if (!loading && readings.length > 0 && !hasSaved) {
+      const autoSave = async () => {
+        try {
+          await saveToHistory();
+          setHasSaved(true); // 设置本地保存标记
+          console.log('基础解读渲染完成后自动保存成功');
+        } catch (error) {
+          console.error('自动保存失败:', error);
+        }
+      };
+      autoSave();
+    }
+  }, [loading, readings, hasSaved]); // 使用本地状态而不是Context状态
 
   const generateDetailedReading = async () => {
     try {
@@ -119,6 +137,8 @@ export default function BasicReadingScreen() {
 
       updateInterpretations(interpretationData);
       console.log('[BasicReading] Updated interpretations in context:', interpretationData);
+
+      // 移除这里的自动保存逻辑，移到useEffect中处理
     } catch (error) {
       console.error('[BasicReading] Error generating detailed reading:', error);
       Alert.alert('错误', '生成解读失败，请重试');
@@ -127,23 +147,23 @@ export default function BasicReadingScreen() {
     }
   };
 
-  const handleSaveToHistory = async () => {
-    try {
-      setSaving(true);
-      const savedId = await saveToHistory();
-      Alert.alert(
-        '保存成功',
-        `占卜记录已保存到历史记录 (ID: ${savedId})`,
-        [{ text: '了解', onPress: handleComplete }]
-      );
-    } catch (error) {
-      console.error('Error saving to history:', error);
-      const errorMessage = error instanceof Error ? error.message : '保存记录失败，请重试';
-      Alert.alert('错误', errorMessage);
-    } finally {
-      setSaving(false);
-    }
-  };
+  // const handleSaveToHistory = async () => {
+  //   try {
+  //     setSaving(true);
+  //     const savedId = await saveToHistory();
+  //     Alert.alert(
+  //       '保存成功',
+  //       '请到占卜历史中查阅。',
+  //       [{ text: '了解', onPress: handleComplete }]
+  //     );
+  //   } catch (error) {
+  //     console.error('Error saving to history:', error);
+  //     const errorMessage = error instanceof Error ? error.message : '保存记录失败，请重试';
+  //     Alert.alert('错误', errorMessage);
+  //   } finally {
+  //     setSaving(false);
+  //   }
+  // };
 
   const handleComplete = () => {
     resetFlow();
@@ -209,7 +229,7 @@ export default function BasicReadingScreen() {
 
               <View style={styles.dimensionInfo}>
                 <Text style={styles.dimensionTitle}>{reading.dimension.name}</Text>
-                <Text style={styles.dimensionAspect}>{reading.dimension.aspect}</Text>
+                {/* <Text style={styles.dimensionAspect}>{reading.dimension.aspect}</Text> */}
               </View>
 
               <View style={styles.basicInterpretationContainer}>
@@ -227,7 +247,7 @@ export default function BasicReadingScreen() {
       </View>
 
       <View style={styles.actionsContainer}>
-        <TouchableOpacity
+        {/* <TouchableOpacity
           style={[styles.actionButton, styles.primaryButton]}
           onPress={handleSaveToHistory}
           disabled={saving}
@@ -238,7 +258,7 @@ export default function BasicReadingScreen() {
           ) : (
             <Text style={styles.primaryButtonText}>保存记录</Text>
           )}
-        </TouchableOpacity>
+        </TouchableOpacity> */}
 
         <TouchableOpacity
           style={[styles.actionButton, styles.secondaryButton]}
@@ -363,6 +383,16 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#333333',
     width: '100%',
+  },
+  dimensionTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    marginBottom: 4,
+  },
+  dimensionAspect: {
+    fontSize: 14,
+    color: '#FFFFFF',
   },
   basicInterpretationContainer: {
     width: '100%',

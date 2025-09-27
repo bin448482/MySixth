@@ -15,10 +15,10 @@ from datetime import datetime
 from typing import Dict, List, Any
 
 class TarotDatabaseImporter:
-    def __init__(self, db_path: str = "tarot-ai-generator/data/tarot_config.db"):
+    def __init__(self, db_path: str = "data/tarot_config.db"):
         """初始化数据库导入器"""
         self.db_path = db_path
-        self.config_jsons_dir = Path("tarot-ai-generator/data/config_jsons")
+        self.config_jsons_dir = Path("data/config_jsons")
         
         # 确保数据目录存在
         os.makedirs(os.path.dirname(db_path), exist_ok=True)
@@ -347,12 +347,12 @@ class TarotDatabaseImporter:
         
         # 按依赖关系顺序导入
         self.create_tables()
-        self.import_card_styles()
-        self.import_cards()
+        # self.import_card_styles()
+        # self.import_cards()
         self.import_dimensions()
-        self.import_card_interpretations()
+        # self.import_card_interpretations()
         self.import_card_interpretation_dimensions()
-        self.import_spreads()
+        # self.import_spreads()
         
         print("=" * 50)
         print("所有数据导入完成!")

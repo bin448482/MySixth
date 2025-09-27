@@ -47,6 +47,27 @@ def create_jwt_token(user_id: str, expires_delta: Optional[timedelta] = None) ->
     return jwt.encode(payload, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
 
 
+def create_access_token(data: Dict[str, Any], expires_delta: Optional[timedelta] = None) -> str:
+    """
+    创建JWT访问令牌 (通用版本)。
+
+    Args:
+        data: 要编码到令牌中的数据
+        expires_delta: 过期时间增量，如果为None则使用默认值
+
+    Returns:
+        str: JWT令牌字符串
+    """
+    to_encode = data.copy()
+    if expires_delta:
+        expire = datetime.now(timezone.utc) + expires_delta
+    else:
+        expire = datetime.now(timezone.utc) + timedelta(hours=settings.JWT_EXPIRE_HOURS)
+
+    to_encode.update({"exp": expire, "iat": datetime.now(timezone.utc), "type": "access"})
+    return jwt.encode(to_encode, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
+
+
 def verify_jwt_token(token: str) -> Dict[str, Any]:
     """
     验证JWT令牌并返回payload。
@@ -72,7 +93,7 @@ def verify_jwt_token(token: str) -> Dict[str, Any]:
 
         # 检查用户ID
         user_id = payload.get("sub")
-        if user_id is None:
+        if user_id is None and payload.get("user_id") is None:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Token missing user ID"
@@ -92,6 +113,19 @@ def verify_jwt_token(token: str) -> Dict[str, Any]:
         )
 
 
+def verify_token(token: str) -> Dict[str, Any]:
+    """
+    验证JWT令牌的别名函数。
+
+    Args:
+        token: JWT令牌字符串
+
+    Returns:
+        Dict[str, Any]: 令牌payload
+    """
+    return verify_jwt_token(token)
+
+
 def extract_user_id_from_token(token: str) -> str:
     """
     从JWT令牌中提取用户ID。
@@ -106,4 +140,4 @@ def extract_user_id_from_token(token: str) -> str:
         HTTPException: 令牌无效时抛出401错误
     """
     payload = verify_jwt_token(token)
-    return payload["sub"]
+    return payload.get("sub") or str(payload.get("user_id"))

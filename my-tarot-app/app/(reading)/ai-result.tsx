@@ -45,26 +45,60 @@ interface AIResult {
 
 export default function AIResultScreen() {
   const router = useRouter();
-  const { state, updateAIResult, resetFlow, saveToHistory } = useReadingFlow();
+  const { state, updateAIResult, resetFlow, saveToHistory, updateInterpretations } = useReadingFlow();
 
   const [loading, setLoading] = useState(true);
   const [aiResult, setAiResult] = useState<AIResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
+  const [hasSaved, setHasSaved] = useState(false); // 本地保存状态标记
 
   useEffect(() => {
     // 检查是否已经有AI解读结果
     if (state.aiResult) {
-      // 如果已经有结果，直接使用，不重新调用API
+      // 如果已经有结果，直接使用，不重新调用API，也不重复保存
       console.log('使用已有的AI解读结果，避免重复调用API');
       setAiResult(state.aiResult);
       setLoading(false);
+      // 如果Context中已经标记为已保存，也同步本地状态
+      if (state.savedToHistory) {
+        setHasSaved(true);
+        console.log('AI解读已经保存过，跳过自动保存');
+      }
     } else {
       // 如果没有结果，才调用API生成解读
       console.log('没有AI解读结果，开始生成新的解读');
       generateAIReading();
     }
   }, []);
+
+  // 新增：在AI解读数据加载完成且渲染完成后自动保存
+  useEffect(() => {
+    // 更严格的条件检查，只在真正需要保存时才保存
+    if (!loading && aiResult && !hasSaved) {
+      // 额外的安全检查：确保Context状态符合预期
+      const shouldSave = state.aiResult && !state.savedToHistory;
+
+      if (shouldSave) {
+        console.log('AI解读自动保存条件检查通过，开始保存');
+        const autoSave = async () => {
+          try {
+            // 立即设置本地保存标记，防止并发保存
+            setHasSaved(true);
+            await saveToHistory();
+            console.log('AI解读渲染完成后自动保存成功');
+          } catch (error) {
+            console.error('自动保存失败:', error);
+            // 如果保存失败，重置标记以便重试
+            setHasSaved(false);
+          }
+        };
+        autoSave();
+      } else {
+        console.log('AI解读自动保存条件不满足，跳过保存');
+      }
+    }
+  }, [loading, aiResult, hasSaved]); // 移除state相关依赖，避免循环触发
 
   const generateAIReading = async () => {
     if (!state.selectedCards || !state.aiDimensions || !state.userDescription) {
@@ -139,6 +173,35 @@ export default function AIResultScreen() {
       console.log('AI解读生成成功，保存到Context');
       updateAIResult(result);
       setAiResult(result);
+
+      // 将AI解读数据同步到ReadingContext中的interpretations
+      if (result.card_interpretations) {
+        const interpretationData = result.card_interpretations.map(cardInterpretation => ({
+          cardId: cardInterpretation.card_id,
+          cardName: cardInterpretation.card_name,
+          position: cardInterpretation.position.toString(),
+          direction: cardInterpretation.direction,
+          summary: cardInterpretation.basic_summary,
+          detail: cardInterpretation.ai_interpretation,
+          // AI占卜专用字段
+          dimensionName: cardInterpretation.dimension_aspect?.dimension_name,
+        }));
+        updateInterpretations(interpretationData);
+        console.log('[AIResult] Updated interpretations in context:', interpretationData);
+      }
+
+      // 自动保存到历史记录（仅在未保存的情况下）
+      // 移动到useEffect中处理，确保数据完全同步后再保存
+      // if (!state.savedToHistory) {
+      //   try {
+      //     const savedId = await saveToHistory();
+      //     console.log('AI解读自动保存成功, ID:', savedId);
+      //   } catch (saveError) {
+      //     console.error('自动保存失败:', saveError);
+      //   }
+      // } else {
+      //   console.log('AI解读已经保存过，跳过自动保存');
+      // }
     } catch (error) {
       console.error('AI解读生成失败:', error);
       let errorMessage = '网络连接失败，请检查网络设置';
@@ -156,27 +219,27 @@ export default function AIResultScreen() {
     }
   };
 
-  const handleSaveToHistory = async () => {
-    if (!aiResult) {
-      Alert.alert('保存失败', '没有可保存的解读结果');
-      return;
-    }
+  // const handleSaveToHistory = async () => {
+  //   if (!aiResult) {
+  //     Alert.alert('保存失败', '没有可保存的解读结果');
+  //     return;
+  //   }
 
-    try {
-      // 调用ReadingContext的saveToHistory方法
-      // 该方法会调用ReadingService.saveReadingFromState()处理AI占卜数据保存
-      const savedId = await saveToHistory();
-      Alert.alert(
-        '保存成功',
-        `占卜记录已保存到历史记录 (ID: ${savedId})`,
-        [{ text: '了解', onPress: handleComplete }]
-      );
-    } catch (error) {
-      console.error('保存AI占卜记录失败:', error);
-      const errorMessage = error instanceof Error ? error.message : '保存记录失败，请重试';
-      Alert.alert('保存失败', errorMessage);
-    }
-  };
+  //   try {
+  //     // 调用ReadingContext的saveToHistory方法
+  //     // 该方法会调用ReadingService.saveReadingFromState()处理AI占卜数据保存
+  //     const savedId = await saveToHistory();
+  //     Alert.alert(
+  //       '保存成功',
+  //       '请到占卜历史中查阅。',
+  //       [{ text: '了解', onPress: handleComplete }]
+  //     );
+  //   } catch (error) {
+  //     console.error('保存AI占卜记录失败:', error);
+  //     const errorMessage = error instanceof Error ? error.message : '保存记录失败，请重试';
+  //     Alert.alert('保存失败', errorMessage);
+  //   }
+  // };
 
   const handleComplete = () => {
     resetFlow();
@@ -370,13 +433,13 @@ export default function AIResultScreen() {
 
       {/* 操作按钮 */}
       <View style={styles.actionsContainer}>
-        <TouchableOpacity
+        {/* <TouchableOpacity
           style={[styles.actionButton, styles.primaryButton]}
           onPress={handleSaveToHistory}
           activeOpacity={0.8}
         >
           <Text style={styles.primaryButtonText}>保存记录</Text>
-        </TouchableOpacity>
+        </TouchableOpacity> */}
 
         <TouchableOpacity
           style={[styles.actionButton, styles.secondaryButton]}

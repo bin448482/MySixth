@@ -20,17 +20,17 @@ from rich.table import Table
 from rich.prompt import Confirm
 from zhipuai import ZhipuAI
 from openai import OpenAI
+import ollama
 
 from config import Config
 
-console = Console()
+console = Console(force_terminal=True, width=120)
 
 class TarotAIGenerator:
     def __init__(self):
         self.config = Config()
         self.config.validate()
-        
-        # 根据配置选择API客户端
+
         if self.config.API_PROVIDER == 'zhipu':
             self.client = ZhipuAI(api_key=self.config.ZHIPUAI_API_KEY)
         elif self.config.API_PROVIDER == 'openai':
@@ -38,12 +38,13 @@ class TarotAIGenerator:
                 api_key=self.config.OPENAI_API_KEY,
                 base_url=self.config.OPENAI_BASE_URL
             )
-        
+        elif self.config.API_PROVIDER == 'ollama':
+            self.client = ollama.Client(host=self.config.OLLAMA_BASE_URL)
+
         self.cards_data = self.load_cards_data()
         self.dimensions_data = self.load_dimensions_data()
         self.prompt_template = self.load_prompt_template()
-        
-        # 确保输出目录存在
+
         Path(self.config.OUTPUT_PATH).parent.mkdir(parents=True, exist_ok=True)
     
     def load_cards_data(self) -> List[Dict]:
@@ -78,7 +79,6 @@ class TarotAIGenerator:
         )
     
     def call_ai_api(self, prompt: str) -> Optional[str]:
-        """调用AI API生成内容"""
         try:
             if self.config.API_PROVIDER == 'zhipu':
                 response = self.client.chat.completions.create(
@@ -98,11 +98,25 @@ class TarotAIGenerator:
                     temperature=self.config.TEMPERATURE,
                     max_tokens=self.config.MAX_TOKENS
                 )
-            
+            elif self.config.API_PROVIDER == 'ollama':
+                response = self.client.chat(
+                    model=self.config.OLLAMA_MODEL,
+                    messages=[
+                        {"role": "user", "content": prompt}
+                    ],
+                    options={
+                        "temperature": self.config.TEMPERATURE,
+                        "num_predict": self.config.MAX_TOKENS
+                    }
+                )
+                if response and 'message' in response and 'content' in response['message']:
+                    return response['message']['content'].strip()
+                return None
+
             if response.choices:
                 return response.choices[0].message.content.strip()
             return None
-            
+
         except Exception as e:
             console.print(f"[red]API调用错误 ({self.config.API_PROVIDER}): {str(e)}[/red]")
             return None
@@ -291,11 +305,13 @@ class TarotAIGenerator:
     
     def save_results(self, results: List[Dict], filename_suffix: str = "") -> None:
         """保存结果到JSON文件"""
+        # 根据API提供商选择正确的模型名称
+        model_name = self.config.OLLAMA_MODEL if self.config.API_PROVIDER == 'ollama' else self.config.MODEL_NAME
+
         output_data = {
             "version": "1.0.0",
-            "generated_at": datetime.now().isoformat(),
-            "model": self.config.MODEL_NAME,
-            "count": len(results),
+            "updated_at": datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "description": "塔罗牌解读维度关联数据（与 dimensions.json 一致）",
             "data": results
         }
         
@@ -333,16 +349,258 @@ class TarotAIGenerator:
         table.add_column("维度名称", style="cyan")
         table.add_column("类别", style="magenta")
         table.add_column("描述", style="green")
-        
+
         for dimension in self.dimensions_data:
             table.add_row(
                 dimension['name'],
                 dimension['category'],
                 dimension['description']
             )
-        
+
         console.print(table)
         console.print(f"[yellow]共 {len(self.dimensions_data)} 个维度[/yellow]")
+
+    def load_existing_results(self) -> Tuple[List[Dict], Dict[str, List[Dict]]]:
+        """加载现有结果并按维度分组"""
+        output_path = Path(self.config.OUTPUT_PATH)
+
+        if not output_path.exists():
+            console.print(f"[yellow]输出文件不存在: {output_path}[/yellow]")
+            return [], {}
+
+        try:
+            with open(output_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                existing_results = data.get('data', [])
+
+            # 按维度分组现有结果
+            grouped_results = {}
+            for result in existing_results:
+                dimension_name = result['dimension_name']
+                if dimension_name not in grouped_results:
+                    grouped_results[dimension_name] = []
+                grouped_results[dimension_name].append(result)
+
+            console.print(f"[green]加载了 {len(existing_results)} 条现有记录，涵盖 {len(grouped_results)} 个维度[/green]")
+            return existing_results, grouped_results
+
+        except Exception as e:
+            console.print(f"[red]加载现有结果时出错: {str(e)}[/red]")
+            return [], {}
+
+    def get_missing_cards_by_dimension(self, grouped_results: Dict[str, List[Dict]]) -> Dict[str, List[Tuple[str, str]]]:
+        """识别每个维度中缺失的具体卡牌（卡牌名称,方向）"""
+        missing_by_dimension = {}
+        total_cards = len(self.cards_data)  # 应该是156
+
+        console.print(f"[blue]检查维度完成状态（期望每个维度有 {total_cards} 条记录）[/blue]")
+
+        for dimension in self.dimensions_data:
+            dimension_name = dimension['name']
+            existing_records = grouped_results.get(dimension_name, [])
+            current_count = len(existing_records)
+
+            if current_count != total_cards:
+                # 获取已存在的卡牌组合
+                existing_cards = {(record['card_name'], record['direction']) for record in existing_records}
+
+                # 获取所有期望的卡牌组合
+                all_cards = {(card['card_name'], card['direction']) for card in self.cards_data}
+
+                # 找出缺失的卡牌组合
+                missing_cards = list(all_cards - existing_cards)
+                missing_by_dimension[dimension_name] = missing_cards
+
+                status = f"[red]不完整 ({current_count}/{total_cards})，缺失 {len(missing_cards)} 张牌[/red]"
+                console.print(f"  {dimension_name}: {status}")
+
+                # 显示缺失的具体卡牌（最多显示前5张）
+                if missing_cards:
+                    missing_display = missing_cards[:5]
+                    missing_str = ", ".join([f"{name}({direction})" for name, direction in missing_display])
+                    if len(missing_cards) > 5:
+                        missing_str += f" ... 等{len(missing_cards)}张"
+                    console.print(f"    [yellow]缺失: {missing_str}[/yellow]")
+            else:
+                status = f"[green]完整 ({current_count}/{total_cards})[/green]"
+                console.print(f"  {dimension_name}: {status}")
+
+        return missing_by_dimension
+
+    # def remove_incomplete_records(self, existing_results: List[Dict], incomplete_dimensions: List[str]) -> List[Dict]:
+    #     """移除不完整维度的所有记录（已弃用，改为精确补全）"""
+    #     if not incomplete_dimensions:
+    #         return existing_results
+
+    #     console.print(f"[yellow]移除 {len(incomplete_dimensions)} 个不完整维度的记录[/yellow]")
+
+    #     # 保留完整维度的记录
+    #     cleaned_results = [
+    #         result for result in existing_results
+    #         if result['dimension_name'] not in incomplete_dimensions
+    #     ]
+
+    #     removed_count = len(existing_results) - len(cleaned_results)
+    #     console.print(f"[yellow]移除了 {removed_count} 条不完整记录[/yellow]")
+
+    #     return cleaned_results
+
+    def generate_missing_cards(self, dimension_name: str, missing_cards: List[Tuple[str, str]]) -> List[Dict]:
+        """为指定维度生成缺失的卡牌解读"""
+        dimension = next(d for d in self.dimensions_data if d['name'] == dimension_name)
+        results = []
+
+        console.print(f"[blue]为维度 '{dimension_name}' 补全 {len(missing_cards)} 张缺失的卡牌[/blue]")
+
+        async def generate_missing():
+            """异步生成缺失的卡牌解读"""
+            sem = asyncio.Semaphore(self.config.BATCH_SIZE)
+            min_interval = 60 / self.config.RATE_LIMIT_PER_MINUTE if self.config.RATE_LIMIT_PER_MINUTE > 0 else 0.0
+            rate_lock = asyncio.Lock()
+            next_allowed = 0.0
+
+            async def worker(card_name: str, direction: str) -> Optional[Dict]:
+                nonlocal next_allowed
+                # 找到对应的卡牌数据
+                card = next((c for c in self.cards_data
+                           if c['card_name'] == card_name and c['direction'] == direction), None)
+                if not card:
+                    console.print(f"[red]未找到卡牌数据: {card_name} ({direction})[/red]")
+                    return None
+
+                async with sem:
+                    # 速率限制
+                    if min_interval > 0:
+                        async with rate_lock:
+                            now = asyncio.get_running_loop().time()
+                            wait = max(0.0, next_allowed - now)
+                            if wait > 0:
+                                await asyncio.sleep(wait)
+                            next_allowed = asyncio.get_running_loop().time() + min_interval
+
+                    # 重试机制
+                    for attempt in range(3):
+                        try:
+                            result = await asyncio.to_thread(
+                                self.generate_single_interpretation,
+                                card,
+                                dimension
+                            )
+                            if result:
+                                return result
+                        except Exception as e:
+                            console.print(f"[red]生成失败 {card_name} ({direction}) 第{attempt+1}次: {e}[/red]")
+                            await asyncio.sleep(2 * (attempt + 1))
+
+                    console.print(f"[yellow]跳过失败的卡牌: {card_name} ({direction})[/yellow]")
+                    return None
+
+            # 生成所有缺失的卡牌
+            tasks = [asyncio.create_task(worker(card_name, direction))
+                    for card_name, direction in missing_cards]
+
+            for coro in asyncio.as_completed(tasks):
+                result = await coro
+                if result:
+                    results.append(result)
+
+        # 运行异步生成
+        asyncio.run(generate_missing())
+
+        console.print(f"[green]为维度 '{dimension_name}' 成功补全了 {len(results)} 张卡牌[/green]")
+        return results
+
+    def check_generation_status(self) -> None:
+        """检查当前生成状态"""
+        existing_results, grouped_results = self.load_existing_results()
+        total_cards = len(self.cards_data)
+        total_dimensions = len(self.dimensions_data)
+        total_expected = total_cards * total_dimensions
+
+        missing_by_dimension = self.get_missing_cards_by_dimension(grouped_results)
+        incomplete_dimensions = list(missing_by_dimension.keys())
+
+        console.print("\n[bold blue]生成状态总览[/bold blue]")
+        console.print(f"期望总记录数: {total_expected} ({total_dimensions} 维度 × {total_cards} 卡牌)")
+        console.print(f"当前记录数: {len(existing_results)}")
+        console.print(f"完成维度数: {total_dimensions - len(incomplete_dimensions)}/{total_dimensions}")
+        console.print(f"不完整维度数: {len(incomplete_dimensions)}")
+
+        if incomplete_dimensions:
+            total_missing = sum(len(cards) for cards in missing_by_dimension.values())
+            console.print(f"需要补全的卡牌数: {total_missing}")
+            console.print("\n[yellow]需要补全的维度:[/yellow]")
+            for dimension_name in incomplete_dimensions:
+                current_count = len(grouped_results.get(dimension_name, []))
+                missing_count = len(missing_by_dimension[dimension_name])
+                console.print(f"  - {dimension_name} ({current_count}/{total_cards}，缺失{missing_count}张)")
+        else:
+            console.print("\n[green]所有维度都已完成生成！[/green]")
+
+    def generate_all_dimensions(self, force: bool = False) -> None:
+        """生成所有维度的完整解读（支持精确补全缺失卡牌）"""
+        console.print("[bold blue]开始生成完整的维度解读数据集[/bold blue]")
+
+        # 加载现有结果并分析
+        existing_results, grouped_results = self.load_existing_results()
+        missing_by_dimension = self.get_missing_cards_by_dimension(grouped_results)
+
+        if not missing_by_dimension:
+            console.print("[green]所有维度已完成，无需生成！[/green]")
+            return
+
+        # 计算成本预估（只计算缺失的卡牌）
+        total_missing = sum(len(cards) for cards in missing_by_dimension.values())
+        estimated_tokens = total_missing * 500
+
+        console.print(f"\n[blue]生成计划（精确补全模式）:[/blue]")
+        console.print(f"不完整维度数: {len(missing_by_dimension)}")
+        console.print(f"需要补全的卡牌: {total_missing}")
+        console.print(f"预估Token消耗: {estimated_tokens:,}")
+        console.print(f"保留现有记录: {len(existing_results)}")
+
+        if not force and not Confirm.ask("确认开始精确补全？"):
+            return
+
+        # 开始补全生成
+        console.print(f"[green]开始为 {len(missing_by_dimension)} 个维度补全缺失的卡牌[/green]")
+        all_results = existing_results.copy()  # 保留所有现有记录
+
+        with Progress() as progress:
+            # 总进度条
+            main_task = progress.add_task(
+                "整体进度",
+                total=len(missing_by_dimension)
+            )
+
+            for dim_index, (dimension_name, missing_cards) in enumerate(missing_by_dimension.items(), 1):
+                console.print(f"\n[blue]处理维度 {dim_index}/{len(missing_by_dimension)}: {dimension_name}[/blue]")
+                console.print(f"[blue]需要补全 {len(missing_cards)} 张卡牌[/blue]")
+
+                # 为当前维度补全缺失的卡牌
+                new_results = self.generate_missing_cards(dimension_name, missing_cards)
+
+                # 将新生成的结果添加到总结果中
+                all_results.extend(new_results)
+
+                # 实时保存进度
+                self.save_results(all_results, "")
+
+                console.print(f"[green]维度 '{dimension_name}' 补全完成，新增了 {len(new_results)} 条记录[/green]")
+                progress.advance(main_task)
+
+        final_count = len(all_results)
+        expected_count = len(self.dimensions_data) * len(self.cards_data)
+        console.print(f"\n[green]精确补全完成！[/green]")
+        console.print(f"总记录数: {final_count}")
+        console.print(f"预期记录数: {expected_count}")
+        console.print(f"新增记录数: {final_count - len(existing_results)}")
+
+        if final_count == expected_count:
+            console.print("[green]所有维度解读生成完成！[/green]")
+        else:
+            missing_count = expected_count - final_count
+            console.print(f"[yellow]仍有 {missing_count} 条记录缺失，请检查日志并重新运行[/yellow]")
 
 def main():
     parser = argparse.ArgumentParser(description="塔罗牌维度解读生成工具")
@@ -352,17 +610,23 @@ def main():
     parser.add_argument("--sample", type=int, help="生成指定数量的样本数据")
     parser.add_argument("--list-cards", action="store_true", help="列出所有卡牌")
     parser.add_argument("--list-dimensions", action="store_true", help="列出所有维度")
+    parser.add_argument("--generate-all", action="store_true", help="生成所有维度的完整解读（支持断点续传）")
+    parser.add_argument("--check-status", action="store_true", help="检查当前生成状态")
     parser.add_argument("--force", action="store_true", help="跳过确认直接生成")
-    
+
     args = parser.parse_args()
-    
+
     try:
         generator = TarotAIGenerator()
-        
+
         if args.list_cards:
             generator.list_cards()
         elif args.list_dimensions:
             generator.list_dimensions()
+        elif args.check_status:
+            generator.check_generation_status()
+        elif args.generate_all:
+            generator.generate_all_dimensions(force=args.force)
         elif args.card and args.direction:
             generator.generate_for_card(args.card, args.direction, force=args.force)
         elif args.dimension:
@@ -371,7 +635,10 @@ def main():
             generator.generate_sample(args.sample, force=args.force)
         else:
             console.print("[yellow]请指定操作参数，使用 --help 查看帮助[/yellow]")
-            
+            console.print("\n[blue]新功能:[/blue]")
+            console.print("  --generate-all   生成所有维度的完整解读（支持断点续传）")
+            console.print("  --check-status   检查当前生成状态")
+
     except Exception as e:
         console.print(f"[red]程序运行错误: {str(e)}[/red]")
 

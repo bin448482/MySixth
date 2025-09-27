@@ -35,6 +35,11 @@ ENV/
 .env.local
 .env.production
 
+# 邮箱配置（包含敏感信息）
+email_config.json
+smtp_config.ini
+email_credentials.txt
+
 # 数据库
 *.db
 *.sqlite

@@ -1,7 +1,10 @@
 {
   "permissions": {
     "allow": [
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "Bash(alembic current:*)",
+      "Bash(pip install:*)",
+      "Bash(sqlite3:*)"
     ],
     "deny": [],
     "ask": []
