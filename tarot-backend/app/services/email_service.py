@@ -192,7 +192,7 @@ class EmailService:
         Returns:
             bool: 发送是否成功
         """
-        verification_url = f"{settings.APP_BASE_URL}/auth/email/verify?token={verification_token}"
+        verification_url = f"{settings.APP_BASE_URL}/api/v1/auth/email/verify?token={verification_token}"
 
         context = {
             "user_name": user_name or "用户",
@@ -226,7 +226,7 @@ class EmailService:
         Returns:
             bool: 发送是否成功
         """
-        reset_url = f"{settings.APP_BASE_URL}/auth/email/reset-password?token={reset_token}"
+        reset_url = f"{settings.APP_BASE_URL}/api/v1/auth/email/reset-password?token={reset_token}"
 
         context = {
             "user_name": user_name or "用户",

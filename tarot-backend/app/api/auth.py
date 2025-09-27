@@ -162,6 +162,7 @@ async def send_verification_email(
             )
 
         # 确定用户ID
+        user_installation_id = None
         if request.user_id:
             # 关联现有匿名用户
             user = db.query(User).filter(User.installation_id == request.user_id).first()
@@ -171,10 +172,12 @@ async def send_verification_email(
                     detail="用户不存在"
                 )
             user_internal_id = user.id  # 使用数据库内部ID
+            user_installation_id = user.installation_id
         else:
             # 创建新用户或使用现有未验证用户
             if existing_user:
                 user_internal_id = existing_user.id
+                user_installation_id = existing_user.installation_id
             else:
                 # 创建新用户
                 user_id = generate_anonymous_user_id()
@@ -182,6 +185,7 @@ async def send_verification_email(
                 db.add(new_user)
                 db.commit()
                 user_internal_id = new_user.id
+                user_installation_id = new_user.installation_id
 
         # 创建验证令牌
         verification = EmailVerification.create_verification_token(
@@ -198,7 +202,7 @@ async def send_verification_email(
         # 发送验证邮件
         email_service = EmailService()
 
-        await email_service.send_verification_email(
+        email_service.send_verification_email(
             to_email=request.email,
             verification_token=verification.token,
             user_name=request.email.split('@')[0]  # 使用邮箱前缀作为用户名
@@ -208,7 +212,7 @@ async def send_verification_email(
             success=True,
             message="验证邮件已发送，请检查您的邮箱",
             email=request.email,
-            user_id=request.user_id if request.user_id else user_id
+            user_id=request.user_id if request.user_id else user_installation_id
         )
 
     except HTTPException:
@@ -257,7 +261,7 @@ async def verify_email(
             )
 
         # 查找用户
-        user = db.query(User).filter(User.installation_id == verification.user_id).first()
+        user = db.query(User).filter(User.id == verification.user_id).first()
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -456,7 +460,7 @@ async def send_password_reset(
         # 发送重置邮件
         email_service = EmailService()
 
-        await email_service.send_password_reset_email(
+        email_service.send_password_reset_email(
             to_email=user.email,
             reset_token=verification.token,
             user_name=user.email.split('@')[0]

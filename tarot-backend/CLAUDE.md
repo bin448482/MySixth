@@ -58,6 +58,77 @@
 6. **purchases** - 订单记录
 7. **redeem_codes** - 兑换码管理
 
+## 🚨 常见问题解决方案
+
+### 邮件验证链接404错误问题
+
+**问题现象**：
+- 邮件中的验证链接无法访问，返回 `{"detail":"Not Found"}` 404错误
+
+**根本原因**：
+- 邮件服务中生成的URL路径与实际API路由不匹配
+- FastAPI路由注册时的前缀配置问题
+
+**问题定位步骤**：
+1. **检查API文档**：访问 `http://localhost:8001/docs` 或 `http://localhost:8001/openapi.json`
+2. **确认实际路由**：在openapi.json中搜索 `email/verify` 找到真实路径
+3. **对比邮件URL**：检查邮件中生成的URL是否与实际路由匹配
+
+**解决方案**：
+
+1. **路由配置** (`app/main.py`):
+```python
+# 确保认证路由正确注册
+app.include_router(auth.router, prefix="/api/v1")  # 实际路径: /api/v1/auth/email/verify
+```
+
+2. **邮件URL生成** (`app/services/email_service.py`):
+```python
+# 修正邮件验证URL生成
+verification_url = f"{settings.APP_BASE_URL}/api/v1/auth/email/verify?token={verification_token}"
+reset_url = f"{settings.APP_BASE_URL}/api/v1/auth/email/reset-password?token={reset_token}"
+```
+
+3. **环境配置** (`.env`):
+```env
+# 确保基础URL端口正确
+APP_BASE_URL=http://localhost:8001
+```
+
+**验证方法**：
+```bash
+# 测试路由是否可访问
+curl -s "http://localhost:8001/api/v1/auth/email/verify?token=test-token"
+
+# 不应该返回404，而应该返回具体的业务错误（如token无效等）
+```
+
+**注意事项**：
+- 修改路由配置后需要重启服务器
+- uvicorn的--reload模式会自动检测文件变化并重启
+- 确保数据库中email_verifications表的user_id字段关联正确
+
+### 邮件验证逻辑错误问题
+
+**问题现象**：
+- 路由可以访问，但返回"用户不存在"错误
+
+**根本原因**：
+- email_verifications.user_id 存储的是数据库内部ID
+- 查询users表时错误使用了installation_id字段
+
+**解决方案**：
+```python
+# app/api/auth.py - verify_email方法中
+# 错误写法：
+user = db.query(User).filter(User.installation_id == verification.user_id).first()
+
+# 正确写法：
+user = db.query(User).filter(User.id == verification.user_id).first()
+```
+
+---
+
 ## 🚀 快速开始
 
 ### 1. 环境配置
