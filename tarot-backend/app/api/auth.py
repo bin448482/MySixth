@@ -170,41 +170,45 @@ async def send_verification_email(
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail="用户不存在"
                 )
-            user_id = user.installation_id
+            user_internal_id = user.id  # 使用数据库内部ID
         else:
             # 创建新用户或使用现有未验证用户
             if existing_user:
-                user_id = existing_user.installation_id
+                user_internal_id = existing_user.id
             else:
                 # 创建新用户
                 user_id = generate_anonymous_user_id()
                 new_user = User(installation_id=user_id, email=request.email)
                 db.add(new_user)
                 db.commit()
+                user_internal_id = new_user.id
 
         # 创建验证令牌
         verification = EmailVerification.create_verification_token(
-            db=db,
-            user_id=user_id,
+            user_id=user_internal_id,
             email=request.email,
             token_type="verify_email"
         )
 
+        # 将验证令牌保存到数据库
+        db.add(verification)
+        db.commit()
+        db.refresh(verification)
+
         # 发送验证邮件
         email_service = EmailService()
-        verification_url = f"{email_service.config.APP_BASE_URL}/auth/email/verify?token={verification.token}"
 
         await email_service.send_verification_email(
             to_email=request.email,
-            user_name=request.email.split('@')[0],  # 使用邮箱前缀作为用户名
-            verification_url=verification_url
+            verification_token=verification.token,
+            user_name=request.email.split('@')[0]  # 使用邮箱前缀作为用户名
         )
 
         return SendVerificationEmailResponse(
             success=True,
             message="验证邮件已发送，请检查您的邮箱",
             email=request.email,
-            user_id=user_id
+            user_id=request.user_id if request.user_id else user_id
         )
 
     except HTTPException:
@@ -266,7 +270,7 @@ async def verify_email(
         user.email_verified_at = datetime.utcnow()
 
         # 标记验证记录为已验证
-        verification.mark_as_verified(db)
+        verification.mark_as_verified()
 
         db.commit()
 
@@ -439,20 +443,23 @@ async def send_password_reset(
 
         # 创建重置令牌
         verification = EmailVerification.create_verification_token(
-            db=db,
-            user_id=user.installation_id,
+            user_id=user.id,
             email=user.email,
             token_type="reset_password"
         )
 
+        # 将重置令牌保存到数据库
+        db.add(verification)
+        db.commit()
+        db.refresh(verification)
+
         # 发送重置邮件
         email_service = EmailService()
-        reset_url = f"{email_service.config.APP_BASE_URL}/auth/email/reset-password?token={verification.token}"
 
         await email_service.send_password_reset_email(
             to_email=user.email,
-            user_name=user.email.split('@')[0],
-            reset_url=reset_url
+            reset_token=verification.token,
+            user_name=user.email.split('@')[0]
         )
 
         return SendPasswordResetResponse(
@@ -524,7 +531,7 @@ async def reset_password(
         user.password_hash = hash_password(request.password)
 
         # 标记重置记录为已使用
-        verification.mark_as_verified(db)
+        verification.mark_as_verified()
 
         db.commit()
 

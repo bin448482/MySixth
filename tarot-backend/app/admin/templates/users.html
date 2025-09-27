@@ -243,6 +243,79 @@ let pageSize = 20;
 // 页面加载完成后初始化
 document.addEventListener('DOMContentLoaded', function() {
     loadUsers();
+
+    // 绑定发送验证邮件表单提交事件
+    document.getElementById('sendVerificationForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        const email = document.getElementById('verificationEmail').value;
+        const userId = document.getElementById('targetUserIdForEmail').value;
+
+        const requestData = {
+            email: email
+        };
+
+        if (userId) {
+            requestData.user_id = userId;
+        }
+
+        fetch('/api/v1/auth/email/send-verification', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(requestData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showSuccess('验证邮件发送成功');
+                bootstrap.Modal.getInstance(document.getElementById('sendVerificationModal')).hide();
+                loadUsers(currentPage);
+            } else {
+                showError('验证邮件发送失败: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showError('网络错误，请稍后重试');
+        });
+    });
+
+    // 绑定积分调整表单提交事件
+    document.getElementById('adjustCreditsForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        const userId = document.getElementById('targetUserId').value;
+        const creditChange = parseInt(document.getElementById('creditChange').value);
+        const reason = document.getElementById('adjustReason').value;
+
+        fetch('/api/v1/admin/users/adjust-credits', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                installation_id: userId,
+                credits: creditChange,
+                reason: reason
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showSuccess('积分调整成功');
+                bootstrap.Modal.getInstance(document.getElementById('adjustCreditsModal')).hide();
+                loadUsers(currentPage);
+            } else {
+                showError('积分调整失败: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showError('网络错误，请稍后重试');
+        });
+    });
 });
 
 // 加载用户列表
@@ -478,40 +551,6 @@ function adjustUserCredits(installationId) {
     new bootstrap.Modal(document.getElementById('adjustCreditsModal')).show();
 }
 
-// 处理积分调整表单提交
-document.getElementById('adjustCreditsForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-
-    const userId = document.getElementById('targetUserId').value;
-    const creditChange = parseInt(document.getElementById('creditChange').value);
-    const reason = document.getElementById('adjustReason').value;
-
-    fetch('/api/v1/admin/users/adjust-credits', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            installation_id: userId,
-            credits: creditChange,
-            reason: reason
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            showSuccess('积分调整成功');
-            bootstrap.Modal.getInstance(document.getElementById('adjustCreditsModal')).hide();
-            loadUsers(currentPage);
-        } else {
-            showError('积分调整失败: ' + data.message);
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        showError('网络错误，请稍后重试');
-    });
-});
 
 // 导出用户数据
 function exportUsers() {
@@ -559,43 +598,6 @@ function sendVerificationToUser(installationId, currentEmail) {
     new bootstrap.Modal(document.getElementById('sendVerificationModal')).show();
 }
 
-// 处理发送验证邮件表单提交
-document.getElementById('sendVerificationForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-
-    const email = document.getElementById('verificationEmail').value;
-    const userId = document.getElementById('targetUserIdForEmail').value;
-
-    const requestData = {
-        email: email
-    };
-
-    if (userId) {
-        requestData.user_id = userId;
-    }
-
-    fetch('/auth/email/send-verification', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestData)
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            showSuccess('验证邮件发送成功');
-            bootstrap.Modal.getInstance(document.getElementById('sendVerificationModal')).hide();
-            loadUsers(currentPage);
-        } else {
-            showError('验证邮件发送失败: ' + data.message);
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        showError('网络错误，请稍后重试');
-    });
-});
 
 function formatDateTime(dateString) {
     return new Date(dateString).toLocaleString('zh-CN');

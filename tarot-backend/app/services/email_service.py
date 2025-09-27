@@ -5,7 +5,8 @@ import smtplib
 import logging
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from email.utils import formataddr
+from email.utils import formataddr, formatdate
+from email.header import Header
 from typing import Optional, List
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 import os
@@ -39,12 +40,20 @@ class EmailService:
     def _create_smtp_connection(self) -> smtplib.SMTP:
         """创建SMTP连接"""
         try:
-            smtp = smtplib.SMTP(self.smtp_host, self.smtp_port, timeout=self.timeout)
+            # QQ邮箱推荐使用SSL连接（端口465）
+            if self.smtp_port == 465:
+                smtp = smtplib.SMTP_SSL(self.smtp_host, self.smtp_port, timeout=self.timeout)
+                logger.info(f"使用SSL连接到 {self.smtp_host}:{self.smtp_port}")
+            else:
+                # 其他端口使用标准SMTP + TLS
+                smtp = smtplib.SMTP(self.smtp_host, self.smtp_port, timeout=self.timeout)
+                logger.info(f"使用TLS连接到 {self.smtp_host}:{self.smtp_port}")
 
-            if self.use_tls:
-                smtp.starttls()
+                if self.use_tls:
+                    smtp.starttls()
 
             smtp.login(self.from_address, self.password)
+            logger.info(f"SMTP登录成功: {self.from_address}")
             return smtp
 
         except Exception as e:
@@ -72,12 +81,16 @@ class EmailService:
         Returns:
             bool: 发送是否成功
         """
+        smtp = None
         try:
             # 创建邮件对象
             msg = MIMEMultipart('alternative')
-            msg['Subject'] = subject
-            msg['From'] = formataddr((self.from_name, self.from_address))
-            msg['To'] = formataddr((to_name or to_email, to_email))
+            msg['Subject'] = Header(subject, 'utf-8')
+            msg['From'] = self.from_address  # 直接使用地址，不使用formataddr
+            msg['To'] = to_email  # 直接使用邮箱地址
+
+            # 设置邮件日期
+            msg['Date'] = formatdate(localtime=True)
 
             # 添加纯文本内容
             text_part = MIMEText(text_content, 'plain', 'utf-8')
@@ -88,16 +101,32 @@ class EmailService:
                 html_part = MIMEText(html_content, 'html', 'utf-8')
                 msg.attach(html_part)
 
+            # 创建SMTP连接
+            smtp = self._create_smtp_connection()
+
             # 发送邮件
-            with self._create_smtp_connection() as smtp:
-                smtp.send_message(msg)
+            text = msg.as_string()
+            smtp.sendmail(self.from_address, [to_email], text)
 
             logger.info(f"邮件发送成功: {to_email}")
             return True
 
         except Exception as e:
             logger.error(f"邮件发送失败 {to_email}: {e}")
+            logger.error(f"错误详情: {type(e).__name__}: {str(e)}")
             return False
+
+        finally:
+            # 安全关闭SMTP连接，忽略quit错误
+            if smtp:
+                try:
+                    smtp.quit()
+                except Exception as quit_error:
+                    logger.warning(f"SMTP quit错误（可忽略）: {quit_error}")
+                    try:
+                        smtp.close()
+                    except Exception:
+                        pass
 
     def send_template_email(
         self,
