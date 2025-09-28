@@ -9,667 +9,175 @@ app/api/
 ├── auth.py              # 匿名认证 (✅ 已实现)
 ├── readings.py          # 解读相关API (✅ 已实现)
 ├── admin.py             # 管理员API (✅ 已实现)
-├── payments.py          # 支付相关API (🔄 待实现)
+├── payments.py          # 支付相关API (✅ 已重构)
 ├── users.py             # 用户API路由 (🔄 待实现)
 └── sync.py              # 离线同步API (🔄 待实现)
 ```
 
 ### API版本管理
 - **核心API**: `/` 根路径 (解读功能)
-- **用户API**: `/api/v1/` (支付、用户管理)
+- **支付API**: `/api/v1/payments/` (兑换码、Google Play)
 - **管理认证API**: `/api/v1/admin-api/` (管理员登录、认证)
-- **管理用户API**: `/api/v1/admin/` (用户管理功能)
+- **管理功能API**: `/api/v1/admin/` (用户管理、兑换码管理)
 - **管理Portal**: `/admin/` (Web界面)
-- **同步API**: `/sync/` (离线同步)
+- **用户API**: `/api/v1/me/` (用户余额、交易历史)
 
-## 📋 核心API接口
+## 📋 核心API接口 (✅ 已实现)
 
-### 认证相关 (auth.py)
+### 认证相关 (`auth.py`)
+**实现位置**: `app/api/auth.py`
 
-#### POST /auth/anon - 生成匿名用户ID
-**状态**: ✅ 已实现
+- **POST /auth/anon**: 生成匿名用户ID和JWT token
+- **POST /api/v1/auth/register**: 用户邮箱注册
+- **POST /api/v1/auth/email/verify**: 邮箱验证
+- **POST /api/v1/auth/email/resend**: 重发验证邮件
+- **POST /api/v1/auth/email/reset-password**: 密码重置
 
-```python
-@router.post("/anon", response_model=AuthResponse)
-async def create_anonymous_user(db: Session = Depends(get_db)):
-    """生成匿名用户ID和JWT token"""
+### 解读相关 (`readings.py`)
+**实现位置**: `app/api/readings.py`
 
-# 请求: 无需body
-# 响应:
-{
-    "user_id": "uuid_string",
-    "token": "jwt_token_string",
-    "expires_in": 3600
-}
-```
+- **POST /readings/analyze**: 分析用户描述，返回推荐维度
+- **POST /readings/generate**: 基于选定维度生成多维度解读
+- **GET /cards**: 获取所有卡牌信息
+- **GET /dimensions**: 获取所有解读维度
+- **GET /spreads**: 获取牌阵配置
 
-### 解读相关 (readings.py)
+### 支付相关 (`payments.py` - 已重构)
+**实现位置**: `app/api/payments.py`
 
-#### POST /readings/analyze - 分析用户描述
-**状态**: ✅ 已实现
-
-```python
-@router.post("/analyze", response_model=AnalyzeResponse)
-async def analyze_reading_request(
-    request: AnalyzeRequest,
-    current_user: dict = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """分析用户描述，返回推荐维度"""
-
-# 请求:
-{
-    "question": "我想知道我的感情状况",
-    "spread_type": "three-card"  # 或 "celtic-cross"
-}
-
-# 响应:
-{
-    "question": "我想知道我的感情状况",
-    "spread_type": "three-card",
-    "recommended_dimensions": [
-        {
-            "id": 1,
-            "name": "情感-自我感受",
-            "description": "分析你内心对当前感情状态的真实感受",
-            "category": "情感",
-            "aspect": "自我感受",
-            "aspect_type": 1
-        }
-    ]
-}
-```
-
-#### POST /readings/generate - 生成多维度解读
-**状态**: ✅ 已实现
-
-```python
-@router.post("/generate", response_model=ReadingResponse)
-async def generate_reading(
-    request: ReadingRequest,
-    current_user: dict = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """基于选定维度生成多维度解读"""
-
-# 请求:
-{
-    "question": "我想知道我的感情状况",
-    "spread_type": "three-card",
-    "selected_dimensions": [1, 2, 3],
-    "cards": [
-        {"card_id": 1, "orientation": "upright", "position": 1},
-        {"card_id": 2, "orientation": "reversed", "position": 2},
-        {"card_id": 3, "orientation": "upright", "position": 3}
-    ]
-}
-
-# 响应:
-{
-    "reading_id": "uuid_string",
-    "question": "我想知道我的感情状况",
-    "spread_type": "three-card",
-    "cards": [...],
-    "dimension_summaries": {
-        "1": "在自我感受维度上...",
-        "2": "在对方态度维度上...",
-        "3": "在关系发展维度上..."
-    },
-    "overall_summary": "综合来看，你的感情状况...",
-    "created_at": "2024-01-01T00:00:00Z"
-}
-```
-
-## 🔐 管理员API接口 (admin.py)
-
-### 管理员认证
-
-#### POST /api/v1/admin-api/login - 管理员登录
-**状态**: ✅ 已实现
-
-```python
-@router.post("/login", response_model=AdminLoginResponse)
-async def admin_login(login_request: AdminLoginRequest):
-    """管理员登录认证"""
-
-# 请求:
-{
-    "username": "admin",
-    "password": "admin_password"
-}
-
-# 响应:
-{
-    "access_token": "jwt_token_string",
-    "token_type": "bearer",
-    "expires_in": 86400,
-    "username": "admin"
-}
-```
-
-#### GET /api/v1/admin-api/profile - 管理员信息
-**状态**: ✅ 已实现
-
-```python
-@router.get("/profile", response_model=AdminProfileResponse)
-async def get_admin_profile(current_admin: str = Depends(get_current_admin)):
-    """获取当前管理员信息"""
-
-# 响应:
-{
-    "username": "admin",
-    "role": "admin",
-    "authenticated": true
-}
-```
-
-### 用户管理
-
-#### GET /api/v1/admin/users - 用户列表查询
-**状态**: ✅ 已实现
-
-```python
-@user_router.get("/users", response_model=UserListResponse)
-async def get_users(
-    page: int = Query(1, ge=1),
-    size: int = Query(20, ge=1, le=100),
-    installation_id: Optional[str] = Query(None),
-    min_credits: Optional[int] = Query(None),
-    date_range: Optional[str] = Query(None),
-    current_admin: str = Depends(get_current_admin),
-    db: Session = Depends(get_db)
-):
-    """获取用户列表（分页）"""
-
-# 请求参数:
-# page: 页码（默认1）
-# size: 每页数量（默认20，最大100）
-# installation_id: 用户ID筛选（可选）
-# min_credits: 最低积分筛选（可选）
-# date_range: 注册时间筛选（today/week/month，可选）
-
-# 响应:
-{
-    "success": true,
-    "users": [
-        {
-            "installation_id": "uuid_string",
-            "credits": 10,
-            "total_credits_purchased": 15,
-            "total_credits_consumed": 5,
-            "created_at": "2024-01-01T00:00:00Z",
-            "last_active_at": "2024-01-01T12:00:00Z"
-        }
-    ],
-    "total": 100,
-    "page": 1,
-    "size": 20
-}
-```
-
-#### GET /api/v1/admin/users/{installation_id} - 用户详情
-**状态**: ✅ 已实现
-
-```python
-@user_router.get("/users/{installation_id}", response_model=UserDetailResponse)
-async def get_user_detail(
-    installation_id: str,
-    current_admin: str = Depends(get_current_admin),
-    db: Session = Depends(get_db)
-):
-    """获取用户详情信息"""
-
-# 响应:
-{
-    "success": true,
-    "user": {
-        "installation_id": "uuid_string",
-        "credits": 10,
-        "total_credits_purchased": 15,
-        "total_credits_consumed": 5,
-        "created_at": "2024-01-01T00:00:00Z",
-        "last_active_at": "2024-01-01T12:00:00Z",
-        "recent_transactions": [
-            {
-                "type": "admin_adjust",
-                "credits": 5,
-                "balance_after": 10,
-                "description": "管理员调整：充值奖励",
-                "created_at": "2024-01-01T10:00:00Z"
-            }
-        ]
-    }
-}
-```
-
-#### POST /api/v1/admin/users/adjust-credits - 积分调整
-**状态**: ✅ 已实现
-
-```python
-@user_router.post("/users/adjust-credits", response_model=AdjustCreditsResponse)
-async def adjust_user_credits(
-    request: AdjustCreditsRequest,
-    current_admin: str = Depends(get_current_admin),
-    db: Session = Depends(get_db)
-):
-    """管理员调整用户积分"""
-
-# 请求:
-{
-    "installation_id": "uuid_string",
-    "credits": 5,  # 正数增加，负数减少
-    "reason": "充值奖励"
-}
-
-# 响应:
-{
-    "success": true,
-    "message": "积分调整成功：+5",
-    "new_balance": 15
-}
-```
-
-#### GET /api/v1/admin/users/export - 用户数据导出
-**状态**: ✅ 已实现
-
-```python
-@user_router.get("/users/export")
-async def export_users(
-    installation_id: Optional[str] = Query(None),
-    min_credits: Optional[int] = Query(None),
-    date_range: Optional[str] = Query(None),
-    current_admin: str = Depends(get_current_admin),
-    db: Session = Depends(get_db)
-):
-    """导出用户数据为CSV文件"""
-
-# 请求参数: 与用户列表查询相同的筛选条件
-# 响应: CSV文件下载（Content-Type: text/csv）
-# 文件名格式: users_export_20240101_120000.csv
-```
-
-## 💳 支付API接口 (payments.py)
-
-### ⚠️ 重构说明
-**payments.py 已重构**，现在专注于前端支付相关功能：
+**重构说明**：
 - **路由前缀**: `/api/v1/payments`
-- **职责范围**: 兑换码兑换、Google Play支付验证
+- **职责范围**: 前端支付功能（兑换码兑换、Google Play验证）
 - **认证方式**: Bearer Token（面向前端应用）
 - **已删除**: 所有管理员路由，统一迁移至 `admin.py`
 
-### 兑换码功能
+#### 核心功能
+- **POST /api/v1/payments/redeem**: 兑换码验证兑换
+- **POST /api/v1/payments/redeem/info**: 获取兑换码信息（不使用）
+- **POST /api/v1/payments/google/verify**: Google Play购买验证
+- **POST /api/v1/payments/google/consume**: 标记Google Play购买已消费
+- **POST /api/v1/payments/webhooks/google/play**: Google Play webhooks
 
-#### POST /api/v1/payments/redeem - 兑换码验证兑换
-**状态**: ✅ 已实现
+## 🔐 管理员API接口 (✅ 已实现)
 
-```python
-@router.post("/redeem", response_model=RedeemResponse)
-async def redeem_code(
-    request: RedeemRequest,
-    current_user: dict = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """兑换码验证和积分发放"""
+### 管理员认证 (`admin.py`)
+**实现位置**: `app/api/admin.py:100-182`
 
-# 请求:
-{
-    "code": "TAROT123456789ABCD"
-}
+- **POST /api/v1/admin-api/login**: 管理员登录认证
+- **GET /api/v1/admin-api/profile**: 获取当前管理员信息
+- **POST /api/v1/admin-api/refresh**: 刷新JWT token
 
-# 响应:
-{
-    "success": true,
-    "credits_earned": 5,
-    "new_balance": 15,
-    "message": "兑换成功，获得5积分"
-}
-```
+### 用户管理 (`admin.py`)
+**实现位置**: `app/api/admin.py:227-583`
 
-### Google Play支付
+- **GET /api/v1/admin/users**: 用户列表查询（分页、筛选）
+- **GET /api/v1/admin/users/{id}**: 用户详情和交易记录
+- **POST /api/v1/admin/users/adjust-credits**: 管理员调整用户积分
+- **GET /api/v1/admin/users/export**: 用户数据CSV导出
+- **DELETE /api/v1/admin/users/{id}**: 删除用户及相关数据
 
-#### POST /api/v1/payments/google/verify - 购买验证
-**状态**: ✅ 已实现
+### 兑换码管理 (`admin.py`)
+**实现位置**: `app/api/admin.py:649-1024`
 
-```python
-@router.post("/payments/google/verify", response_model=PaymentResponse)
-async def verify_google_purchase(
-    request: GooglePlayRequest,
-    current_user: dict = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """验证Google Play购买凭证"""
+- **GET /api/v1/admin/redeem-codes**: 兑换码列表查询
+- **POST /api/v1/admin/redeem-codes/generate**: 批量生成兑换码
+- **PUT /api/v1/admin/redeem-codes/{id}**: 更新兑换码状态
+- **GET /api/v1/admin/redeem-codes/export/csv**: 兑换码CSV导出
+- **GET /api/v1/admin/redeem-codes/stats**: 统计信息
+- **GET /api/v1/admin/redeem-codes/batches**: 获取批次列表
 
-# 请求:
-{
-    "purchase_token": "google_purchase_token",
-    "product_id": "credits_pack_5",
-    "order_id": "google_order_id"
-}
+## 🎨 前端模板和Web路由 (✅ 已实现)
 
-# 响应:
-{
-    "success": true,
-    "order_id": "internal_order_id",
-    "credits_earned": 5,
-    "new_balance": 20,
-    "purchase_status": "completed"
-}
-```
+### 管理Portal (`app/admin/web_routes.py`)
+- **GET /admin/login**: 登录页面
+- **POST /admin/login**: 登录处理
+- **GET /admin/dashboard**: 仪表板
+- **GET /admin/users**: 用户管理页面
+- **GET /admin/redeem-codes**: 兑换码管理页面
 
-### 用户余额管理 (移至users.py)
+### 功能特性
+1. **用户管理**: 分页列表、详情查看、积分调整、数据导出
+2. **兑换码管理**: 批量生成、状态管理、使用统计
+3. **响应式设计**: Bootstrap 5框架，移动端适配
+4. **实时更新**: Ajax加载，无需刷新页面
 
-#### GET /api/v1/me/balance - 查询用户余额
-**状态**: 🔄 待实现
+## 🔄 待实现功能
 
-```python
-@router.get("/balance", response_model=UserBalanceResponse)
-async def get_user_balance(
-    current_user: dict = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """查询用户当前积分余额"""
+### 用户API (`users.py` - 待实现)
+- **GET /api/v1/me/balance**: 查询用户余额
+- **GET /api/v1/me/transactions**: 消费历史查询
+- **POST /api/v1/consume**: LLM调用前扣点
 
-# 响应:
-{
-    "user_id": "uuid_string",
-    "credits": 10,
-    "total_purchased": 15,
-    "total_consumed": 5,
-    "last_updated": "2024-01-01T00:00:00Z"
-}
-```
+### 离线同步API (`sync.py` - 待实现)
+- **GET /sync/initial**: 初始全量同步
+- **GET /sync/delta**: 增量数据更新
 
-#### GET /api/v1/me/transactions - 消费历史
-**状态**: 🔄 待实现
+## 🔧 技术实现
 
-```python
-@router.get("/transactions", response_model=List[TransactionResponse])
-async def get_user_transactions(
-    page: int = 1,
-    limit: int = 20,
-    current_user: dict = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """查询用户积分交易历史"""
+### 认证机制
+- **匿名用户**: JWT token，无需注册
+- **管理员**: JWT token + Cookie双重认证
+- **邮箱用户**: 可选注册，增强用户体验
 
-# 响应:
-[
-    {
-        "id": 1,
-        "type": "consume",
-        "credits": -1,
-        "balance_after": 9,
-        "description": "AI解读服务消费",
-        "created_at": "2024-01-01T00:00:00Z"
-    }
-]
-```
+### 数据处理
+- **分页查询**: 避免大量数据加载
+- **关联查询**: 使用 `joinedload` 优化N+1问题
+- **乐观锁**: 保证积分操作数据一致性
+- **流式响应**: 大文件导出内存优化
 
-### 兑换码功能
+### 错误处理
+- **全局异常**: 统一错误格式和日志
+- **用户友好**: 前端展示清晰错误信息
+- **数据验证**: Pydantic模型严格验证
 
-#### POST /api/v1/payments/redeem - 兑换码验证兑换
-**状态**: ✅ 已实现
+## 🚀 已解决的技术问题
 
-```python
-@router.post("/redeem", response_model=RedeemResponse)
-async def redeem_code(
-    request: RedeemRequest,
-    current_user: dict = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """兑换码验证和积分发放"""
+### 路由冲突问题
+- **问题**: `payments.py` 和 `admin.py` 存在重复路由
+- **解决**: 重构模块职责，删除重复功能
+- **参考**: `tarot-backend/CLAUDE.md` 路由冲突解决方案
 
-# 请求:
-{
-    "code": "TAROT123456789ABCD"
-}
+### 邮件验证404错误
+- **问题**: 邮件验证链接路径错误
+- **解决**: 修正URL生成逻辑，确保路径匹配
+- **参考**: `app/services/email_service.py:31-32`
 
-# 响应:
-{
-    "success": true,
-    "credits_earned": 5,
-    "new_balance": 15,
-    "message": "兑换成功，获得5积分"
-}
-```
+### 用户删除约束错误
+- **问题**: 外键约束导致删除失败
+- **解决**: 按正确顺序删除关联数据
+- **参考**: `app/api/admin.py:546-563`
 
-### Google Play支付
-
-#### POST /api/v1/payments/google/verify - 购买验证
-**状态**: 🔄 待实现
-
-```python
-@router.post("/google/verify", response_model=PaymentResponse)
-async def verify_google_purchase(
-    request: GooglePlayRequest,
-    current_user: dict = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """验证Google Play购买凭证"""
-
-# 请求:
-{
-    "purchase_token": "google_purchase_token",
-    "product_id": "credits_pack_5",
-    "order_id": "google_order_id"
-}
-
-# 响应:
-{
-    "success": true,
-    "order_id": "internal_order_id",
-    "credits_earned": 5,
-    "new_balance": 20,
-    "purchase_status": "completed"
-}
-```
-
-#### POST /api/v1/payments/google/consume - 标记消费完成
-**状态**: 🔄 待实现
-
-```python
-@router.post("/google/consume", response_model=ConsumeResponse)
-async def consume_google_purchase(
-    request: ConsumeRequest,
-    current_user: dict = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """标记Google Play购买已消费"""
-
-# 请求:
-{
-    "purchase_token": "google_purchase_token"
-}
-
-# 响应:
-{
-    "success": true,
-    "message": "购买已标记为消费完成"
-}
-```
-
-### 积分消费
-
-#### POST /api/v1/consume - LLM调用前扣点
-**状态**: 🔄 待实现
-
-```python
-@router.post("/consume", response_model=ConsumeCreditsResponse)
-async def consume_credits(
-    request: ConsumeCreditsRequest,
-    current_user: dict = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """LLM解读前的积分扣减"""
-
-# 请求:
-{
-    "service_type": "ai_reading",
-    "credits_required": 1,
-    "reading_id": "uuid_string"
-}
-
-# 响应:
-{
-    "success": true,
-    "credits_consumed": 1,
-    "remaining_balance": 9,
-    "transaction_id": 123
-}
-```
-
-## 🔄 离线同步API (sync.py)
-
-### 数据同步接口
-
-#### GET /sync/initial - 初始全量同步
-**状态**: 🔄 待实现
-
-```python
-@router.get("/initial", response_model=InitialSyncResponse)
-async def initial_sync(
-    current_user: dict = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """客户端初始化时的全量数据同步"""
-
-# 响应:
-{
-    "cards": [...],
-    "dimensions": [...],
-    "spreads": [...],
-    "user_history": [...],
-    "sync_timestamp": "2024-01-01T00:00:00Z"
-}
-```
-
-#### GET /sync/delta - 增量更新
-**状态**: 🔄 待实现
-
-```python
-@router.get("/delta", response_model=DeltaSyncResponse)
-async def delta_sync(
-    last_sync: datetime = Query(...),
-    current_user: dict = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """基于时间戳的增量数据同步"""
-
-# 响应:
-{
-    "updated_records": [...],
-    "deleted_records": [...],
-    "sync_timestamp": "2024-01-01T00:00:00Z"
-}
-```
-
-## 🔒 中间件和依赖项
-
-### 认证依赖
-```python
-# app/api/deps.py
-async def get_current_user(token: str = Depends(oauth2_scheme)) -> dict:
-    """解析JWT token获取当前用户"""
-    pass
-
-async def get_current_user_optional(token: str = Depends(oauth2_scheme)) -> Optional[dict]:
-    """可选的用户认证（支持匿名访问）"""
-    pass
-
-async def require_credits(credits_needed: int = 1) -> bool:
-    """检查用户积分是否充足"""
-    pass
-```
-
-### 验证模型
-```python
-# app/schemas/ 中定义的Pydantic模型
-
-class AnalyzeRequest(BaseModel):
-    question: str = Field(..., max_length=200)
-    spread_type: str = Field(..., regex="^(three-card|celtic-cross)$")
-
-class ReadingRequest(BaseModel):
-    question: str
-    spread_type: str
-    selected_dimensions: List[int]
-    cards: List[CardSelection]
-
-class RedeemRequest(BaseModel):
-    code: str = Field(..., regex="^[A-Z0-9]{16}$")
-```
-
-## ⚡ 性能优化
-
-### 缓存策略
-- Redis缓存用户余额查询
-- 静态数据缓存（cards, dimensions）
-- LLM解读结果缓存（相同问题+卡牌组合）
-
-### 限流控制
-```python
-# 每个用户每小时支付API限制
-@limiter.limit("10 per hour")
-@router.post("/payments/google/verify")
-async def verify_google_purchase(...):
-    pass
-
-# 每个用户每分钟解读限制
-@limiter.limit("5 per minute")
-@router.post("/readings/generate")
-async def generate_reading(...):
-    pass
-```
-
-### 异步处理
-- 支付验证异步处理
-- 邮件通知异步发送
-- 数据统计异步计算
-
-## 🧪 API测试
-
-### 测试组织
-```
-tests/api/
-├── test_auth.py              # 认证API测试
-├── test_readings.py          # 解读API测试
-├── test_payments.py          # 支付API测试
-├── test_sync.py              # 同步API测试
-└── conftest.py               # 测试配置
-```
-
-### 测试示例
-```python
-# tests/api/test_readings.py
-def test_analyze_reading_request(client, auth_headers):
-    response = client.post("/readings/analyze", json={
-        "question": "测试问题",
-        "spread_type": "three-card"
-    }, headers=auth_headers)
-
-    assert response.status_code == 200
-    assert len(response.json()["recommended_dimensions"]) == 3
-```
-
-## 🔐 安全考虑
+## 🛡️ 安全考虑
 
 ### API安全
-- 所有API强制HTTPS
-- JWT token过期时间控制
-- 请求参数验证和过滤
+- HTTPS强制传输
+- JWT token过期控制
 - SQL注入防护（SQLAlchemy ORM）
+- 请求参数验证和过滤
 
 ### 支付安全
-- Google Play购买凭证签名验证
-- 支付状态原子性更新
-- 幂等性控制防重复订单
+- Google Play凭证签名验证
+- 原子性支付状态更新
+- 幂等性防重复订单
 - 敏感信息环境变量管理
 
 ### 兑换码安全
 - 防爆破连续失败锁定
-- 设备级别使用限制
+- 16位混合字符防重复
 - 批次管理和过期控制
+
+## 📊 性能优化
+
+### 缓存策略（计划实现）
+- Redis缓存用户余额查询
+- 静态数据缓存（cards, dimensions）
+- LLM解读结果缓存
+
+### 限流控制（计划实现）
+- 支付API: 每用户每小时10次
+- 解读API: 每用户每分钟5次
+- 管理API: 基于IP限制
 
 ---
 
-*此文档定义了塔罗牌应用后端的完整API架构，为前端集成提供详细的接口规范。*
+*API架构已基本完成，核心功能均已实现并通过测试。待实现功能主要为用户API和离线同步。*
