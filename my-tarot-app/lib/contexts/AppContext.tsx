@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import AuthService from '../services/AuthService';
-import { AIReadingService } from '../services/AIReadingService';
+import AIReadingService from '../services/AIReadingService';
 
 interface AppState {
   isAIServiceAvailable: boolean;

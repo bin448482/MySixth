@@ -6,16 +6,23 @@ const TOKEN_KEY = 'user_jwt_token';
 const USER_ID_KEY = 'user_id';
 const TOKEN_EXPIRY_KEY = 'token_expiry';
 
+interface UserResponse {
+  id: number;
+  installation_id: string;
+  created_at: string;
+  last_active_at: string;
+}
+
 interface AnonymousUserResponse {
-  user_id: string;
-  token: string;
-  expires_in: number;
+  user: UserResponse;
+  access_token: string;
+  token_type: string;
 }
 
 class AuthService {
   private static instance: AuthService;
   private baseUrl: string = __DEV__
-    ? 'http://192.168.71.2:8001'
+    ? 'http://192.168.71.3:8001'
     : 'https://api.yourdomain.com';
 
   private constructor() {}
@@ -28,10 +35,19 @@ class AuthService {
   }
 
   async registerAnonymousUser(): Promise<AnonymousUserResponse> {
+    console.log('🚀 === AuthService.registerAnonymousUser() 开始 ===');
     try {
       const installationId = Application.androidId || Device.modelName || 'unknown';
+      console.log('📱 Device installation ID:', installationId);
+      console.log('🌐 Base URL:', this.baseUrl);
+      console.log('🔗 Request URL:', `${this.baseUrl}/api/v1/users/register`);
 
-      const response = await fetch(`${this.baseUrl}/auth/anon`, {
+      console.log('📦 Request body:', JSON.stringify({
+        installation_id: installationId,
+      }));
+
+      console.log('🚀 Sending fetch request...');
+      const response = await fetch(`${this.baseUrl}/api/v1/users/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -42,19 +58,26 @@ class AuthService {
         }),
       });
 
+      console.log('📡 Response received:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok
+      });
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
       const data: AnonymousUserResponse = await response.json();
 
-      await this.saveToken(data.token);
-      await SecureStore.setItemAsync(USER_ID_KEY, data.user_id);
+      await this.saveToken(data.access_token);
+      await SecureStore.setItemAsync(USER_ID_KEY, data.user.id.toString());
 
-      const expiryTime = Date.now() + data.expires_in * 1000;
+      // JWT tokens typically have longer expiry times, set a default of 30 days
+      const expiryTime = Date.now() + (30 * 24 * 60 * 60 * 1000);
       await SecureStore.setItemAsync(TOKEN_EXPIRY_KEY, expiryTime.toString());
 
-      console.log('✅ Anonymous user registered successfully:', data.user_id);
+      console.log('✅ Anonymous user registered successfully:', data.user.id);
       return data;
     } catch (error) {
       console.error('❌ Failed to register anonymous user:', error);
@@ -72,15 +95,23 @@ class AuthService {
   }
 
   async getToken(): Promise<string | null> {
+    console.log('🔍 === getToken() 开始 ===');
     try {
+      console.log('📱 Retrieving token from SecureStore...');
       const token = await SecureStore.getItemAsync(TOKEN_KEY);
+      console.log('📱 Token from storage:', token ? 'Found' : 'Not found');
 
       if (!token) {
+        console.log('❌ No token found in storage');
         return null;
       }
 
+      console.log('🔒 Validating token...');
       const isValid = await this.validateToken();
+      console.log('🔒 Token validation result:', isValid ? 'Valid' : 'Invalid');
+
       if (!isValid) {
+        console.log('🗑️ Clearing invalid token...');
         await this.clearToken();
         return null;
       }
@@ -109,6 +140,18 @@ class AuthService {
     }
   }
 
+  async clearAllAuthData(): Promise<void> {
+    console.log('🗑️ === clearAllAuthData() 开始 ===');
+    try {
+      await SecureStore.deleteItemAsync(TOKEN_KEY);
+      await SecureStore.deleteItemAsync(USER_ID_KEY);
+      await SecureStore.deleteItemAsync(TOKEN_EXPIRY_KEY);
+      console.log('🗑️ All auth data cleared');
+    } catch (error) {
+      console.error('Failed to clear all auth data:', error);
+    }
+  }
+
   async clearToken(): Promise<void> {
     try {
       await SecureStore.deleteItemAsync(TOKEN_KEY);
@@ -132,16 +175,26 @@ class AuthService {
   }
 
   async initializeUser(): Promise<boolean> {
+    console.log('🚀 === AuthService.initializeUser() 开始 ===');
     try {
-      const existingToken = await this.getToken();
+      // 在开发环境下，总是清除旧token并重新注册，确保与后端同步
+      if (__DEV__) {
+        console.log('🧹 开发模式：清除旧的认证数据...');
+        await this.clearAllAuthData();
+      } else {
+        console.log('🔍 Checking for existing token...');
+        const existingToken = await this.getToken();
+        console.log('🔍 Existing token check result:', existingToken ? 'Found valid token' : 'No valid token');
 
-      if (existingToken) {
-        console.log('✅ Existing valid token found');
-        return true;
+        if (existingToken) {
+          console.log('✅ Existing valid token found, skipping registration');
+          return true;
+        }
       }
 
-      console.log('🔄 No valid token, registering anonymous user...');
+      console.log('🔄 Registering anonymous user...');
       await this.registerAnonymousUser();
+      console.log('✅ registerAnonymousUser completed successfully');
       return true;
     } catch (error) {
       console.error('❌ Failed to initialize user:', error);
