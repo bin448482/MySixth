@@ -408,6 +408,11 @@ function renderUsers(users) {
                             title="调整积分">
                         <i class="fas fa-coins"></i>
                     </button>
+                    <button type="button" class="btn btn-outline-danger"
+                            onclick="deleteUser('${user.installation_id}')"
+                            title="删除用户">
+                        <i class="fas fa-trash"></i>
+                    </button>
                 </div>
             </td>
         </tr>
@@ -596,6 +601,48 @@ function sendVerificationToUser(installationId, currentEmail) {
     document.getElementById('targetUserIdForEmail').value = installationId;
     document.getElementById('verificationEmail').value = currentEmail;
     new bootstrap.Modal(document.getElementById('sendVerificationModal')).show();
+}
+
+// 删除用户
+function deleteUser(installationId) {
+    // 显示确认对话框
+    const userIdShort = installationId.substring(0, 8) + '...';
+    if (!confirm(`确定要删除用户 ${userIdShort} 吗？\n\n此操作将永久删除用户的所有数据，包括：\n- 用户基本信息\n- 积分余额和交易记录\n- 所有相关数据\n\n此操作不可撤销！`)) {
+        return;
+    }
+
+    // 发送删除请求
+    fetch(`/api/v1/admin/users/${installationId}`, {
+        method: 'DELETE',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            // 处理HTTP错误状态码
+            return response.json().then(data => {
+                throw new Error(data.detail || `HTTP ${response.status}: ${response.statusText}`);
+            }).catch(jsonError => {
+                // 如果响应不是JSON格式
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            });
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            showSuccess(data.message);
+            // 刷新用户列表
+            loadUsers(currentPage);
+        } else {
+            showError('删除用户失败: ' + (data.message || '未知错误'));
+        }
+    })
+    .catch(error => {
+        console.error('Delete user error:', error);
+        showError('删除用户失败: ' + error.message);
+    });
 }
 
 

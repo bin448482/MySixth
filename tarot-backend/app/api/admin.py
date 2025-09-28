@@ -15,6 +15,7 @@ from app.admin.auth import admin_auth_service, get_current_admin
 from app.database import get_db
 from app.models.user import User, UserBalance
 from app.models.transaction import CreditTransaction
+from app.models.email_verification import EmailVerification
 
 
 def get_current_admin_from_cookie(admin_token: Optional[str] = Cookie(None)) -> str:
@@ -210,6 +211,12 @@ class AdjustCreditsResponse(BaseModel):
     success: bool = True
     message: str
     new_balance: int
+
+
+class DeleteUserResponse(BaseModel):
+    """删除用户响应模型"""
+    success: bool = True
+    message: str
 
 
 # 创建用户管理路由组
@@ -514,4 +521,62 @@ async def export_users(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"导出用户数据失败: {str(e)}"
+        )
+
+
+@user_router.delete("/users/{installation_id}", response_model=DeleteUserResponse)
+async def delete_user(
+    installation_id: str,
+    current_admin: str = Depends(get_current_admin_from_cookie),
+    db: Session = Depends(get_db)
+):
+    """删除用户及其所有相关数据"""
+    try:
+        # 查询用户
+        user = db.query(User).filter(User.installation_id == installation_id).first()
+
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="用户不存在"
+            )
+
+        # 开启事务删除用户及其相关数据
+        try:
+            # 删除邮箱验证记录
+            db.query(EmailVerification).filter(EmailVerification.user_id == user.id).delete()
+
+            # 删除用户余额记录
+            db.query(UserBalance).filter(UserBalance.user_id == user.id).delete()
+
+            # 删除交易记录
+            db.query(CreditTransaction).filter(CreditTransaction.user_id == user.id).delete()
+
+            # TODO: 如果有其他相关表（如解读记录、订单记录等），也需要在这里删除
+            # 例如：
+            # db.query(Reading).filter(Reading.user_id == user.id).delete()
+            # db.query(Purchase).filter(Purchase.user_id == user.id).delete()
+
+            # 最后删除用户记录
+            db.delete(user)
+
+            # 提交事务
+            db.commit()
+
+        except Exception as delete_error:
+            # 回滚事务
+            db.rollback()
+            raise delete_error
+
+        return DeleteUserResponse(
+            message=f"用户 {installation_id[:8]}... 已成功删除"
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"删除用户失败: {str(e)}"
         )
