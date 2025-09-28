@@ -127,6 +127,100 @@ user = db.query(User).filter(User.installation_id == verification.user_id).first
 user = db.query(User).filter(User.id == verification.user_id).first()
 ```
 
+### 管理员API路由冲突问题
+
+**问题现象**：
+- 访问管理员页面 `/admin/redeem-codes` 时自动重定向到登录页面
+- API请求返回 403 Forbidden 错误：`{"error":"Not authenticated","status_code":403}`
+- 日志显示：`"GET /api/v1/admin/redeem-codes?page=1&size=20 HTTP/1.1" 403 Forbidden`
+
+**根本原因**：
+- 在 `payments.py` 和 `admin.py` 中存在重复的路由定义
+- `payments.py` 中的 `@router.get("/admin/redeem-codes")` 使用Bearer token认证
+- `admin.py` 中的 `@redeem_router.get("")` (完整路径: `/api/v1/admin/redeem-codes`) 使用Cookie认证
+- 由于路由注册顺序问题，`payments.router` 先注册，拦截了所有请求
+
+**问题定位步骤**：
+1. **检查路由注册顺序**：在 `app/main.py` 中查看路由注册顺序
+2. **查找重复路由**：使用 `grep -r "/admin/redeem-codes" app/api/` 查找重复路由
+3. **确认认证方式差异**：比较两个路由的认证依赖项
+
+**解决方案**：
+删除 `payments.py` 中的重复路由，保留 `admin.py` 中使用Cookie认证的专用管理路由：
+
+```python
+# 删除 app/api/payments.py 中的重复路由：
+@router.get("/admin/redeem-codes", response_model=RedeemCodeListResponse)
+async def list_redeem_codes(...):
+    # 这个路由使用 Depends(require_admin) - Bearer token认证
+    pass
+
+# 保留 app/api/admin.py 中的正确路由：
+@redeem_router.get("", response_model=RedeemCodeListResponse)
+async def get_redeem_codes(
+    current_admin: str = Depends(get_current_admin_from_cookie),  # Cookie认证
+    ...
+):
+    pass
+```
+
+**验证方法**：
+```bash
+# 1. 获取管理员登录token
+curl -X POST "http://localhost:8001/admin/login" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "username=admin&password=admin123"
+
+# 2. 测试API访问
+curl "http://localhost:8001/api/v1/admin/redeem-codes?page=1&size=20" \
+  -H "Cookie: admin_token=YOUR_TOKEN_HERE"
+```
+
+**预防措施**：
+1. **路由命名规范**：管理员专用API使用 `/api/v1/admin/` 前缀
+2. **认证方式统一**：同一功能模块使用统一的认证方式
+3. **路由注册检查**：定期检查路由冲突，确保专用路由优先注册
+
+### payments.py模块职责重构问题
+
+**问题背景**：
+- `payments.py` 中包含了大量管理员专用功能（创建、统计、禁用兑换码等）
+- 这些功能与 `admin.py` 中的管理功能重复
+- 不同的认证方式导致架构混乱
+
+**重构方案**：
+```python
+# payments.py - 只保留前端支付相关功能
+router = APIRouter(prefix="/api/v1/payments", tags=["payments"])
+
+@router.post("/redeem", response_model=RedeemCodeValidateResponse)
+async def redeem_code(...):
+    """兑换码验证兑换（前端核心功能）"""
+    pass
+
+# 删除所有管理员路由：
+# - POST /admin/redeem-codes/create
+# - GET /admin/redeem-codes/batch/{batch_id}/stats
+# - POST /admin/redeem-codes/disable
+# - POST /admin/redeem-codes/cleanup-expired
+```
+
+**模块职责清晰划分**：
+1. **payments.py**:
+   - 前缀：`/api/v1/payments`
+   - 职责：兑换码兑换、Google Play支付验证
+   - 认证：Bearer Token（面向前端应用）
+
+2. **admin.py**:
+   - 前缀：`/api/v1/admin`
+   - 职责：完整的兑换码管理、用户管理
+   - 认证：Cookie（面向管理后台）
+
+**重构效果**：
+- 消除功能重复，避免路由冲突
+- 明确模块边界，提高代码可维护性
+- 统一认证方式，简化前后端集成
+
 ---
 
 ## 🚀 快速开始

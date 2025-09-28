@@ -290,7 +290,73 @@ async def export_users(
 
 ## 💳 支付API接口 (payments.py)
 
-### 用户余额管理
+### ⚠️ 重构说明
+**payments.py 已重构**，现在专注于前端支付相关功能：
+- **路由前缀**: `/api/v1/payments`
+- **职责范围**: 兑换码兑换、Google Play支付验证
+- **认证方式**: Bearer Token（面向前端应用）
+- **已删除**: 所有管理员路由，统一迁移至 `admin.py`
+
+### 兑换码功能
+
+#### POST /api/v1/payments/redeem - 兑换码验证兑换
+**状态**: ✅ 已实现
+
+```python
+@router.post("/redeem", response_model=RedeemResponse)
+async def redeem_code(
+    request: RedeemRequest,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """兑换码验证和积分发放"""
+
+# 请求:
+{
+    "code": "TAROT123456789ABCD"
+}
+
+# 响应:
+{
+    "success": true,
+    "credits_earned": 5,
+    "new_balance": 15,
+    "message": "兑换成功，获得5积分"
+}
+```
+
+### Google Play支付
+
+#### POST /api/v1/payments/google/verify - 购买验证
+**状态**: ✅ 已实现
+
+```python
+@router.post("/payments/google/verify", response_model=PaymentResponse)
+async def verify_google_purchase(
+    request: GooglePlayRequest,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """验证Google Play购买凭证"""
+
+# 请求:
+{
+    "purchase_token": "google_purchase_token",
+    "product_id": "credits_pack_5",
+    "order_id": "google_order_id"
+}
+
+# 响应:
+{
+    "success": true,
+    "order_id": "internal_order_id",
+    "credits_earned": 5,
+    "new_balance": 20,
+    "purchase_status": "completed"
+}
+```
+
+### 用户余额管理 (移至users.py)
 
 #### GET /api/v1/me/balance - 查询用户余额
 **状态**: 🔄 待实现
@@ -341,8 +407,8 @@ async def get_user_transactions(
 
 ### 兑换码功能
 
-#### POST /api/v1/redeem - 兑换码验证兑换
-**状态**: 🔄 待实现
+#### POST /api/v1/payments/redeem - 兑换码验证兑换
+**状态**: ✅ 已实现
 
 ```python
 @router.post("/redeem", response_model=RedeemResponse)
