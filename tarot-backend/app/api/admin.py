@@ -221,6 +221,8 @@ async def get_users(
     page: int = Query(1, ge=1, description="页码"),
     size: int = Query(20, ge=1, le=100, description="每页数量"),
     installation_id: Optional[str] = Query(None, description="用户ID筛选"),
+    email: Optional[str] = Query(None, description="邮箱地址筛选"),
+    email_status: Optional[str] = Query(None, description="邮箱状态筛选"),
     min_credits: Optional[int] = Query(None, ge=0, description="最低积分筛选"),
     date_range: Optional[str] = Query(None, description="注册时间筛选"),
     current_admin: str = Depends(get_current_admin_from_cookie),
@@ -231,6 +233,8 @@ async def get_users(
 
     支持以下筛选条件：
     - installation_id: 用户ID搜索
+    - email: 邮箱地址搜索
+    - email_status: 邮箱状态筛选（verified/unverified/none）
     - min_credits: 最低积分筛选
     - date_range: 注册时间筛选（today, week, month）
     """
@@ -241,6 +245,17 @@ async def get_users(
         # 应用筛选条件
         if installation_id:
             query = query.filter(User.installation_id.contains(installation_id))
+
+        if email:
+            query = query.filter(User.email.contains(email))
+
+        if email_status:
+            if email_status == "verified":
+                query = query.filter(User.email.isnot(None), User.email_verified == True)
+            elif email_status == "unverified":
+                query = query.filter(User.email.isnot(None), User.email_verified == False)
+            elif email_status == "none":
+                query = query.filter(User.email.is_(None))
 
         if date_range:
             now = datetime.utcnow()
@@ -272,6 +287,8 @@ async def get_users(
             balance = user.balance.credits if user.balance else 0
             user_list.append({
                 "installation_id": user.installation_id,
+                "email": user.email,
+                "email_verified": user.email_verified,
                 "credits": balance,
                 "total_credits_purchased": user.total_credits_purchased,
                 "total_credits_consumed": user.total_credits_consumed,
@@ -320,6 +337,9 @@ async def get_user_detail(
         # 格式化用户数据
         user_detail = {
             "installation_id": user.installation_id,
+            "email": user.email,
+            "email_verified": user.email_verified,
+            "email_verified_at": user.email_verified_at.isoformat() if user.email_verified_at else None,
             "credits": user.balance.credits if user.balance else 0,
             "total_credits_purchased": user.total_credits_purchased,
             "total_credits_consumed": user.total_credits_consumed,
