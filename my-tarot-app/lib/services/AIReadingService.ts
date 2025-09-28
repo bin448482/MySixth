@@ -3,6 +3,8 @@
  * 负责与后端AI解读API的交互
  */
 
+import AuthService from './AuthService';
+
 export interface AnalyzeRequest {
   description: string;
   spread_type: string;
@@ -55,9 +57,10 @@ export interface GenerateResponse {
 class AIReadingService {
   private static instance: AIReadingService;
   private baseUrl: string;
+  private authService: AuthService;
 
   private constructor() {
-    // 后端API地址，开发环境使用本地地址
+    // 后端API地址,开发环境使用本地地址
     // Expo 环境需要使用电脑的实际IP地址，不能使用localhost
     let devUrl: string;
 
@@ -73,6 +76,7 @@ class AIReadingService {
     }
 
     this.baseUrl = devUrl;
+    this.authService = AuthService.getInstance();
     console.log('AI Service Base URL:', this.baseUrl);
   }
 
@@ -81,6 +85,15 @@ class AIReadingService {
       AIReadingService.instance = new AIReadingService();
     }
     return AIReadingService.instance;
+  }
+
+  private async getRequestHeaders(): Promise<Record<string, string>> {
+    const authHeaders = await this.authService.getAuthHeaders();
+    return {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      ...authHeaders
+    };
   }
 
   /**
@@ -98,14 +111,18 @@ class AIReadingService {
         spread_type: spreadType
       };
 
+      const headers = await this.getRequestHeaders();
+
       const response = await fetch(`${this.baseUrl}/api/v1/readings/analyze`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
+        headers,
         body: JSON.stringify(request),
       });
+
+      if (response.status === 401) {
+        await this.authService.clearToken();
+        throw new Error('认证失败，请重新登录');
+      }
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -139,14 +156,9 @@ class AIReadingService {
         spread_type: spreadType
       };
 
-      // 🔧 详细的请求调试日志
       console.log('🚀 === AIReadingService.generateAIReading 开始 ===');
       console.log('🌐 请求URL:', `${this.baseUrl}/api/v1/readings/generate`);
       console.log('📋 请求方法: POST');
-      console.log('📦 请求头:', {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      });
       console.log('📄 请求体 (完整):', JSON.stringify(request, null, 2));
       console.log('🎴 卡牌详情:');
       cards.forEach((card, index) => {
@@ -167,17 +179,22 @@ class AIReadingService {
         });
       });
 
+      const headers = await this.getRequestHeaders();
+      console.log('📦 请求头:', headers);
+
       const response = await fetch(`${this.baseUrl}/api/v1/readings/generate`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
+        headers,
         body: JSON.stringify(request),
       });
 
       console.log('📡 响应状态:', response.status, response.statusText);
       console.log('📡 响应头:', Object.fromEntries(response.headers.entries()));
+
+      if (response.status === 401) {
+        await this.authService.clearToken();
+        throw new Error('认证失败，请重新登录');
+      }
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -191,7 +208,6 @@ class AIReadingService {
 
       const result: GenerateResponse = await response.json();
 
-      // 🔍 详细的响应调试日志
       console.log('✅ === AIReadingService.generateAIReading 响应 ===');
       console.log('📦 完整响应数据 (JSON):', JSON.stringify(result, null, 2));
       console.log('🔍 响应数据结构分析:');

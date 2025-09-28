@@ -9,33 +9,37 @@ import { useEffect } from 'react';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { DatabaseInitializer } from '@/lib/database/initializer';
+import { AppProvider, useAppContext } from '@/lib/contexts/AppContext';
 
 export const unstable_settings = {
   anchor: '(tabs)',
 };
 
-export default function RootLayout() {
+function RootLayoutContent() {
   const colorScheme = useColorScheme();
+  const { actions } = useAppContext();
 
   useEffect(() => {
-    // 初始化数据库
-    const initializeDatabase = async () => {
+    const initializeApp = async () => {
       try {
         console.log('🚀 Starting database initialization...');
         const initializer = new DatabaseInitializer();
-        const success = await initializer.initialize();
-        
-        if (success) {
-          console.log('✅ Database initialization completed successfully');
-        } else {
+        const dbSuccess = await initializer.initialize();
+
+        if (!dbSuccess) {
           console.error('❌ Database initialization failed');
+          return;
         }
+
+        console.log('✅ Database initialization completed successfully');
+
+        await actions.initializeApp();
       } catch (error) {
-        console.error('❌ Database initialization error:', error);
+        console.error('❌ App initialization error:', error);
       }
     };
 
-    initializeDatabase();
+    initializeApp();
   }, []);
 
   return (
@@ -54,5 +58,13 @@ export default function RootLayout() {
         </ThemeProvider>
       </TamaguiProvider>
     </GestureHandlerRootView>
+  );
+}
+
+export default function RootLayout() {
+  return (
+    <AppProvider>
+      <RootLayoutContent />
+    </AppProvider>
   );
 }

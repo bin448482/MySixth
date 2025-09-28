@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -9,33 +9,15 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useReadingFlow } from '@/lib/contexts/ReadingContext';
-import AIReadingService from '@/lib/services/AIReadingService';
+import { useAppContext } from '@/lib/contexts/AppContext';
 
 export default function TypeSelectionScreen() {
   const router = useRouter();
   const { updateStep, updateType } = useReadingFlow();
-  const [isAIServiceAvailable, setIsAIServiceAvailable] = useState(false);
-  const [isCheckingService, setIsCheckingService] = useState(true);
+  const { state } = useAppContext();
 
-  const aiReadingService = AIReadingService.getInstance();
-
-  useEffect(() => {
-    checkAIServiceHealth();
-  }, []);
-
-  const checkAIServiceHealth = async () => {
-    try {
-      setIsCheckingService(true);
-      const isHealthy = await aiReadingService.checkServiceHealth();
-      setIsAIServiceAvailable(isHealthy);
-      console.log('AI Service Health:', isHealthy);
-    } catch (error) {
-      console.error('AI Service Health Check Failed:', error);
-      setIsAIServiceAvailable(false);
-    } finally {
-      setIsCheckingService(false);
-    }
-  };
+  const isAIServiceAvailable = state.isAIServiceAvailable;
+  const isCheckingService = state.isCheckingAIService || !state.isAppInitialized;
 
   const handleTypeSelect = async (type: 'offline' | 'ai') => {
     if (type === 'ai' && !isAIServiceAvailable) {
