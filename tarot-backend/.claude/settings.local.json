@@ -4,7 +4,8 @@
       "Bash(python:*)",
       "Bash(alembic current:*)",
       "Bash(pip install:*)",
-      "Bash(sqlite3:*)"
+      "Bash(sqlite3:*)",
+      "Bash(curl:*)"
     ],
     "deny": [],
     "ask": []

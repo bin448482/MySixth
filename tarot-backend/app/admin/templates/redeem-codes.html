@@ -355,9 +355,20 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // 加载兑换码统计
 function loadCodeStats() {
-    fetch('/api/v1/admin/redeem-codes/stats')
-        .then(response => response.json())
+    fetch('/api/v1/admin/redeem-codes/stats', {
+        credentials: 'include'
+    })
+        .then(response => {
+            if (response.status === 401 || response.status === 403) {
+                // 认证失败，重定向到登录页面
+                window.location.href = '/admin/login';
+                return;
+            }
+            return response.json();
+        })
         .then(data => {
+            if (!data) return; // 如果被重定向，data为undefined
+
             if (data.success) {
                 document.getElementById('activeCodes').textContent = data.stats.active || 0;
                 document.getElementById('usedCodes').textContent = data.stats.used || 0;
@@ -375,9 +386,20 @@ function loadCodeStats() {
 
 // 加载批次选项
 function loadBatches() {
-    fetch('/api/v1/admin/redeem-codes/batches')
-        .then(response => response.json())
+    fetch('/api/v1/admin/redeem-codes/batches', {
+        credentials: 'include'
+    })
+        .then(response => {
+            if (response.status === 401 || response.status === 403) {
+                // 认证失败，重定向到登录页面
+                window.location.href = '/admin/login';
+                return;
+            }
+            return response.json();
+        })
         .then(data => {
+            if (!data) return; // 如果被重定向，data为undefined
+
             if (data.success) {
                 const batchFilter = document.getElementById('batchFilter');
                 const batchTargetBatch = document.getElementById('batchTargetBatch');
@@ -417,15 +439,26 @@ function loadCodes(page = 1) {
     if (batch) searchParams.append('batch_id', batch);
     if (dateRange) searchParams.append('date_range', dateRange);
 
-    fetch(`/api/v1/admin/redeem-codes?${searchParams}`)
-        .then(response => response.json())
+    fetch(`/api/v1/admin/redeem-codes?${searchParams}`, {
+        credentials: 'include'
+    })
+        .then(response => {
+            if (response.status === 401 || response.status === 403) {
+                // 认证失败，重定向到登录页面
+                window.location.href = '/admin/login';
+                return;
+            }
+            return response.json();
+        })
         .then(data => {
+            if (!data) return; // 如果被重定向，data为undefined
+
             if (data.success) {
-                renderCodes(data.codes);
+                renderCodes(data.redeem_codes);
                 renderPagination(data.total, data.page, data.size);
                 document.getElementById('codeCount').textContent = `总计: ${data.total} 兑换码`;
             } else {
-                showError('加载兑换码列表失败: ' + data.message);
+                showError('加载兑换码列表失败: ' + (data.detail || data.message || '未知错误'));
             }
         })
         .catch(error => {
@@ -466,7 +499,7 @@ function renderCodes(codes) {
             </td>
             <td>${code.batch_id || '-'}</td>
             <td>
-                ${code.used_by ? `<code>${code.used_by.substring(0, 8)}...</code>` : '-'}
+                ${code.used_by_user ? `<code>${code.used_by_user.installation_id.substring(0, 8)}...</code>` : '-'}
             </td>
             <td>${formatDateTime(code.created_at)}</td>
             <td>${code.expires_at ? formatDateTime(code.expires_at) : '永不过期'}</td>
@@ -475,13 +508,13 @@ function renderCodes(codes) {
                 <div class="btn-group btn-group-sm" role="group">
                     ${code.status === 'active' ? `
                         <button type="button" class="btn btn-outline-warning"
-                                onclick="toggleCodeStatus('${code.code}', 'disabled')"
+                                onclick="toggleCodeStatus('${code.id}', 'disabled')"
                                 title="禁用">
                             <i class="fas fa-ban"></i>
                         </button>
                     ` : code.status === 'disabled' ? `
                         <button type="button" class="btn btn-outline-success"
-                                onclick="toggleCodeStatus('${code.code}', 'active')"
+                                onclick="toggleCodeStatus('${code.id}', 'active')"
                                 title="启用">
                             <i class="fas fa-check"></i>
                         </button>
@@ -543,10 +576,9 @@ document.getElementById('generateCodesForm').addEventListener('submit', function
 
     const formData = {
         credits: parseInt(document.getElementById('generateCredits').value),
-        quantity: parseInt(document.getElementById('generateQuantity').value),
-        batch_id: document.getElementById('generateBatch').value || null,
-        expiry_days: parseInt(document.getElementById('generateExpiryDays').value) || null,
-        prefix: document.getElementById('generatePrefix').value || 'TAROT'
+        count: parseInt(document.getElementById('generateQuantity').value),
+        batch_name: document.getElementById('generateBatch').value || null,
+        expires_days: parseInt(document.getElementById('generateExpiryDays').value) || 365
     };
 
     // 隐藏生成表单，显示进度框
@@ -563,6 +595,7 @@ document.getElementById('generateCodesForm').addEventListener('submit', function
         headers: {
             'Content-Type': 'application/json',
         },
+        credentials: 'include',
         body: JSON.stringify(formData)
     })
     .then(response => response.json())
@@ -598,12 +631,13 @@ function updateProgress(percent) {
 }
 
 // 切换兑换码状态
-function toggleCodeStatus(code, newStatus) {
-    fetch(`/api/v1/admin/redeem-codes/${code}/status`, {
+function toggleCodeStatus(codeId, newStatus) {
+    fetch(`/api/v1/admin/redeem-codes/${codeId}`, {
         method: 'PUT',
         headers: {
             'Content-Type': 'application/json',
         },
+        credentials: 'include',
         body: JSON.stringify({
             status: newStatus
         })
@@ -615,7 +649,7 @@ function toggleCodeStatus(code, newStatus) {
             loadCodes(currentPage);
             loadCodeStats();
         } else {
-            showError('状态更新失败: ' + data.message);
+            showError('状态更新失败: ' + (data.detail || data.message || '未知错误'));
         }
     })
     .catch(error => {
@@ -653,6 +687,7 @@ function executeBatchOperation() {
         headers: {
             'Content-Type': 'application/json',
         },
+        credentials: 'include',
         body: JSON.stringify(requestData)
     })
     .then(response => response.json())
@@ -685,7 +720,7 @@ function exportCodes() {
     if (batch) searchParams.append('batch_id', batch);
     if (dateRange) searchParams.append('date_range', dateRange);
 
-    window.open(`/api/v1/admin/redeem-codes/export?${searchParams}`, '_blank');
+    window.open(`/api/v1/admin/redeem-codes/export/csv?${searchParams}`, '_blank');
 }
 
 // 工具函数

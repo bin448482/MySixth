@@ -166,10 +166,8 @@ async def redeem_codes_page(
     if isinstance(admin_check, RedirectResponse):
         return admin_check
 
-    # TODO: Implement redeem codes management page
-    return templates.TemplateResponse("base.html", {
-        "request": request,
-        "content": "<h2>兑换码管理页面开发中...</h2>"
+    return templates.TemplateResponse("redeem-codes.html", {
+        "request": request
     })
 
 

@@ -11,18 +11,10 @@ from ..database import get_db
 from ..services.user_service import UserService
 from ..utils.redeem_code import RedeemCodeService
 from ..schemas.payment import (
-    RedeemCodeCreateRequest,
-    RedeemCodeResponse,
-    RedeemCodeBatchResponse,
     RedeemCodeValidateRequest,
     RedeemCodeValidateResponse,
     RedeemCodeInfoRequest,
     RedeemCodeInfoResponse,
-    RedeemCodeBatchStatsResponse,
-    RedeemCodeListRequest,
-    RedeemCodeListResponse,
-    RedeemCodeDisableRequest,
-    RedeemCodeDisableResponse,
     PurchaseRequest,
     PurchaseResponse,
     GooglePlayPurchaseRequest,
@@ -33,9 +25,8 @@ from ..schemas.payment import (
 from ..models import User, RedeemCode, Purchase
 from ..config import settings
 from ..services.google_play import google_play_service
-from ..admin.auth import require_admin
 
-router = APIRouter(prefix="/api/v1", tags=["payments"])
+router = APIRouter(prefix="/api/v1/payments", tags=["payments"])
 
 
 @router.post("/redeem", response_model=RedeemCodeValidateResponse)
@@ -172,184 +163,17 @@ async def get_redeem_code_info(
         )
 
 
-# Admin endpoints for redeem code management
-@router.post("/admin/redeem-codes/create", response_model=RedeemCodeBatchResponse)
-async def create_redeem_codes(
-    request: RedeemCodeCreateRequest,
-    db: Session = Depends(get_db),
-    current_admin: str = Depends(require_admin)
-):
-    """
-    Admin endpoint to create a batch of redeem codes.
-
-    Creates multiple redeem codes with the same product and credit values.
-    Codes are generated with anti-confusion character set and batch tracking.
-    """
-    try:
-        # Get configuration values
-        code_length = getattr(settings, 'REDEEM_CODE_LENGTH', request.code_length)
-        default_prefix = getattr(settings, 'REDEEM_CODE_PREFIX', None)
-        prefix = request.prefix or default_prefix
-
-        # Create the batch of codes
-        redeem_codes = RedeemCodeService.create_redeem_codes(
-            db=db,
-            product_id=request.product_id,
-            credits=request.credits,
-            count=request.count,
-            expires_days=request.expires_days,
-            prefix=prefix,
-            code_length=code_length
-        )
-
-        total_credits = request.credits * request.count
-        expires_at = redeem_codes[0].expires_at if redeem_codes else None
-
-        return RedeemCodeBatchResponse(
-            batch_id=redeem_codes[0].batch_id,
-            codes_created=len(redeem_codes),
-            total_credits=total_credits,
-            expires_at=expires_at,
-            codes=[RedeemCodeResponse.from_orm(code) for code in redeem_codes]
-        )
-
-    except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to create redeem codes"
-        )
 
 
-@router.get("/admin/redeem-codes", response_model=RedeemCodeListResponse)
-async def list_redeem_codes(
-    batch_id: Optional[str] = Query(None, description="Filter by batch ID"),
-    status: Optional[str] = Query(None, description="Filter by status"),
-    limit: int = Query(50, ge=1, le=500, description="Number of codes to return"),
-    offset: int = Query(0, ge=0, description="Offset for pagination"),
-    db: Session = Depends(get_db),
-    current_admin: str = Depends(require_admin)
-):
-    """
-    Admin endpoint to list redeem codes with filtering and pagination.
-    """
-    try:
-        query = db.query(RedeemCode)
-
-        if batch_id:
-            query = query.filter(RedeemCode.batch_id == batch_id)
-
-        if status:
-            query = query.filter(RedeemCode.status == status)
-
-        total_count = query.count()
-        codes = query.order_by(desc(RedeemCode.created_at)).limit(limit).offset(offset).all()
-
-        has_more = offset + len(codes) < total_count
-
-        return RedeemCodeListResponse(
-            codes=[RedeemCodeResponse.from_orm(code) for code in codes],
-            total_count=total_count,
-            has_more=has_more
-        )
-
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to list redeem codes"
-        )
 
 
-@router.get("/admin/redeem-codes/batch/{batch_id}/stats", response_model=RedeemCodeBatchStatsResponse)
-async def get_batch_stats(
-    batch_id: str,
-    db: Session = Depends(get_db),
-    current_admin: str = Depends(require_admin)
-):
-    """
-    Admin endpoint to get statistics for a batch of redeem codes.
-    """
-    try:
-        stats = RedeemCodeService.get_batch_stats(db, batch_id)
-
-        if stats["total_codes"] == 0:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Batch not found"
-            )
-
-        return RedeemCodeBatchStatsResponse(**stats)
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to get batch statistics"
-        )
 
 
-@router.post("/admin/redeem-codes/disable", response_model=RedeemCodeDisableResponse)
-async def disable_redeem_codes(
-    request: RedeemCodeDisableRequest,
-    db: Session = Depends(get_db),
-    current_admin: str = Depends(require_admin)
-):
-    """
-    Admin endpoint to disable multiple redeem codes.
 
-    Disabled codes cannot be redeemed but can still be viewed for audit purposes.
-    """
-    try:
-        disabled_count = RedeemCodeService.disable_codes(
-            db, request.code_ids, request.reason
-        )
-
-        return RedeemCodeDisableResponse(
-            success=True,
-            disabled_count=disabled_count,
-            message=f"Successfully disabled {disabled_count} codes"
-        )
-
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to disable codes"
-        )
-
-
-@router.post("/admin/redeem-codes/cleanup-expired")
-async def cleanup_expired_codes(
-    db: Session = Depends(get_db),
-    current_admin: str = Depends(require_admin)
-):
-    """
-    Admin endpoint to mark expired codes as expired status.
-
-    This is typically run as a scheduled task to maintain data accuracy.
-    """
-    try:
-        expired_count = RedeemCodeService.cleanup_expired_codes(db)
-
-        return {
-            "success": True,
-            "expired_count": expired_count,
-            "message": f"Marked {expired_count} codes as expired"
-        }
-
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to cleanup expired codes"
-        )
 
 
 # Google Play API endpoints
-@router.post("/payments/google/verify", response_model=GooglePlayPurchaseResponse)
+@router.post("/google/verify", response_model=GooglePlayPurchaseResponse)
 async def verify_google_play_purchase(
     request: GooglePlayPurchaseRequest,
     db: Session = Depends(get_db)
@@ -386,7 +210,7 @@ async def verify_google_play_purchase(
         )
 
 
-@router.post("/payments/google/consume", response_model=GooglePlayConsumeResponse)
+@router.post("/google/consume", response_model=GooglePlayConsumeResponse)
 async def consume_google_play_purchase(
     request: GooglePlayConsumeRequest,
     db: Session = Depends(get_db)
