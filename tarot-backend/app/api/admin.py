@@ -15,6 +15,7 @@ from app.admin.auth import admin_auth_service, get_current_admin
 from app.database import get_db
 from app.models.user import User, UserBalance
 from app.models.transaction import CreditTransaction
+from app.models.email_verification import EmailVerification
 
 
 def get_current_admin_from_cookie(admin_token: Optional[str] = Cookie(None)) -> str:
@@ -212,6 +213,12 @@ class AdjustCreditsResponse(BaseModel):
     new_balance: int
 
 
+class DeleteUserResponse(BaseModel):
+    """删除用户响应模型"""
+    success: bool = True
+    message: str
+
+
 # 创建用户管理路由组
 user_router = APIRouter(prefix="/api/v1/admin", tags=["admin-users"])
 
@@ -221,6 +228,8 @@ async def get_users(
     page: int = Query(1, ge=1, description="页码"),
     size: int = Query(20, ge=1, le=100, description="每页数量"),
     installation_id: Optional[str] = Query(None, description="用户ID筛选"),
+    email: Optional[str] = Query(None, description="邮箱地址筛选"),
+    email_status: Optional[str] = Query(None, description="邮箱状态筛选"),
     min_credits: Optional[int] = Query(None, ge=0, description="最低积分筛选"),
     date_range: Optional[str] = Query(None, description="注册时间筛选"),
     current_admin: str = Depends(get_current_admin_from_cookie),
@@ -231,6 +240,8 @@ async def get_users(
 
     支持以下筛选条件：
     - installation_id: 用户ID搜索
+    - email: 邮箱地址搜索
+    - email_status: 邮箱状态筛选（verified/unverified/none）
     - min_credits: 最低积分筛选
     - date_range: 注册时间筛选（today, week, month）
     """
@@ -241,6 +252,17 @@ async def get_users(
         # 应用筛选条件
         if installation_id:
             query = query.filter(User.installation_id.contains(installation_id))
+
+        if email:
+            query = query.filter(User.email.contains(email))
+
+        if email_status:
+            if email_status == "verified":
+                query = query.filter(User.email.isnot(None), User.email_verified == True)
+            elif email_status == "unverified":
+                query = query.filter(User.email.isnot(None), User.email_verified == False)
+            elif email_status == "none":
+                query = query.filter(User.email.is_(None))
 
         if date_range:
             now = datetime.utcnow()
@@ -272,6 +294,8 @@ async def get_users(
             balance = user.balance.credits if user.balance else 0
             user_list.append({
                 "installation_id": user.installation_id,
+                "email": user.email,
+                "email_verified": user.email_verified,
                 "credits": balance,
                 "total_credits_purchased": user.total_credits_purchased,
                 "total_credits_consumed": user.total_credits_consumed,
@@ -320,6 +344,9 @@ async def get_user_detail(
         # 格式化用户数据
         user_detail = {
             "installation_id": user.installation_id,
+            "email": user.email,
+            "email_verified": user.email_verified,
+            "email_verified_at": user.email_verified_at.isoformat() if user.email_verified_at else None,
             "credits": user.balance.credits if user.balance else 0,
             "total_credits_purchased": user.total_credits_purchased,
             "total_credits_consumed": user.total_credits_consumed,
@@ -494,4 +521,62 @@ async def export_users(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"导出用户数据失败: {str(e)}"
+        )
+
+
+@user_router.delete("/users/{installation_id}", response_model=DeleteUserResponse)
+async def delete_user(
+    installation_id: str,
+    current_admin: str = Depends(get_current_admin_from_cookie),
+    db: Session = Depends(get_db)
+):
+    """删除用户及其所有相关数据"""
+    try:
+        # 查询用户
+        user = db.query(User).filter(User.installation_id == installation_id).first()
+
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="用户不存在"
+            )
+
+        # 开启事务删除用户及其相关数据
+        try:
+            # 删除邮箱验证记录
+            db.query(EmailVerification).filter(EmailVerification.user_id == user.id).delete()
+
+            # 删除用户余额记录
+            db.query(UserBalance).filter(UserBalance.user_id == user.id).delete()
+
+            # 删除交易记录
+            db.query(CreditTransaction).filter(CreditTransaction.user_id == user.id).delete()
+
+            # TODO: 如果有其他相关表（如解读记录、订单记录等），也需要在这里删除
+            # 例如：
+            # db.query(Reading).filter(Reading.user_id == user.id).delete()
+            # db.query(Purchase).filter(Purchase.user_id == user.id).delete()
+
+            # 最后删除用户记录
+            db.delete(user)
+
+            # 提交事务
+            db.commit()
+
+        except Exception as delete_error:
+            # 回滚事务
+            db.rollback()
+            raise delete_error
+
+        return DeleteUserResponse(
+            message=f"用户 {installation_id[:8]}... 已成功删除"
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"删除用户失败: {str(e)}"
         )
