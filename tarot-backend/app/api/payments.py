@@ -225,44 +225,6 @@ async def create_redeem_codes(
         )
 
 
-@router.get("/admin/redeem-codes", response_model=RedeemCodeListResponse)
-async def list_redeem_codes(
-    batch_id: Optional[str] = Query(None, description="Filter by batch ID"),
-    status: Optional[str] = Query(None, description="Filter by status"),
-    limit: int = Query(50, ge=1, le=500, description="Number of codes to return"),
-    offset: int = Query(0, ge=0, description="Offset for pagination"),
-    db: Session = Depends(get_db),
-    current_admin: str = Depends(require_admin)
-):
-    """
-    Admin endpoint to list redeem codes with filtering and pagination.
-    """
-    try:
-        query = db.query(RedeemCode)
-
-        if batch_id:
-            query = query.filter(RedeemCode.batch_id == batch_id)
-
-        if status:
-            query = query.filter(RedeemCode.status == status)
-
-        total_count = query.count()
-        codes = query.order_by(desc(RedeemCode.created_at)).limit(limit).offset(offset).all()
-
-        has_more = offset + len(codes) < total_count
-
-        return RedeemCodeListResponse(
-            codes=[RedeemCodeResponse.from_orm(code) for code in codes],
-            total_count=total_count,
-            has_more=has_more
-        )
-
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to list redeem codes"
-        )
-
 
 @router.get("/admin/redeem-codes/batch/{batch_id}/stats", response_model=RedeemCodeBatchStatsResponse)
 async def get_batch_stats(

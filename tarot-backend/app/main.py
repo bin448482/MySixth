@@ -129,6 +129,7 @@ app.include_router(users.router)  # Users router already includes /api/v1 prefix
 app.include_router(payments.router)  # Payments router already includes /api/v1 prefix
 app.include_router(admin.router, prefix="/api/v1")  # Admin API routes (/api/v1/admin-api/*)
 app.include_router(admin.user_router)  # Admin user management API (/api/v1/admin/*)
+app.include_router(admin.redeem_router)  # Admin redeem codes management API (/api/v1/admin/redeem-codes/*)
 app.include_router(admin_web_router)  # Admin web interface routes (/admin/*)
 
 

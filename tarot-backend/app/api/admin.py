@@ -16,21 +16,22 @@ from app.database import get_db
 from app.models.user import User, UserBalance
 from app.models.transaction import CreditTransaction
 from app.models.email_verification import EmailVerification
+from app.models.payment import RedeemCode
 
 
 def get_current_admin_from_cookie(admin_token: Optional[str] = Cookie(None)) -> str:
     """从Cookie获取当前管理员用户"""
     if not admin_token:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Missing admin authentication cookie"
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authenticated"
         )
 
     username = admin_auth_service.verify_admin_token(admin_token)
     if not username:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid admin authentication cookie"
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Invalid authentication credentials"
         )
 
     return username
@@ -580,3 +581,446 @@ async def delete_user(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"删除用户失败: {str(e)}"
         )
+
+
+# ============================================================================
+# 兑换码管理API路由
+# ============================================================================
+
+class RedeemCodeListResponse(BaseModel):
+    """兑换码列表响应模型"""
+    success: bool = True
+    redeem_codes: List[dict]
+    total: int
+    page: int
+    size: int
+    stats: dict
+
+
+class RedeemCodeDetailResponse(BaseModel):
+    """兑换码详情响应模型"""
+    success: bool = True
+    redeem_code: dict
+
+
+class GenerateRedeemCodesRequest(BaseModel):
+    """生成兑换码请求模型"""
+    count: int = Field(..., ge=1, le=1000, description="生成数量（1-1000）")
+    credits: int = Field(..., ge=1, description="每个兑换码的积分值")
+    expires_days: int = Field(365, ge=1, le=3650, description="有效期天数（默认365天）")
+    batch_name: Optional[str] = Field(None, description="批次名称")
+
+
+class GenerateRedeemCodesResponse(BaseModel):
+    """生成兑换码响应模型"""
+    success: bool = True
+    message: str
+    batch_id: str
+    generated_codes: List[str]
+    count: int
+
+
+class UpdateRedeemCodeRequest(BaseModel):
+    """更新兑换码请求模型"""
+    status: str = Field(..., description="新状态: active, disabled, expired")
+    reason: Optional[str] = Field(None, description="更新原因")
+
+
+class UpdateRedeemCodeResponse(BaseModel):
+    """更新兑换码响应模型"""
+    success: bool = True
+    message: str
+
+
+# 创建兑换码管理路由组
+redeem_router = APIRouter(prefix="/api/v1/admin/redeem-codes", tags=["admin-redeem-codes"])
+
+
+def generate_redeem_code() -> str:
+    """生成16位兑换码"""
+    import string
+    import secrets
+
+    # 使用大写字母和数字，排除容易混淆的字符
+    chars = string.ascii_uppercase.replace('O', '').replace('I', '') + string.digits.replace('0', '').replace('1', '')
+    return ''.join(secrets.choice(chars) for _ in range(16))
+
+
+@redeem_router.get("", response_model=RedeemCodeListResponse)
+async def get_redeem_codes(
+    page: int = Query(1, ge=1, description="页码"),
+    size: int = Query(20, ge=1, le=100, description="每页数量"),
+    status: Optional[str] = Query(None, description="状态筛选"),
+    batch_id: Optional[str] = Query(None, description="批次ID筛选"),
+    code: Optional[str] = Query(None, description="兑换码搜索"),
+    current_admin: str = Depends(get_current_admin_from_cookie),
+    db: Session = Depends(get_db)
+):
+    """
+    获取兑换码列表（分页）
+
+    支持以下筛选条件：
+    - status: 状态筛选（active/used/expired/disabled）
+    - batch_id: 批次ID筛选
+    - code: 兑换码搜索（部分匹配）
+    """
+    try:
+        # 构建查询
+        query = db.query(RedeemCode)
+
+        # 应用筛选条件
+        if status:
+            query = query.filter(RedeemCode.status == status)
+
+        if batch_id:
+            query = query.filter(RedeemCode.batch_id == batch_id)
+
+        if code:
+            query = query.filter(RedeemCode.code.contains(code.upper()))
+
+        # 计算总数
+        total = query.count()
+
+        # 分页查询
+        offset = (page - 1) * size
+        redeem_codes = query.order_by(desc(RedeemCode.created_at)).offset(offset).limit(size).all()
+
+        # 获取统计信息
+        stats = {
+            "total": db.query(RedeemCode).count(),
+            "active": db.query(RedeemCode).filter(RedeemCode.status == "active").count(),
+            "used": db.query(RedeemCode).filter(RedeemCode.status == "used").count(),
+            "expired": db.query(RedeemCode).filter(RedeemCode.status == "expired").count(),
+            "disabled": db.query(RedeemCode).filter(RedeemCode.status == "disabled").count()
+        }
+
+        # 格式化响应数据
+        redeem_code_list = []
+        for redeem_code in redeem_codes:
+            # 查询使用者信息
+            used_by_user = None
+            if redeem_code.used_by:
+                user = db.query(User).filter(User.id == redeem_code.used_by).first()
+                if user:
+                    used_by_user = {
+                        "installation_id": user.installation_id,
+                        "created_at": user.created_at.isoformat()
+                    }
+
+            redeem_code_list.append({
+                "id": redeem_code.id,
+                "code": redeem_code.code,
+                "product_id": redeem_code.product_id,
+                "credits": redeem_code.credits,
+                "status": redeem_code.status,
+                "used_by_user": used_by_user,
+                "used_at": redeem_code.used_at.isoformat() if redeem_code.used_at else None,
+                "expires_at": redeem_code.expires_at.isoformat() if redeem_code.expires_at else None,
+                "created_at": redeem_code.created_at.isoformat(),
+                "batch_id": redeem_code.batch_id
+            })
+
+        return RedeemCodeListResponse(
+            redeem_codes=redeem_code_list,
+            total=total,
+            page=page,
+            size=size,
+            stats=stats
+        )
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"获取兑换码列表失败: {str(e)}"
+        )
+
+
+@redeem_router.post("/generate", response_model=GenerateRedeemCodesResponse)
+async def generate_redeem_codes(
+    request: GenerateRedeemCodesRequest,
+    current_admin: str = Depends(get_current_admin_from_cookie),
+    db: Session = Depends(get_db)
+):
+    """批量生成兑换码"""
+    try:
+        import uuid
+        from datetime import timedelta
+
+        # 生成批次ID
+        batch_id = str(uuid.uuid4())
+        if request.batch_name:
+            batch_id = f"{request.batch_name}_{batch_id[:8]}"
+
+        # 计算过期时间
+        expires_at = datetime.utcnow() + timedelta(days=request.expires_days)
+
+        # 批量生成兑换码
+        generated_codes = []
+        redeem_codes = []
+
+        for _ in range(request.count):
+            # 生成唯一兑换码
+            while True:
+                code = generate_redeem_code()
+                # 检查是否已存在
+                existing = db.query(RedeemCode).filter(RedeemCode.code == code).first()
+                if not existing:
+                    break
+
+            redeem_code = RedeemCode(
+                code=code,
+                product_id=1,  # 默认产品ID
+                credits=request.credits,
+                expires_at=expires_at,
+                batch_id=batch_id,
+                status="active"
+            )
+            redeem_codes.append(redeem_code)
+            generated_codes.append(code)
+
+        # 批量插入数据库
+        db.add_all(redeem_codes)
+        db.commit()
+
+        return GenerateRedeemCodesResponse(
+            message=f"成功生成{request.count}个兑换码",
+            batch_id=batch_id,
+            generated_codes=generated_codes,
+            count=request.count
+        )
+
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"生成兑换码失败: {str(e)}"
+        )
+
+
+@redeem_router.put("/{redeem_code_id}", response_model=UpdateRedeemCodeResponse)
+async def update_redeem_code(
+    redeem_code_id: int,
+    request: UpdateRedeemCodeRequest,
+    current_admin: str = Depends(get_current_admin_from_cookie),
+    db: Session = Depends(get_db)
+):
+    """更新兑换码状态"""
+    try:
+        # 查询兑换码
+        redeem_code = db.query(RedeemCode).filter(RedeemCode.id == redeem_code_id).first()
+
+        if not redeem_code:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="兑换码不存在"
+            )
+
+        # 验证状态更新
+        valid_statuses = ["active", "disabled", "expired"]
+        if request.status not in valid_statuses:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"无效的状态值，必须是: {', '.join(valid_statuses)}"
+            )
+
+        # 检查是否可以更新
+        if redeem_code.status == "used":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="已使用的兑换码无法修改状态"
+            )
+
+        # 更新状态
+        old_status = redeem_code.status
+        redeem_code.status = request.status
+
+        # 如果设置为过期，更新过期时间
+        if request.status == "expired":
+            redeem_code.expires_at = datetime.utcnow()
+
+        db.commit()
+
+        return UpdateRedeemCodeResponse(
+            message=f"兑换码状态已从 {old_status} 更新为 {request.status}"
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"更新兑换码失败: {str(e)}"
+        )
+
+
+@redeem_router.get("/export/csv")
+async def export_redeem_codes_csv(
+    status: Optional[str] = Query(None),
+    batch_id: Optional[str] = Query(None),
+    current_admin: str = Depends(get_current_admin_from_cookie),
+    db: Session = Depends(get_db)
+):
+    """导出兑换码数据为CSV文件"""
+    try:
+        # 构建查询（与获取兑换码列表相同的逻辑）
+        query = db.query(RedeemCode)
+
+        if status:
+            query = query.filter(RedeemCode.status == status)
+
+        if batch_id:
+            query = query.filter(RedeemCode.batch_id == batch_id)
+
+        # 获取所有兑换码数据
+        redeem_codes = query.order_by(desc(RedeemCode.created_at)).all()
+
+        # 创建CSV内容
+        output = io.StringIO()
+        writer = csv.writer(output)
+
+        # 写入表头
+        writer.writerow([
+            "兑换码", "积分值", "状态", "使用用户", "使用时间", "过期时间", "创建时间", "批次ID"
+        ])
+
+        # 写入数据
+        for redeem_code in redeem_codes:
+            # 查询使用者
+            used_by_user_id = ""
+            if redeem_code.used_by:
+                user = db.query(User).filter(User.id == redeem_code.used_by).first()
+                if user:
+                    used_by_user_id = user.installation_id[:12] + "..."
+
+            writer.writerow([
+                redeem_code.code,
+                redeem_code.credits,
+                redeem_code.status,
+                used_by_user_id,
+                redeem_code.used_at.strftime("%Y-%m-%d %H:%M:%S") if redeem_code.used_at else "",
+                redeem_code.expires_at.strftime("%Y-%m-%d %H:%M:%S") if redeem_code.expires_at else "",
+                redeem_code.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+                redeem_code.batch_id or ""
+            ])
+
+        # 准备响应
+        output.seek(0)
+        filename = f"redeem_codes_export_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.csv"
+
+        return StreamingResponse(
+            io.BytesIO(output.getvalue().encode('utf-8-sig')),
+            media_type="text/csv",
+            headers={"Content-Disposition": f"attachment; filename={filename}"}
+        )
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"导出兑换码数据失败: {str(e)}"
+        )
+
+
+@redeem_router.get("/stats")
+async def get_redeem_code_stats(
+    current_admin: str = Depends(get_current_admin_from_cookie),
+    db: Session = Depends(get_db)
+):
+    """获取兑换码统计信息"""
+    try:
+        stats = {
+            "total": db.query(RedeemCode).count(),
+            "active": db.query(RedeemCode).filter(RedeemCode.status == "active").count(),
+            "used": db.query(RedeemCode).filter(RedeemCode.status == "used").count(),
+            "expired": db.query(RedeemCode).filter(RedeemCode.status == "expired").count(),
+            "disabled": db.query(RedeemCode).filter(RedeemCode.status == "disabled").count()
+        }
+
+        return {"success": True, "stats": stats}
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"获取统计信息失败: {str(e)}"
+        )
+
+
+@redeem_router.get("/batches")
+async def get_redeem_code_batches(
+    current_admin: str = Depends(get_current_admin_from_cookie),
+    db: Session = Depends(get_db)
+):
+    """获取所有批次列表"""
+    try:
+        # 查询所有非空的批次ID
+        batches = db.query(RedeemCode.batch_id).filter(
+            RedeemCode.batch_id.isnot(None),
+            RedeemCode.batch_id != ""
+        ).distinct().all()
+
+        batch_list = [batch[0] for batch in batches if batch[0]]
+
+        return {"success": True, "batches": batch_list}
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"获取批次列表失败: {str(e)}"
+        )
+
+# Keep detail route after static paths to avoid conflicts with endpoints like /stats or /batches
+
+@redeem_router.get("/{redeem_code_id}", response_model=RedeemCodeDetailResponse)
+async def get_redeem_code_detail(
+    redeem_code_id: int,
+    current_admin: str = Depends(get_current_admin_from_cookie),
+    db: Session = Depends(get_db)
+):
+    """获取兑换码详情信息"""
+    try:
+        # 查询兑换码
+        redeem_code = db.query(RedeemCode).filter(RedeemCode.id == redeem_code_id).first()
+
+        if not redeem_code:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="兑换码不存在"
+            )
+
+        # 查询使用者信息
+        used_by_user = None
+        if redeem_code.used_by:
+            user = db.query(User).filter(User.id == redeem_code.used_by).first()
+            if user:
+                used_by_user = {
+                    "installation_id": user.installation_id,
+                    "email": user.email,
+                    "created_at": user.created_at.isoformat(),
+                    "last_active_at": user.last_active_at.isoformat()
+                }
+
+        # 格式化兑换码详情
+        redeem_code_detail = {
+            "id": redeem_code.id,
+            "code": redeem_code.code,
+            "product_id": redeem_code.product_id,
+            "credits": redeem_code.credits,
+            "status": redeem_code.status,
+            "used_by_user": used_by_user,
+            "used_at": redeem_code.used_at.isoformat() if redeem_code.used_at else None,
+            "expires_at": redeem_code.expires_at.isoformat() if redeem_code.expires_at else None,
+            "created_at": redeem_code.created_at.isoformat(),
+            "batch_id": redeem_code.batch_id
+        }
+
+        return RedeemCodeDetailResponse(redeem_code=redeem_code_detail)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"获取兑换码详情失败: {str(e)}"
+        )
+
+
