@@ -14,7 +14,7 @@ class ApiClient {
       headers: {
         'Content-Type': 'application/json',
       },
-      withCredentials: true, // 启用 Cookie 认证
+      withCredentials: false, // 使用 JWT Bearer Token，不需要 Cookie
     });
 
     this.setupInterceptors();
@@ -24,9 +24,18 @@ class ApiClient {
     // 请求拦截器
     this.instance.interceptors.request.use(
       (config) => {
+        // 添加 JWT Bearer Token
+        if (typeof window !== 'undefined') {
+          const token = localStorage.getItem('admin_token');
+          if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+          }
+        }
+
         console.log(`API Request: ${config.method?.toUpperCase()} ${config.url}`, {
           params: config.params,
-          data: config.data
+          data: config.data,
+          hasToken: !!config.headers.Authorization
         });
         return config;
       },
@@ -62,10 +71,9 @@ class ApiClient {
 
         // 处理认证错误
         if (error.response?.status === 401 || error.response?.status === 403) {
-          // 清除本地存储的token（保持兼容性）
+          // 清除本地存储的 token
           if (typeof window !== 'undefined') {
             localStorage.removeItem('admin_token');
-            // Cookie会由后端自动处理
             // 重定向到登录页面
             window.location.href = '/login';
           }

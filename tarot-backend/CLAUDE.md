@@ -140,13 +140,8 @@ user = db.query(User).filter(User.id == verification.user_id).first()
 - `admin.py` 中的 `@redeem_router.get("")` (完整路径: `/api/v1/admin/redeem-codes`) 使用Cookie认证
 - 由于路由注册顺序问题，`payments.router` 先注册，拦截了所有请求
 
-**问题定位步骤**：
-1. **检查路由注册顺序**：在 `app/main.py` 中查看路由注册顺序
-2. **查找重复路由**：使用 `grep -r "/admin/redeem-codes" app/api/` 查找重复路由
-3. **确认认证方式差异**：比较两个路由的认证依赖项
-
 **解决方案**：
-删除 `payments.py` 中的重复路由，保留 `admin.py` 中使用Cookie认证的专用管理路由：
+删除 `payments.py` 中的重复路由，保留 `admin.py` 中使用JWT Bearer token认证的专用管理路由：
 
 ```python
 # 删除 app/api/payments.py 中的重复路由：
@@ -158,7 +153,7 @@ async def list_redeem_codes(...):
 # 保留 app/api/admin.py 中的正确路由：
 @redeem_router.get("", response_model=RedeemCodeListResponse)
 async def get_redeem_codes(
-    current_admin: str = Depends(get_current_admin_from_cookie),  # Cookie认证
+    current_admin: str = Depends(get_current_admin),  # Bearer token认证
     ...
 ):
     pass
@@ -167,13 +162,13 @@ async def get_redeem_codes(
 **验证方法**：
 ```bash
 # 1. 获取管理员登录token
-curl -X POST "http://localhost:8001/admin/login" \
-  -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "username=admin&password=admin123"
+curl -X POST "http://localhost:8001/api/v1/admin-api/login" \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"admin123"}'
 
 # 2. 测试API访问
 curl "http://localhost:8001/api/v1/admin/redeem-codes?page=1&size=20" \
-  -H "Cookie: admin_token=YOUR_TOKEN_HERE"
+  -H "Authorization: Bearer YOUR_TOKEN_HERE"
 ```
 
 **预防措施**：

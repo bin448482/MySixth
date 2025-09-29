@@ -1,7 +1,7 @@
 """
 Admin authentication and management API routes.
 """
-from fastapi import APIRouter, HTTPException, status, Depends, Request, Query, Cookie
+from fastapi import APIRouter, HTTPException, status, Depends, Request, Query
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field, ValidationError
 from typing import Optional, List
@@ -21,25 +21,7 @@ from app.services.user_service import UserService
 from app.utils.logger import admin_logger, api_logger, log_admin_action, log_user_credit_change
 
 
-def get_current_admin_from_cookie(admin_token: Optional[str] = Cookie(None)) -> str:
-    """从Cookie获取当前管理员用户"""
-    if not admin_token:
-        admin_logger.debug("管理员token为空")
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authenticated"
-        )
-
-    username = admin_auth_service.verify_admin_token(admin_token)
-    if not username:
-        admin_logger.warning("管理员token验证失败")
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Invalid authentication credentials"
-        )
-
-    admin_logger.debug(f"管理员认证成功: {username}")
-    return username
+# 移除Cookie认证函数，统一使用JWT Bearer token认证
 
 
 class AdminLoginRequest(BaseModel):
@@ -238,7 +220,7 @@ async def get_users(
     email_status: Optional[str] = Query(None, description="邮箱状态筛选"),
     min_credits: Optional[int] = Query(None, ge=0, description="最低积分筛选"),
     date_range: Optional[str] = Query(None, description="注册时间筛选"),
-    current_admin: str = Depends(get_current_admin_from_cookie),
+    current_admin: str = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
     """
@@ -326,7 +308,7 @@ async def get_users(
 @user_router.get("/users/{installation_id}", response_model=UserDetailResponse)
 async def get_user_detail(
     installation_id: str,
-    current_admin: str = Depends(get_current_admin_from_cookie),
+    current_admin: str = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
     """获取用户详情信息"""
@@ -383,7 +365,7 @@ async def get_user_detail(
 @user_router.post("/users/adjust-credits", response_model=AdjustCreditsResponse)
 async def adjust_user_credits(
     raw_request: Request,
-    current_admin: str = Depends(get_current_admin_from_cookie),
+    current_admin: str = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
     """管理员调整用户积分"""
@@ -490,7 +472,7 @@ async def export_users(
     installation_id: Optional[str] = Query(None),
     min_credits: Optional[int] = Query(None),
     date_range: Optional[str] = Query(None),
-    current_admin: str = Depends(get_current_admin_from_cookie),
+    current_admin: str = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
     """导出用户数据为CSV文件"""
@@ -562,7 +544,7 @@ async def export_users(
 @user_router.delete("/users/{installation_id}", response_model=DeleteUserResponse)
 async def delete_user(
     installation_id: str,
-    current_admin: str = Depends(get_current_admin_from_cookie),
+    current_admin: str = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
     """删除用户及其所有相关数据"""
@@ -687,7 +669,7 @@ async def get_redeem_codes(
     status: Optional[str] = Query(None, description="状态筛选"),
     batch_id: Optional[str] = Query(None, description="批次ID筛选"),
     code: Optional[str] = Query(None, description="兑换码搜索"),
-    current_admin: str = Depends(get_current_admin_from_cookie),
+    current_admin: str = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
     """
@@ -772,7 +754,7 @@ async def get_redeem_codes(
 @redeem_router.post("/generate", response_model=GenerateRedeemCodesResponse)
 async def generate_redeem_codes(
     request: GenerateRedeemCodesRequest,
-    current_admin: str = Depends(get_current_admin_from_cookie),
+    current_admin: str = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
     """批量生成兑换码"""
@@ -835,7 +817,7 @@ async def generate_redeem_codes(
 async def update_redeem_code(
     redeem_code_id: int,
     request: UpdateRedeemCodeRequest,
-    current_admin: str = Depends(get_current_admin_from_cookie),
+    current_admin: str = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
     """更新兑换码状态"""
@@ -892,7 +874,7 @@ async def update_redeem_code(
 async def export_redeem_codes_csv(
     status: Optional[str] = Query(None),
     batch_id: Optional[str] = Query(None),
-    current_admin: str = Depends(get_current_admin_from_cookie),
+    current_admin: str = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
     """导出兑换码数据为CSV文件"""
@@ -957,7 +939,7 @@ async def export_redeem_codes_csv(
 
 @redeem_router.get("/stats")
 async def get_redeem_code_stats(
-    current_admin: str = Depends(get_current_admin_from_cookie),
+    current_admin: str = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
     """获取兑换码统计信息"""
@@ -981,7 +963,7 @@ async def get_redeem_code_stats(
 
 @redeem_router.get("/batches")
 async def get_redeem_code_batches(
-    current_admin: str = Depends(get_current_admin_from_cookie),
+    current_admin: str = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
     """获取所有批次列表"""
@@ -1007,7 +989,7 @@ async def get_redeem_code_batches(
 @redeem_router.get("/{redeem_code_id}", response_model=RedeemCodeDetailResponse)
 async def get_redeem_code_detail(
     redeem_code_id: int,
-    current_admin: str = Depends(get_current_admin_from_cookie),
+    current_admin: str = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
     """获取兑换码详情信息"""

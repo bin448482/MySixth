@@ -19,7 +19,7 @@ export const authApi = {
   // 管理员登录
   login: async (credentials: AdminLoginRequest): Promise<AdminLoginResponse> => {
     const response = await apiClient.post<AdminLoginResponse>('/api/v1/admin-api/login', credentials);
-    // Cookie认证会由后端自动处理，我们只需保存token到localStorage用于前端状态检查
+    // 保存 JWT token 到 localStorage
     if (response.access_token) {
       localStorage.setItem('admin_token', response.access_token);
     }
@@ -45,7 +45,7 @@ export const authApi = {
     try {
       await apiClient.post('/api/v1/admin-api/logout');
     } finally {
-      // 清除本地存储的token，Cookie会由后端自动清除
+      // 清除本地存储的 JWT token
       if (typeof localStorage !== 'undefined') {
         localStorage.removeItem('admin_token');
       }
@@ -153,41 +153,37 @@ export const dashboardApi = {
   // 获取仪表板数据
   getMetrics: async (): Promise<DashboardMetrics> => {
     try {
-      // 暂时使用模拟数据，避免网络错误
-      console.log('使用模拟数据，避免网络连接问题');
+      // 获取基本统计数据 - 只获取第一页来获取total计数和部分数据
+      const usersData = await usersApi.getUsers({ page: 1, size: 100 });
+      const redeemCodesData = await redeemCodesApi.getRedeemCodes({ page: 1, size: 100 });
+
+      // 基本指标计算（基于可用数据的近似值）
+      const totalUsers = usersData.total || 0;
+
+      // 基于第一页数据计算活跃用户比例，然后估算总数
+      const sampleActiveUsers = usersData.users?.filter(user =>
+        user.last_active_at && new Date(user.last_active_at) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+      ).length || 0;
+
+      const sampleSize = usersData.users?.length || 0;
+      const activeRatio = sampleSize > 0 ? sampleActiveUsers / sampleSize : 0;
+      const estimatedActiveUsers = Math.round(totalUsers * activeRatio);
+
+      // 基于样本估算总积分
+      const sampleTotalCredits = usersData.users?.reduce((sum, user) => sum + (user.total_credits || 0), 0) || 0;
+      const avgCreditsPerUser = sampleSize > 0 ? sampleTotalCredits / sampleSize : 0;
+      const estimatedTotalCredits = Math.round(totalUsers * avgCreditsPerUser);
+
       return {
-        total_users: 1250,
-        total_credits_sold: 45680,
-        active_users_30d: 890,
-        orders_today: 23,
-        users_growth: 12.5,
-        revenue_growth: 18.3,
-        active_users_ratio: 71.2,
-        orders_growth: 8.7,
+        total_users: totalUsers,
+        total_credits_sold: estimatedTotalCredits,
+        active_users_30d: estimatedActiveUsers,
+        orders_today: 0, // 暂时没有订单数据
+        users_growth: 0, // 暂时无法计算增长率
+        revenue_growth: 0,
+        active_users_ratio: totalUsers > 0 ? (estimatedActiveUsers / totalUsers) * 100 : 0,
+        orders_growth: 0,
       };
-
-      // 注释掉实际API调用，等网络问题解决后再启用
-      // // 先尝试获取用户列表来计算指标
-      // const usersData = await usersApi.getUsers({ page: 1, size: 1000 });
-      // const redeemCodesData = await redeemCodesApi.getRedeemCodes({ page: 1, size: 1000 });
-
-      // // 计算基本指标
-      // const totalUsers = usersData.total || 0;
-      // const totalCredits = usersData.users?.reduce((sum, user) => sum + (user.total_credits || 0), 0) || 0;
-      // const activeUsers = usersData.users?.filter(user =>
-      //   user.last_active_at && new Date(user.last_active_at) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
-      // ).length || 0;
-
-      // return {
-      //   total_users: totalUsers,
-      //   total_credits_sold: totalCredits,
-      //   active_users_30d: activeUsers,
-      //   orders_today: 0, // 暂时没有订单数据
-      //   users_growth: 0, // 暂时无法计算增长率
-      //   revenue_growth: 0,
-      //   active_users_ratio: totalUsers > 0 ? (activeUsers / totalUsers) * 100 : 0,
-      //   orders_growth: 0,
-      // };
     } catch (error) {
       console.warn('Failed to fetch real metrics, using mock data:', error);
       // 如果API调用失败，使用模拟数据
@@ -220,43 +216,16 @@ export const dashboardApi = {
   // 获取最近活动
   getRecentActivities: async (): Promise<RecentActivity[]> => {
     try {
-      // 暂时使用模拟数据，避免网络错误
-      console.log('使用模拟数据，避免网络连接问题');
-      return [
-        {
-          id: '1',
-          type: 'purchase' as const,
-          installation_id: 'abc123def456',
-          credits: 100,
-          created_at: new Date().toISOString()
-        },
-        {
-          id: '2',
-          type: 'redeem' as const,
-          installation_id: 'def456ghi789',
-          credits: 50,
-          created_at: new Date().toISOString()
-        },
-        {
-          id: '3',
-          type: 'adjust' as const,
-          installation_id: 'ghi789jkl012',
-          credits: 25,
-          created_at: new Date().toISOString()
-        },
-      ];
+      // 获取最近的用户数据作为活动示例
+      const usersData = await usersApi.getUsers({ page: 1, size: 10 });
 
-      // 注释掉实际API调用，等网络问题解决后再启用
-      // // 获取最近的用户数据作为活动示例
-      // const usersData = await usersApi.getUsers({ page: 1, size: 10 });
-
-      // return usersData.users?.slice(0, 5).map((user, index) => ({
-      //   id: `activity-${index}`,
-      //   type: ['purchase', 'redeem', 'adjust'][index % 3] as any,
-      //   installation_id: user.installation_id,
-      //   credits: Math.floor(Math.random() * 100) + 10,
-      //   created_at: user.created_at
-      // })) || [];
+      return usersData.users?.slice(0, 5).map((user, index) => ({
+        id: `activity-${index}`,
+        type: ['purchase', 'redeem', 'adjust'][index % 3] as 'purchase' | 'redeem' | 'adjust',
+        installation_id: user.installation_id,
+        credits: Math.floor(Math.random() * 100) + 10,
+        created_at: user.created_at
+      })) || [];
     } catch (error) {
       console.warn('Failed to fetch real activities, using mock data:', error);
       // 如果API调用失败，使用模拟数据

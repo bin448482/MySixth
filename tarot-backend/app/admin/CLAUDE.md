@@ -21,10 +21,11 @@ app/admin/
 ## 🔐 认证系统 (✅ 已实现)
 
 **实现位置**: `app/admin/auth.py`
+**认证方式**: JWT Bearer Token（已统一，移除Cookie认证）
 
 ### 核心功能
 - **AdminAuthService**: JWT token管理，密码验证
-- **管理员依赖项**: Cookie认证，权限验证
+- **管理员依赖项**: Bearer token认证，权限验证
 - **环境配置**: 用户名、密码、过期时间可配置
 
 ### 关键方法
@@ -36,7 +37,7 @@ admin_auth_service.verify_credentials(username, password)
 admin_auth_service.verify_admin_token(token)
 
 # 依赖项验证
-get_current_admin_from_cookie(admin_token: str = Cookie(None))
+get_current_admin(credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme))
 ```
 
 ## 🏠 管理路由 (✅ 已实现)
@@ -53,6 +54,8 @@ get_current_admin_from_cookie(admin_token: str = Cookie(None))
 ### 认证机制
 - Cookie认证，自动重定向未登录用户
 - 响应式模板设计，支持多屏幕适配
+
+**注意**: Web页面使用Cookie认证，API接口使用JWT Bearer token认证
 
 ## 📊 API接口 (✅ 已实现)
 

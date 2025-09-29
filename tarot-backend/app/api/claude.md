@@ -62,6 +62,7 @@ app/api/
 
 ### 管理员认证 (`admin.py`)
 **实现位置**: `app/api/admin.py:100-182`
+**认证方式**: JWT Bearer Token（已统一移除Cookie认证）
 
 - **POST /api/v1/admin-api/login**: 管理员登录认证
 - **GET /api/v1/admin-api/profile**: 获取当前管理员信息
@@ -69,6 +70,7 @@ app/api/
 
 ### 用户管理 (`admin.py`)
 **实现位置**: `app/api/admin.py:227-583`
+**认证方式**: JWT Bearer Token（通过 `Depends(get_current_admin)`）
 
 - **GET /api/v1/admin/users**: 用户列表查询（分页、筛选）
 - **GET /api/v1/admin/users/{id}**: 用户详情和交易记录
@@ -78,6 +80,7 @@ app/api/
 
 ### 兑换码管理 (`admin.py`)
 **实现位置**: `app/api/admin.py:649-1024`
+**认证方式**: JWT Bearer Token（通过 `Depends(get_current_admin)`）
 
 - **GET /api/v1/admin/redeem-codes**: 兑换码列表查询
 - **POST /api/v1/admin/redeem-codes/generate**: 批量生成兑换码
@@ -116,7 +119,7 @@ app/api/
 
 ### 认证机制
 - **匿名用户**: JWT token，无需注册
-- **管理员**: JWT token + Cookie双重认证
+- **管理员**: JWT Bearer token认证（已统一，移除Cookie认证）
 - **邮箱用户**: 可选注册，增强用户体验
 
 ### 数据处理
@@ -131,6 +134,11 @@ app/api/
 - **数据验证**: Pydantic模型严格验证
 
 ## 🚀 已解决的技术问题
+
+### 统一JWT认证
+- **问题**: 管理员API混合使用Cookie和Bearer token认证
+- **解决**: 统一所有API使用JWT Bearer token认证
+- **变更**: 移除 `get_current_admin_from_cookie` 函数，统一使用 `get_current_admin`
 
 ### 路由冲突问题
 - **问题**: `payments.py` 和 `admin.py` 存在重复路由
