@@ -45,6 +45,7 @@ class Settings(BaseSettings):
     ADMIN_USERNAME: str = "admin"
     ADMIN_PASSWORD: str = "your-secure-admin-password"
     ADMIN_SESSION_EXPIRE_HOURS: int = 24
+    ADMIN_TOKEN_EXPIRE_HOURS: int = 24
 
     # Google Play API配置
     GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: Optional[str] = None

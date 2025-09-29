@@ -7,7 +7,7 @@ from unittest.mock import patch
 from fastapi.testclient import TestClient
 from jose import jwt
 
-from app.admin.auth import AdminAuthService, admin_auth_service
+from app.utils.admin_auth import AdminAuthService, admin_auth_service
 from app.config import settings
 from app.main import app
 

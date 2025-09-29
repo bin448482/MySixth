@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 import csv
 import io
 
-from app.admin.auth import admin_auth_service, get_current_admin
+from app.utils.admin_auth import admin_auth_service, get_current_admin
 from app.database import get_db
 from app.models.user import User, UserBalance
 from app.models.transaction import CreditTransaction

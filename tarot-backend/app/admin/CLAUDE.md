@@ -1,163 +1,136 @@
-# 管理Portal设计 (app/admin/CLAUDE.md)
+# 塔罗牌应用 - 管理后台API模块 (CLAUDE.md)
 
-## 🎛️ 管理Portal架构
+## 📖 模块简介
 
-### Portal组织结构
+**管理后台API模块** 提供了完整的管理员API接口，支持用户管理、兑换码管理、系统监控等功能。采用JWT Bearer Token认证，为新的独立管理后台应用 `tarot-admin-web` 提供数据支持。
+
+## 🎯 模块职责
+
+- 提供管理员API接口（Bearer Token认证）
+- 用户管理：查询、统计用户信息
+- 兑换码管理：创建、查询、统计、批量操作
+- 系统监控：API调用统计、性能监控
+- 订单管理：支付记录查询和统计
+
+## 🔧 技术架构
+
+### API认证方式
+- **认证方式**: JWT Bearer Token
+- **Token获取**: `/api/v1/admin-api/login` 端点
+- **Token验证**: `get_current_admin` 依赖注入
+- **适用场景**: 独立前端应用（tarot-admin-web）
+
+### 路由设计
+- **管理员登录**: `/api/v1/admin-api/*` - 认证相关接口
+- **用户管理**: `/api/v1/admin/users/*` - 用户管理接口
+- **兑换码管理**: `/api/v1/admin/redeem-codes/*` - 兑换码管理接口
+
+## 📁 文件结构
+
 ```
 app/admin/
-├── auth.py               # 管理员认证 (✅ 已实现)
-├── web_routes.py         # 管理页面路由 (✅ 已实现)
-├── templates/            # HTML模板 (✅ 已实现)
-│   ├── base.html        # 基础模板
-│   ├── login.html       # 登录页面
-│   ├── dashboard.html   # 仪表板
-│   ├── users.html       # 用户管理
-│   └── redeem_codes.html # 兑换码管理
-└── static/              # 静态资源
-    ├── css/admin.css    # 管理样式
-    └── js/admin.js      # 管理脚本
+├── __init__.py         # 模块初始化
+├── CLAUDE.md          # 本文档
+└── __pycache__/       # Python缓存文件
 ```
 
-## 🔐 认证系统 (✅ 已实现)
+**注意**: 原有的HTML模板文件和Web路由已被移除，管理后台现在通过独立的 `tarot-admin-web` 项目提供。
 
-**实现位置**: `app/admin/auth.py`
-**认证方式**: JWT Bearer Token（已统一，移除Cookie认证）
+## 🚀 核心功能
 
-### 核心功能
-- **AdminAuthService**: JWT token管理，密码验证
-- **管理员依赖项**: Bearer token认证，权限验证
-- **环境配置**: 用户名、密码、过期时间可配置
+### 1. 管理员认证
+- 登录验证：用户名/密码验证
+- JWT Token生成：包含管理员信息
+- Token刷新：支持Token续期
 
-### 关键方法
+### 2. 用户管理
+- 用户列表查询：分页、筛选、排序
+- 用户详情查看：完整用户信息
+- 用户统计：注册数量、活跃度分析
+
+### 3. 兑换码管理
+- 批量创建：指定数量、面值、有效期
+- 查询统计：使用状态、批次管理
+- 批量操作：禁用、清理过期兑换码
+- 实时监控：兑换成功率、使用趋势
+
+### 4. 系统监控
+- API调用统计：请求数量、响应时间
+- 错误监控：异常日志、错误率统计
+- 性能监控：数据库查询、系统资源
+
+## 📊 API接口文档
+
+### 管理员认证接口
+
+| 方法 | 路径 | 说明 | 状态 |
+|------|------|------|------|
+| POST | `/api/v1/admin-api/login` | 管理员登录 | ✅ 已实现 |
+
+### 用户管理接口
+
+| 方法 | 路径 | 说明 | 状态 |
+|------|------|------|------|
+| GET | `/api/v1/admin/users` | 用户列表查询 | ✅ 已实现 |
+| GET | `/api/v1/admin/users/{user_id}` | 用户详情查询 | ✅ 已实现 |
+| GET | `/api/v1/admin/users/stats` | 用户统计信息 | ✅ 已实现 |
+
+### 兑换码管理接口
+
+| 方法 | 路径 | 说明 | 状态 |
+|------|------|------|------|
+| GET | `/api/v1/admin/redeem-codes` | 兑换码列表查询 | ✅ 已实现 |
+| POST | `/api/v1/admin/redeem-codes/create` | 批量创建兑换码 | ✅ 已实现 |
+| GET | `/api/v1/admin/redeem-codes/batch/{batch_id}/stats` | 批次统计信息 | ✅ 已实现 |
+| POST | `/api/v1/admin/redeem-codes/disable` | 批量禁用兑换码 | ✅ 已实现 |
+| POST | `/api/v1/admin/redeem-codes/cleanup-expired` | 清理过期兑换码 | ✅ 已实现 |
+
+## 🔑 数据模型
+
+### 管理员认证
+- **用户名/密码**: 配置在环境变量中
+- **JWT Token**: 包含管理员身份信息
+- **Token有效期**: 可配置，默认24小时
+
+### 兑换码模型
 ```python
-# 登录认证
-admin_auth_service.verify_credentials(username, password)
-
-# Token验证
-admin_auth_service.verify_admin_token(token)
-
-# 依赖项验证
-get_current_admin(credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme))
+class RedeemCode:
+    code: str           # 16位兑换码
+    credit_amount: int  # 积分面值
+    batch_id: str       # 批次ID
+    is_active: bool     # 激活状态
+    used_at: datetime   # 使用时间
+    created_at: datetime # 创建时间
+    expires_at: datetime # 过期时间
 ```
 
-## 🏠 管理路由 (✅ 已实现)
+## 🛡️ 安全考虑
 
-**实现位置**: `app/admin/web_routes.py`
+### API安全
+- **JWT认证**: 所有管理接口需要有效Token
+- **权限验证**: 管理员身份验证
+- **请求限制**: 防止API滥用
+- **输入验证**: 严格的参数校验
 
-### 核心页面路由
-- **GET /admin/login**: 登录页面 (`login.html`)
-- **POST /admin/login**: 登录处理，设置Cookie
-- **GET /admin/dashboard**: 仪表板 (`dashboard.html`)
-- **GET /admin/users**: 用户管理页面 (`users.html`)
-- **GET /admin/redeem-codes**: 兑换码管理页面 (`redeem-codes.html`)
+### 兑换码安全
+- **防爆破**: 限制查询频率
+- **批次管理**: 隔离不同批次
+- **状态控制**: 支持禁用/启用操作
+- **审计日志**: 记录关键操作
 
-### 认证机制
-- Cookie认证，自动重定向未登录用户
-- 响应式模板设计，支持多屏幕适配
+## 📈 扩展计划
 
-**注意**: Web页面使用Cookie认证，API接口使用JWT Bearer token认证
+### 短期扩展
+- 更详细的统计报表
+- 实时监控Dashboard
+- 管理员操作日志
 
-## 📊 API接口 (✅ 已实现)
-
-**实现位置**: `app/api/admin.py`
-
-### 管理员认证API
-- **POST /api/v1/admin-api/login**: 管理员登录
-- **GET /api/v1/admin-api/profile**: 获取当前管理员信息
-- **POST /api/v1/admin-api/refresh**: 刷新JWT token
-
-### 用户管理API
-- **GET /api/v1/admin/users**: 用户列表查询（分页、筛选）
-- **GET /api/v1/admin/users/{id}**: 用户详情
-- **POST /api/v1/admin/users/adjust-credits**: 积分调整
-- **GET /api/v1/admin/users/export**: 用户数据CSV导出
-- **DELETE /api/v1/admin/users/{id}**: 删除用户
-
-### 兑换码管理API
-- **GET /api/v1/admin/redeem-codes**: 兑换码列表查询
-- **POST /api/v1/admin/redeem-codes/generate**: 批量生成兑换码
-- **PUT /api/v1/admin/redeem-codes/{id}**: 更新兑换码状态
-- **GET /api/v1/admin/redeem-codes/export/csv**: 兑换码CSV导出
-- **GET /api/v1/admin/redeem-codes/stats**: 统计信息
-
-## 🎨 前端模板 (✅ 已实现)
-
-**实现位置**: `app/admin/templates/`
-
-### 用户管理功能 (`users.html`)
-1. **搜索筛选**: 用户ID、邮箱、积分、注册时间筛选
-2. **列表展示**: 分页、ID复制、积分徽章、统计信息
-3. **用户操作**: 查看详情弹窗、积分调整、删除用户
-4. **数据导出**: 支持筛选条件的CSV导出
-
-### 兑换码管理功能 (`redeem-codes.html`)
-1. **列表查询**: 状态筛选、批次筛选、代码搜索
-2. **批量生成**: 自定义数量、积分值、有效期
-3. **状态管理**: 启用/禁用/过期状态切换
-4. **统计信息**: 实时显示各状态兑换码数量
-
-### 响应式设计
-- Bootstrap 5框架
-- 移动端适配
-- 加载状态和错误处理
-- 实时数据刷新
-
-## 🔧 技术特性
-
-### 认证安全
-- JWT token + Cookie存储
-- 24小时过期时间（可配置）
-- CSRF防护（生产环境）
-- 操作审计日志
-
-### 数据处理
-- 分页查询优化
-- 关联查询避免N+1问题
-- 乐观锁保证数据一致性
-- 流式响应支持大文件导出
-
-### 错误处理
-- 全局异常捕获
-- 用户友好错误提示
-- 详细日志记录
-- 自动错误恢复
-
-## 📋 使用说明
-
-### 访问管理后台
-1. 访问 `http://localhost:8001/admin/login`
-2. 使用环境变量配置的管理员账号登录
-3. 成功后重定向到仪表板
-
-### 用户管理操作
-- **查看用户**: `/admin/users` 页面查看所有用户
-- **用户详情**: 点击"查看详情"查看完整信息和交易记录
-- **调整积分**: 使用"调整积分"功能增减用户积分
-- **导出数据**: 使用筛选条件导出用户数据CSV
-
-### 兑换码管理操作
-- **查看兑换码**: `/admin/redeem-codes` 页面管理所有兑换码
-- **生成兑换码**: 使用"生成兑换码"功能批量创建
-- **更改状态**: 启用、禁用或设置过期兑换码
-- **导出数据**: 导出兑换码使用情况CSV
-
-## 🚀 已解决的技术问题
-
-### 路由冲突问题
-- **问题**: `payments.py` 和 `admin.py` 路由冲突
-- **解决**: 移除重复路由，明确模块职责边界
-- **参考**: 参见 `tarot-backend/CLAUDE.md` 路由冲突解决方案
-
-### 邮件验证404错误
-- **问题**: 邮件验证链接返回404
-- **解决**: 修正URL路径生成，确保与实际API路由匹配
-- **参考**: `app/services/email_service.py:31-32`
-
-### 用户删除约束错误
-- **问题**: 删除用户时外键约束错误
-- **解决**: 按正确顺序删除关联表数据
-- **参考**: `app/api/admin.py:546-563`
+### 长期扩展
+- 多级管理员权限
+- 自定义报表生成
+- 自动化运维工具
 
 ---
 
-*管理Portal已完整实现，提供用户管理、兑换码管理、统计报表等完整功能。*
+**开发状态**: ✅ 核心功能已完成
+**下一步**: 配合 `tarot-admin-web` 前端应用进行集成测试
