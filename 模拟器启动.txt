@@ -12,6 +12,8 @@ cmd /c "cd tarotAI && .\start-emulator.bat && npm run android"
 
 cmd /c "cd tarotAI && .\start-emulator.bat && npm run android -- --no-install"
 
+./tarot-admin-web && npm run build 
+
 查进程：
 netstat -ano | findstr :8081
 tasklist | findstr 27620

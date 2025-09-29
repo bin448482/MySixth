@@ -8,7 +8,6 @@
 
 - 支持匿名用户系统，降低使用门槛
 - 提供静态基础解读 + 付费LLM动态解读
-- 完整的管理Portal + 支付系统集成
 - 支持兑换码和Google Play多平台支付
 - 单体架构快速上线，支持后续扩展
 
@@ -23,7 +22,6 @@
 ### 外部服务集成
 - **LLM服务**: 智谱AI + OpenAI API
 - **支付系统**: Google Play + 兑换码系统
-- **模板引擎**: Jinja2 (管理Portal)
 - **认证**: JWT (匿名用户 + 管理员)
 
 ## 🔗 API接口设计
@@ -140,13 +138,8 @@ user = db.query(User).filter(User.id == verification.user_id).first()
 - `admin.py` 中的 `@redeem_router.get("")` (完整路径: `/api/v1/admin/redeem-codes`) 使用Cookie认证
 - 由于路由注册顺序问题，`payments.router` 先注册，拦截了所有请求
 
-**问题定位步骤**：
-1. **检查路由注册顺序**：在 `app/main.py` 中查看路由注册顺序
-2. **查找重复路由**：使用 `grep -r "/admin/redeem-codes" app/api/` 查找重复路由
-3. **确认认证方式差异**：比较两个路由的认证依赖项
-
 **解决方案**：
-删除 `payments.py` 中的重复路由，保留 `admin.py` 中使用Cookie认证的专用管理路由：
+删除 `payments.py` 中的重复路由，保留 `admin.py` 中使用JWT Bearer token认证的专用管理路由：
 
 ```python
 # 删除 app/api/payments.py 中的重复路由：
@@ -158,7 +151,7 @@ async def list_redeem_codes(...):
 # 保留 app/api/admin.py 中的正确路由：
 @redeem_router.get("", response_model=RedeemCodeListResponse)
 async def get_redeem_codes(
-    current_admin: str = Depends(get_current_admin_from_cookie),  # Cookie认证
+    current_admin: str = Depends(get_current_admin),  # Bearer token认证
     ...
 ):
     pass
@@ -167,13 +160,13 @@ async def get_redeem_codes(
 **验证方法**：
 ```bash
 # 1. 获取管理员登录token
-curl -X POST "http://localhost:8001/admin/login" \
-  -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "username=admin&password=admin123"
+curl -X POST "http://localhost:8001/api/v1/admin-api/login" \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"admin123"}'
 
 # 2. 测试API访问
 curl "http://localhost:8001/api/v1/admin/redeem-codes?page=1&size=20" \
-  -H "Cookie: admin_token=YOUR_TOKEN_HERE"
+  -H "Authorization: Bearer YOUR_TOKEN_HERE"
 ```
 
 **预防措施**：
@@ -214,7 +207,7 @@ async def redeem_code(...):
 2. **admin.py**:
    - 前缀：`/api/v1/admin`
    - 职责：完整的兑换码管理、用户管理
-   - 认证：Cookie（面向管理后台）
+   - 认证：Bearer Token（面向管理后台）
 
 **重构效果**：
 - 消除功能重复，避免路由冲突
@@ -247,15 +240,12 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 - **数据库模型**: `app/models/CLAUDE.md` - 数据库设计和SQLAlchemy模型
 - **API路由**: `app/api/CLAUDE.md` - 接口设计和实现细节
 - **业务逻辑**: `app/services/CLAUDE.md` - 服务层和LLM集成
-- **管理Portal**: `app/admin/CLAUDE.md` - 后台管理系统
 - **工具函数**: `app/utils/CLAUDE.md` - 认证、兑换码等工具
 
 ### 开发阶段规划
-1. **阶段1**: 数据库与基础架构 (1天) 🔥
-2. **阶段2**: 支付API开发 (2天)
-3. **阶段3**: 管理Portal开发 (2天)
-4. **阶段4**: 高级功能和优化 (1天)
-5. **阶段5**: 集成测试和部署 (1天)
+1. **阶段1**: 数据库与基础架构 (1天) ✅ 已完成
+2. **阶段2**: 支付API开发 (2天) ✅ 已完成
+3. **阶段3**: 集成测试和部署 (1天)
 
 ## 🔑 关键技术实现点
 
@@ -277,7 +267,6 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 - API安全：HTTPS传输、输入验证、SQL注入防护
 - 支付安全：购买凭证验证、原子性更新、幂等性控制
-- 管理Portal安全：JWT认证、CSRF防护、操作审计
 - 兑换码安全：防爆破、使用限制、批次管理
 
 ## 🧪 测试策略
