@@ -164,13 +164,19 @@ async def send_verification_email(
         # 确定用户ID
         user_installation_id = None
         if request.user_id:
-            # 关联现有匿名用户
+            # 为指定用户发送验证邮件（管理员功能）
             user = db.query(User).filter(User.installation_id == request.user_id).first()
             if not user:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail="用户不存在"
                 )
+            # 更新用户邮箱地址（如果提供了不同的邮箱）
+            user.email = request.email
+            user.email_verified = False  # 重置验证状态
+            user.email_verified_at = None
+            db.commit()
+
             user_internal_id = user.id  # 使用数据库内部ID
             user_installation_id = user.installation_id
         else:

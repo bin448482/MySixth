@@ -38,7 +38,7 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import AdminLayout from '@/components/layout/AdminLayout';
-import { usersApi } from '@/lib/api';
+import { usersApi, authApi } from '@/lib/api';
 import type { User, UserFilters, AdjustCreditsRequest } from '@/types';
 
 const { Search } = Input;
@@ -62,10 +62,12 @@ export default function UsersPage() {
   // 模态框状态
   const [userDetailVisible, setUserDetailVisible] = useState(false);
   const [adjustCreditsVisible, setAdjustCreditsVisible] = useState(false);
+  const [emailVerificationVisible, setEmailVerificationVisible] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
 
   // 表单实例
   const [adjustForm] = Form.useForm();
+  const [emailForm] = Form.useForm();
 
   // 加载用户列表
   const loadUsers = async () => {
@@ -161,6 +163,27 @@ export default function UsersPage() {
     message.success('用户ID已复制');
   };
 
+  // 发送邮箱验证邮件
+  const handleEmailVerification = (user: User) => {
+    setSelectedUser(user);
+    emailForm.resetFields();
+    setEmailVerificationVisible(true);
+  };
+
+  // 提交邮箱验证
+  const handleEmailVerificationSubmit = async (values: { email: string }) => {
+    if (!selectedUser) return;
+
+    try {
+      await authApi.sendVerificationEmail(selectedUser.installation_id, values.email);
+      message.success('验证邮件已发送');
+      setEmailVerificationVisible(false);
+      loadUsers(); // 重新加载列表
+    } catch (error) {
+      message.error('发送验证邮件失败');
+    }
+  };
+
   // 表格列配置
   const columns: ColumnsType<User> = [
     {
@@ -248,7 +271,7 @@ export default function UsersPage() {
     {
       title: '操作',
       key: 'actions',
-      width: 200,
+      width: 240,
       fixed: 'right',
       render: (_, record) => (
         <Space size="small">
@@ -268,6 +291,16 @@ export default function UsersPage() {
               onClick={() => handleAdjustCredits(record)}
             />
           </Tooltip>
+          {(!record.email || !record.email_verified) && (
+            <Tooltip title="邮箱验证">
+              <Button
+                type="text"
+                size="small"
+                icon={<MailOutlined />}
+                onClick={() => handleEmailVerification(record)}
+              />
+            </Tooltip>
+          )}
           <Popconfirm
             title="确定删除此用户吗？"
             description="删除后将无法恢复，包括所有相关数据"
@@ -606,6 +639,64 @@ export default function UsersPage() {
               </Button>
               <Button type="primary" htmlType="submit">
                 确认调整
+              </Button>
+            </Space>
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* 邮箱验证模态框 */}
+      <Modal
+        title="发送邮箱验证"
+        open={emailVerificationVisible}
+        onCancel={() => setEmailVerificationVisible(false)}
+        footer={null}
+      >
+        <Form
+          form={emailForm}
+          layout="vertical"
+          onFinish={handleEmailVerificationSubmit}
+        >
+          <Form.Item label="用户信息">
+            <Card size="small" style={{ background: '#f5f5f5' }}>
+              <Text strong>用户ID：</Text>
+              <Text code>{selectedUser?.installation_id}</Text>
+              <br />
+              <Text strong>当前邮箱状态：</Text>
+              {selectedUser?.email ? (
+                selectedUser.email_verified ? (
+                  <Tag color="green" icon={<CheckCircleOutlined />}>已验证</Tag>
+                ) : (
+                  <Tag color="orange" icon={<CloseCircleOutlined />}>未验证</Tag>
+                )
+              ) : (
+                <Tag color="gray">未绑定</Tag>
+              )}
+            </Card>
+          </Form.Item>
+
+          <Form.Item
+            name="email"
+            label="邮箱地址"
+            rules={[
+              { required: true, message: '请输入邮箱地址' },
+              { type: 'email', message: '请输入有效的邮箱地址' },
+            ]}
+            initialValue={selectedUser?.email || ''}
+          >
+            <Input
+              placeholder="请输入要验证的邮箱地址"
+              prefix={<MailOutlined />}
+            />
+          </Form.Item>
+
+          <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
+            <Space>
+              <Button onClick={() => setEmailVerificationVisible(false)}>
+                取消
+              </Button>
+              <Button type="primary" htmlType="submit" icon={<MailOutlined />}>
+                发送验证邮件
               </Button>
             </Space>
           </Form.Item>

@@ -10,7 +10,6 @@ import {
   SyncOutlined,
   ArrowUpOutlined,
 } from '@ant-design/icons';
-// import { Column } from '@ant-design/charts'; // 暂时注释掉
 import AdminLayout from '@/components/layout/AdminLayout';
 import { dashboardApi } from '@/lib/api';
 import type { DashboardMetrics, RecentActivity } from '@/types';
@@ -46,20 +45,6 @@ export default function DashboardPage() {
   useEffect(() => {
     loadDashboardData();
   }, []);
-
-  // 收入趋势图表配置（暂时注释，图表功能开发中）
-  // const revenueChartConfig = {
-  //   data: chartData?.revenue_labels?.map((label: string, index: number) => ({
-  //     month: label,
-  //     value: chartData.revenue_data[index],
-  //   })) || [],
-  //   xField: 'month',
-  //   yField: 'value',
-  //   columnStyle: {
-  //     radius: [4, 4, 0, 0],
-  //   },
-  //   color: '#6B46C1',
-  // };
 
   // 最近活动表格列配置
   const activityColumns = [
@@ -196,7 +181,7 @@ export default function DashboardPage() {
         </Col>
       </Row>
 
-      {/* 图表和活动 */}
+      {/* 数据图表区域 */}
       <Row gutter={[16, 16]}>
         <Col xs={24} lg={16}>
           <Card
@@ -208,9 +193,17 @@ export default function DashboardPage() {
             }
             style={{ height: 400 }}
           >
-            {/* {chartData && <Column {...revenueChartConfig} />} */}
-            <div style={{ height: 300, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <span style={{ color: '#999' }}>图表功能开发中...</span>
+            <div style={{
+              height: 300,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexDirection: 'column',
+              gap: 16
+            }}>
+              <RiseOutlined style={{ fontSize: 48, color: '#6B46C1' }} />
+              <span style={{ color: '#999', fontSize: 16 }}>数据图表功能</span>
+              <span style={{ color: '#666', fontSize: 14 }}>准备中...</span>
             </div>
           </Card>
         </Col>

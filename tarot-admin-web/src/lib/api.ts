@@ -51,6 +51,21 @@ export const authApi = {
       }
     }
   },
+
+  // 发送邮箱验证邮件
+  sendVerificationEmail: async (installationId: string, email: string) => {
+    return apiClient.post('/api/v1/auth/email/send-verification', {
+      user_id: installationId,
+      email: email
+    });
+  },
+
+  // 验证邮箱token
+  verifyEmailToken: async (token: string) => {
+    return apiClient.post('/api/v1/auth/email/verify', {
+      token: token
+    });
+  },
 };
 
 // 用户管理API
