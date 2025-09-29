@@ -8,6 +8,49 @@
 - **路由框架**: Expo Router ~6.0.0 (基于 React Navigation 7.x)
 - **导航模式**: 文件系统路由 + Stack/Tabs 混合导航
 - **状态管理**: Context + Hooks + 本地组件状态
+- **全局状态**: AppContext (AI服务状态 + 用户认证状态) ✅ 已实现
+
+## 🚀 应用启动和初始化 (✅ 已实现)
+
+### 根布局 (_layout.tsx)
+**实现位置**: `app/_layout.tsx`
+
+**核心功能**：
+1. **AppProvider包装**: 提供全局应用状态管理
+2. **数据库初始化**: DatabaseInitializer初始化本地SQLite
+3. **AI服务检查**: 检查后端AI服务健康状态
+4. **匿名用户认证**: 自动注册/验证匿名用户，获取JWT token
+
+**初始化流程**：
+```typescript
+useEffect(() => {
+  const initializeApp = async () => {
+    // 1. 数据库初始化
+    const initializer = new DatabaseInitializer();
+    const dbSuccess = await initializer.initialize();
+
+    // 2. AI服务健康检查 + 匿名用户认证
+    await actions.initializeApp(); // AppContext提供
+  };
+
+  initializeApp();
+}, []);
+```
+
+**Provider结构**：
+```typescript
+<AppProvider>
+  <GestureHandlerRootView>
+    <TamaguiProvider>
+      <ThemeProvider>
+        <Stack>
+          {/* 路由配置 */}
+        </Stack>
+      </ThemeProvider>
+    </TamaguiProvider>
+  </GestureHandlerRootView>
+</AppProvider>
+```
 
 ## 📁 页面路由结构
 

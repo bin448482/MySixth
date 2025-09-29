@@ -96,12 +96,34 @@ const getCardImage = (imageUrl: string) => {
 
 ## 🎯 每个步骤详细设计
 
-### 步骤1：选择占卜类型 (type.tsx) - 支持AI占卜
+### 步骤1：选择占卜类型 (type.tsx) - 支持AI占卜 (✅ 已优化)
 
-#### 页面功能（更新）
+#### 页面功能（优化后）
 - **类型选择**: 离线占卜 / AI占卜（两个都可用）
-- **AI占卜**: 启用状态，点击进入问题输入页面
+- **AI服务状态**: 从全局AppContext获取，无需页面内检查
+- **性能优化**: 移除重复的健康检查逻辑，页面加载更快
 - **视觉反馈**: 选中状态高亮显示
+
+#### 状态获取（优化后）
+```typescript
+import { useAppContext } from '@/lib/contexts/AppContext';
+
+export default function TypeSelectionScreen() {
+  const { state } = useAppContext();
+
+  // 直接从全局状态获取
+  const isAIServiceAvailable = state.isAIServiceAvailable;
+  const isCheckingService = state.isCheckingAIService || !state.isAppInitialized;
+
+  // 无需执行 checkAIServiceHealth()
+}
+```
+
+**优化效果**：
+- ✅ 移除重复的健康检查逻辑（原47行代码删除）
+- ✅ 页面加载更快，直接获取状态
+- ✅ 代码更简洁，职责更明确
+- ✅ 状态同步，避免不一致
 
 #### 布局设计
 ```

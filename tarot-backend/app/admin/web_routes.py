@@ -127,7 +127,8 @@ async def dashboard(
 
     except Exception as e:
         # Log error and show basic dashboard
-        print(f"Dashboard error: {e}")
+        from app.utils.logger import admin_logger
+        admin_logger.error("仪表板数据加载失败", e)
         return templates.TemplateResponse("dashboard.html", {
             "request": request,
             "metrics": {},

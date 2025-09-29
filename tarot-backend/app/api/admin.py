@@ -17,11 +17,14 @@ from app.models.user import User, UserBalance
 from app.models.transaction import CreditTransaction
 from app.models.email_verification import EmailVerification
 from app.models.payment import RedeemCode
+from app.services.user_service import UserService
+from app.utils.logger import admin_logger, api_logger, log_admin_action, log_user_credit_change
 
 
 def get_current_admin_from_cookie(admin_token: Optional[str] = Cookie(None)) -> str:
     """从Cookie获取当前管理员用户"""
     if not admin_token:
+        admin_logger.debug("管理员token为空")
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authenticated"
@@ -29,11 +32,13 @@ def get_current_admin_from_cookie(admin_token: Optional[str] = Cookie(None)) -> 
 
     username = admin_auth_service.verify_admin_token(admin_token)
     if not username:
+        admin_logger.warning("管理员token验证失败")
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Invalid authentication credentials"
         )
 
+    admin_logger.debug(f"管理员认证成功: {username}")
     return username
 
 
@@ -377,11 +382,54 @@ async def get_user_detail(
 
 @user_router.post("/users/adjust-credits", response_model=AdjustCreditsResponse)
 async def adjust_user_credits(
-    request: AdjustCreditsRequest,
+    raw_request: Request,
     current_admin: str = Depends(get_current_admin_from_cookie),
     db: Session = Depends(get_db)
 ):
     """管理员调整用户积分"""
+    admin_logger.debug(f"管理员积分调整请求", {"admin": current_admin})
+
+    # 手动解析请求体
+    try:
+        body = await raw_request.body()
+        admin_logger.debug(f"接收请求体", {"body_length": len(body)})
+
+        import json
+        # 尝试多种编码方式解码请求体
+        if isinstance(body, bytes):
+            try:
+                # 优先尝试UTF-8解码
+                body_str = body.decode('utf-8')
+            except UnicodeDecodeError:
+                try:
+                    # 如果UTF-8失败，尝试GBK解码
+                    body_str = body.decode('gbk')
+                    admin_logger.debug("使用GBK编码解析请求体")
+                except UnicodeDecodeError:
+                    # 如果都失败，使用错误替换模式
+                    body_str = body.decode('utf-8', errors='replace')
+                    admin_logger.warning("请求体编码异常，使用替换模式解析")
+        else:
+            body_str = body
+
+        json_data = json.loads(body_str)
+        admin_logger.debug(f"请求JSON解析成功", {"keys": list(json_data.keys())})
+
+        # 手动创建请求对象
+        request = AdjustCreditsRequest(**json_data)
+        admin_logger.debug(f"积分调整请求验证通过", {
+            "installation_id": request.installation_id,
+            "credits": request.credits,
+            "reason": request.reason
+        })
+
+    except Exception as e:
+        admin_logger.error(f"请求体解析失败", e, {"raw_body": str(body)[:200]})
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"请求体解析失败: {str(e)}"
+        )
+
     try:
         # 查询用户
         user = db.query(User).filter(
@@ -389,62 +437,48 @@ async def adjust_user_credits(
         ).first()
 
         if not user:
+            admin_logger.warning(f"积分调整失败：用户不存在", {
+                "installation_id": request.installation_id,
+                "admin": current_admin
+            })
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="用户不存在"
             )
 
-        # 获取或创建用户余额记录
-        balance = db.query(UserBalance).filter(UserBalance.user_id == user.id).first()
-        if not balance:
-            balance = UserBalance(user_id=user.id, credits=0)
-            db.add(balance)
-            db.flush()
-
-        # 计算新余额
-        new_balance = balance.credits + request.credits
-        if new_balance < 0:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="积分余额不足，无法减少该数量的积分"
-            )
-
-        # 更新余额（使用乐观锁）
-        old_version = balance.version
-        balance.credits = new_balance
-        balance.version += 1
-        balance.updated_at = datetime.utcnow()
-
-        # 创建交易记录
-        transaction = CreditTransaction(
+        # 使用 UserService 的标准方法进行积分调整
+        balance, transaction = UserService.admin_adjust_balance(
+            db=db,
             user_id=user.id,
-            type="admin_adjust",
-            credits=request.credits,
-            balance_after=new_balance,
-            reference_type="admin",
-            description=f"管理员调整：{request.reason}",
-            created_at=datetime.utcnow()
+            credit_change=request.credits,
+            description=request.reason,
+            admin_id=None  # TODO: 从管理员认证中获取 admin_id
         )
-        db.add(transaction)
 
-        # 更新用户统计
-        if request.credits > 0:
-            user.total_credits_purchased += request.credits
-        else:
-            user.total_credits_consumed += abs(request.credits)
-
-        # 提交事务
-        db.commit()
+        # 记录成功的积分调整操作
+        log_user_credit_change(
+            user_id=user.installation_id,
+            change=request.credits,
+            reason=request.reason,
+            admin=current_admin,
+            new_balance=balance.credits
+        )
 
         return AdjustCreditsResponse(
+            success=True,
             message=f"积分调整成功：{request.credits:+d}",
-            new_balance=new_balance
+            new_balance=balance.credits
         )
 
     except HTTPException:
         raise
     except Exception as e:
         db.rollback()
+        admin_logger.error(f"积分调整失败", e, {
+            "installation_id": request.installation_id,
+            "credits": request.credits,
+            "admin": current_admin
+        })
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"积分调整失败: {str(e)}"

@@ -1,242 +1,3 @@
-{% extends "base.html" %}
-
-{% block title %}用户管理 - 塔罗牌应用管理后台{% endblock %}
-{% block page_title %}用户管理{% endblock %}
-
-{% block page_actions %}
-<button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#sendVerificationModal">
-    <i class="fas fa-envelope me-2"></i>发送验证邮件
-</button>
-<button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#adjustCreditsModal">
-    <i class="fas fa-coins me-2"></i>调整积分
-</button>
-<button type="button" class="btn btn-outline-secondary" onclick="exportUsers()">
-    <i class="fas fa-download me-2"></i>导出数据
-</button>
-{% endblock %}
-
-{% block content %}
-<div class="row mb-4">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0">
-                    <i class="fas fa-search me-2"></i>搜索筛选
-                </h5>
-            </div>
-            <div class="card-body">
-                <form id="searchForm" class="row g-3">
-                    <div class="col-md-4">
-                        <label for="searchInstallationId" class="form-label">用户ID</label>
-                        <input type="text" class="form-control" id="searchInstallationId"
-                               placeholder="输入installation_id">
-                    </div>
-                    <div class="col-md-3">
-                        <label for="searchEmail" class="form-label">邮箱地址</label>
-                        <input type="email" class="form-control" id="searchEmail"
-                               placeholder="输入邮箱地址">
-                    </div>
-                    <div class="col-md-3">
-                        <label for="emailStatus" class="form-label">邮箱状态</label>
-                        <select class="form-select" id="emailStatus">
-                            <option value="">全部</option>
-                            <option value="verified">已验证</option>
-                            <option value="unverified">未验证</option>
-                            <option value="none">无邮箱</option>
-                        </select>
-                    </div>
-                    <div class="col-md-3">
-                        <label for="minCredits" class="form-label">最低积分</label>
-                        <input type="number" class="form-control" id="minCredits" min="0">
-                    </div>
-                    <div class="col-md-3">
-                        <label for="dateRange" class="form-label">注册时间</label>
-                        <select class="form-select" id="dateRange">
-                            <option value="">全部</option>
-                            <option value="today">今天</option>
-                            <option value="week">本周</option>
-                            <option value="month">本月</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="row g-3 mt-2">
-                    <div class="col-md-2">
-                        <button type="button" class="btn btn-primary d-block w-100" onclick="searchUsers()">
-                            <i class="fas fa-search"></i> 搜索
-                        </button>
-                    </div>
-                    <div class="col-md-2">
-                        <button type="button" class="btn btn-outline-secondary d-block w-100" onclick="resetSearch()">
-                            <i class="fas fa-refresh"></i> 重置
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="row">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">
-                    <i class="fas fa-users me-2"></i>用户列表
-                </h5>
-                <span class="badge bg-secondary" id="userCount">总计: 0 用户</span>
-            </div>
-            <div class="card-body">
-                <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead class="table-light">
-                            <tr>
-                                <th>用户ID</th>
-                                <th>邮箱状态</th>
-                                <th>积分余额</th>
-                                <th>累计购买</th>
-                                <th>累计消费</th>
-                                <th>注册时间</th>
-                                <th>最后活跃</th>
-                                <th>操作</th>
-                            </tr>
-                        </thead>
-                        <tbody id="usersTableBody">
-                            <tr>
-                                <td colspan="8" class="text-center py-4">
-                                    <div class="spinner-border" role="status">
-                                        <span class="visually-hidden">加载中...</span>
-                                    </div>
-                                    <div class="mt-2">正在加载用户数据...</div>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-
-                <!-- 分页 -->
-                <nav aria-label="用户分页">
-                    <ul class="pagination justify-content-center" id="pagination">
-                        <li class="page-item disabled">
-                            <span class="page-link">上一页</span>
-                        </li>
-                        <li class="page-item active">
-                            <span class="page-link">1</span>
-                        </li>
-                        <li class="page-item disabled">
-                            <span class="page-link">下一页</span>
-                        </li>
-                    </ul>
-                </nav>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- 调整积分模态框 -->
-<div class="modal fade" id="adjustCreditsModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">
-                    <i class="fas fa-coins me-2"></i>调整用户积分
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <form id="adjustCreditsForm">
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="targetUserId" class="form-label">目标用户ID</label>
-                        <input type="text" class="form-control" id="targetUserId" required
-                               placeholder="输入用户的installation_id">
-                    </div>
-                    <div class="mb-3">
-                        <label for="creditChange" class="form-label">积分变更</label>
-                        <input type="number" class="form-control" id="creditChange" required
-                               placeholder="正数增加，负数减少">
-                        <div class="form-text">例如: +100 增加100积分, -50 减少50积分</div>
-                    </div>
-                    <div class="mb-3">
-                        <label for="adjustReason" class="form-label">调整原因</label>
-                        <textarea class="form-control" id="adjustReason" rows="3" required
-                                  placeholder="请说明积分调整的原因"></textarea>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-                    <button type="button" class="btn btn-primary" onclick="handleAdjustCredits()">确认调整</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
-<!-- 用户详情模态框 -->
-<div class="modal fade" id="userDetailModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">
-                    <i class="fas fa-user me-2"></i>用户详情
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body" id="userDetailContent">
-                <!-- 用户详情内容将在这里动态加载 -->
-                <div class="text-center py-4">
-                    <div class="spinner-border" role="status">
-                        <span class="visually-hidden">加载中...</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- 发送验证邮件模态框 -->
-<div class="modal fade" id="sendVerificationModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">
-                    <i class="fas fa-envelope me-2"></i>发送邮箱验证邮件
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <form id="sendVerificationForm">
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="verificationEmail" class="form-label">邮箱地址</label>
-                        <input type="email" class="form-control" id="verificationEmail" required
-                               placeholder="输入要验证的邮箱地址">
-                    </div>
-                    <div class="mb-3">
-                        <label for="targetUserIdForEmail" class="form-label">目标用户ID（可选）</label>
-                        <input type="text" class="form-control" id="targetUserIdForEmail"
-                               placeholder="输入用户的installation_id，空白表示创建新用户">
-                        <div class="form-text">如果提供用户ID，将关联到现有匿名用户；否则创建新用户</div>
-                    </div>
-                    <div class="alert alert-info">
-                        <i class="fas fa-info-circle me-2"></i>
-                        <strong>说明：</strong>
-                        <ul class="mb-0 mt-2">
-                            <li>验证邮件将发送到指定邮箱</li>
-                            <li>用户点击验证链接后可设置密码</li>
-                            <li>验证链接24小时内有效</li>
-                        </ul>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-                    <button type="submit" class="btn btn-success">发送验证邮件</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-{% endblock %}
-
-{% block extra_js %}
-<script>
 let currentPage = 1;
 let pageSize = 20;
 
@@ -249,23 +10,30 @@ function handleAdjustCredits() {
     const reason = document.getElementById('adjustReason').value;
 
     console.log('DEBUG: 表单数据', { userId, creditChange, reason });
+    console.log('DEBUG: reason字符编码', reason, 'length:', reason.length);
+    console.log('DEBUG: reason字节表示', Array.from(reason).map(c => c.charCodeAt(0)));
 
     if (!userId || !creditChange || !reason) {
         alert('请填写完整信息');
         return;
     }
 
+    const requestBody = {
+        installation_id: userId,
+        credits: creditChange,
+        reason: reason
+    };
+
+    console.log('DEBUG: 请求体对象', requestBody);
+    console.log('DEBUG: JSON.stringify结果', JSON.stringify(requestBody));
+
     fetch('/api/v1/admin/users/adjust-credits', {
         method: 'POST',
         headers: {
-            'Content-Type': 'application/json; charset=utf-8'
+            'Content-Type': 'application/json; charset=utf-8',
         },
         credentials: 'include',
-        body: JSON.stringify({
-            installation_id: userId,
-            credits: creditChange,
-            reason: reason
-        })
+        body: JSON.stringify(requestBody)
     })
     .then(response => response.json())
     .then(data => {
@@ -324,7 +92,6 @@ document.addEventListener('DOMContentLoaded', function() {
             showError('网络错误，请稍后重试');
         });
     });
-
 });
 
 // 加载用户列表
@@ -347,7 +114,9 @@ function loadUsers(page = 1) {
     if (minCredits) searchParams.append('min_credits', minCredits);
     if (dateRange) searchParams.append('date_range', dateRange);
 
-    fetch(`/api/v1/admin/users?${searchParams}`)
+    fetch(`/api/v1/admin/users?${searchParams}`, {
+        credentials: 'include'
+    })
         .then(response => response.json())
         .then(data => {
             if (data.success) {
@@ -475,7 +244,9 @@ function searchUsers() {
 
 // 查看用户详情
 function viewUserDetail(installationId) {
-    fetch(`/api/v1/admin/users/${installationId}`)
+    fetch(`/api/v1/admin/users/${installationId}`, {
+        credentials: 'include'
+    })
         .then(response => response.json())
         .then(data => {
             if (data.success) {
@@ -625,7 +396,8 @@ function deleteUser(installationId) {
         method: 'DELETE',
         headers: {
             'Content-Type': 'application/json',
-        }
+        },
+        credentials: 'include'
     })
     .then(response => {
         if (!response.ok) {
@@ -693,6 +465,3 @@ function showSuccess(message) {
 function showError(message) {
     // TODO: 实现错误提示
     alert('错误: ' + message);
-}
-</script>
-{% endblock %}

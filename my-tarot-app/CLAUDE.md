@@ -87,11 +87,30 @@ my-tarot-app/
 ### 服务层架构
 ```typescript
 lib/services/
-├── cards.ts             # 卡牌服务（配置数据）
-├── reading.ts           # 占卜服务（用户数据）
-├── card-info.ts         # 卡牌信息聚合服务
-└── sync.ts              # 数据同步服务
+├── AuthService.ts         # 匿名用户认证和JWT token管理 (✅ 已实现)
+├── AIReadingService.ts    # AI解读服务，自动携带JWT认证 (✅ 已实现)
+├── cards.ts               # 卡牌服务（配置数据）
+├── reading.ts             # 占卜服务（用户数据）
+├── card-info.ts           # 卡牌信息聚合服务
+└── sync.ts                # 数据同步服务
 ```
+
+### 全局状态管理 (✅ 已实现)
+```typescript
+lib/contexts/
+├── AppContext.tsx         # 全局应用状态（AI服务状态 + 认证状态）
+└── ReadingContext.tsx     # 占卜流程状态
+```
+
+**AppContext提供的全局状态**：
+- **AI服务状态**: `isAIServiceAvailable`, `isCheckingAIService`, `aiServiceError`
+- **认证状态**: `isAuthenticated`, `isAuthenticating`, `authError`, `userToken`
+- **初始化状态**: `isAppInitialized`, `initializationError`
+
+**核心功能**：
+- 应用启动时一次性完成AI服务健康检查和匿名用户认证
+- 所有页面可直接从Context获取状态，无需重复检查
+- 支持手动刷新AI服务状态和认证状态
 
 ## 📡 API集成架构
 
@@ -105,10 +124,26 @@ lib/services/
 | `POST /readings/generate` | AI解读生成 | ✅ 已集成 |
 | `POST /payments/checkout` | 支付会话创建 | 🔄 待集成 |
 
-### API调用模式
+### API调用模式 (✅ 已实现统一认证)
+- **自动JWT认证**：所有AI API调用自动携带JWT token
 - **数据自包含设计**：前端传递完整对象信息，减少ID依赖
-- **错误处理机制**：网络异常自动降级到离线模式
+- **错误处理机制**：网络异常自动降级到离线模式，401错误自动清除token
 - **状态管理**：统一的加载、错误、成功状态处理
+
+### 应用启动流程 (✅ 已实现)
+```
+1. 用户启动应用
+   ↓
+2. 数据库初始化 (DatabaseInitializer)
+   ↓
+3. AI服务健康检查 (AIReadingService.checkServiceHealth)
+   ↓
+4. 匿名用户认证 (AuthService.initializeUser)
+   ↓
+5. 更新全局状态 (AppContext)
+   ↓
+6. 应用就绪
+```
 
 ## 🎯 开发重点
 

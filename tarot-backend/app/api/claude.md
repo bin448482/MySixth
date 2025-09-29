@@ -10,7 +10,7 @@ app/api/
 ├── readings.py          # 解读相关API (✅ 已实现)
 ├── admin.py             # 管理员API (✅ 已实现)
 ├── payments.py          # 支付相关API (✅ 已重构)
-├── users.py             # 用户API路由 (🔄 待实现)
+├── users.py             # 用户API路由 (✅ 已实现)
 └── sync.py              # 离线同步API (🔄 待实现)
 ```
 
@@ -27,7 +27,7 @@ app/api/
 ### 认证相关 (`auth.py`)
 **实现位置**: `app/api/auth.py`
 
-- **POST /auth/anon**: 生成匿名用户ID和JWT token
+- **POST /api/v1/users/register**: 生成匿名用户ID和JWT token
 - **POST /api/v1/auth/register**: 用户邮箱注册
 - **POST /api/v1/auth/email/verify**: 邮箱验证
 - **POST /api/v1/auth/email/resend**: 重发验证邮件
