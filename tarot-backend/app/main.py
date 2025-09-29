@@ -39,6 +39,30 @@ app.add_middleware(
 # 挂载静态文件目录
 app.mount("/static", StaticFiles(directory=settings.STATIC_DIR), name="static")
 
+# 添加请求调试中间件
+@app.middleware("http")
+async def debug_requests(request: Request, call_next):
+    # 捕获所有POST请求到admin相关路径
+    if request.method == "POST" and "/admin/" in str(request.url):
+        print(f"DEBUG: 捕获POST请求 {request.method} {request.url}")
+        print(f"DEBUG: 请求头: {dict(request.headers)}")
+
+        # 读取请求体
+        body = await request.body()
+        print(f"DEBUG: 请求体: {body}")
+
+        # 重新构造请求对象
+        async def receive():
+            return {"type": "http.request", "body": body}
+        request._receive = receive
+
+    response = await call_next(request)
+
+    if request.method == "POST" and "/admin/" in str(request.url):
+        print(f"DEBUG: POST请求响应状态码: {response.status_code}")
+
+    return response
+
 
 # 全局异常处理器
 @app.exception_handler(Exception)
