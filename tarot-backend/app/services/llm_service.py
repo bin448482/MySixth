@@ -3,6 +3,7 @@ LLM integration service for tarot reading generation.
 """
 import asyncio
 from typing import Dict, List, Optional, Any
+from ..utils.logger import api_logger  # 添加日志导入
 from pathlib import Path
 
 try:
@@ -87,7 +88,7 @@ class LLMService:
             # 在线程池中执行同步API调用
             return await asyncio.to_thread(self._call_ai_api_sync, prompt)
         except Exception as e:
-            print(f"AI API调用失败: {e}")
+            api_logger.log_error("zhipu_api_call", e, {"prompt_length": len(prompt)})
             return None
 
     def _call_ai_api_sync(self, prompt: str) -> Optional[str]:
@@ -116,7 +117,7 @@ class LLMService:
                 return response.choices[0].message.content.strip()
 
         except Exception as e:
-            print(f"AI API调用错误: {e}")
+            api_logger.log_error("openai_api_call", e, {"prompt_length": len(prompt)})
             return None
 
     @staticmethod
@@ -213,7 +214,7 @@ DESCRIPTION:
                     return dimensions[:3], description
             return self._get_default_three_card_dimensions_with_description()
         except Exception as e:
-            print(f"三牌阵分析失败: {e}")
+            api_logger.log_error("analyze_three_card_question", e, {"question_length": len(question)})
             return self._get_default_three_card_dimensions_with_description()
 
     def _parse_combined_result(self, result: str) -> tuple[List[str], str]:
@@ -253,7 +254,7 @@ DESCRIPTION:
 
             return dimensions, description.strip()
         except Exception as e:
-            print(f"解析合并结果失败: {e}")
+            api_logger.log_error("parse_combined_result", e, {"result_length": len(result)})
             return [], ""
 
     def _get_default_three_card_dimensions_with_description(self) -> tuple[List[str], str]:

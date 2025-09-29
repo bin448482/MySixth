@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..models import Card, Dimension, CardInterpretation
+from ..utils.logger import api_logger  # 添加日志导入
 from .llm_service import get_llm_service
 from ..schemas.reading import CardInfo, DimensionInfo
 
@@ -56,7 +57,7 @@ class ReadingService:
             return await self._process_three_card_dimensions(recommended_names, unified_description, db, limit)
 
         except Exception as e:
-            print(f"分析用户描述失败: {e}")
+            api_logger.log_error("analyze_question", e, {"question": question[:100]})
             # 返回默认维度
             if spread_type == "three-card":
                 # 为三牌阵返回默认的时间维度
@@ -161,7 +162,7 @@ class ReadingService:
                 return f"关于{category}方面的发展分析，探索当前状况与未来走向"
 
         except Exception as e:
-            print(f"生成统一description失败: {e}")
+            api_logger.log_error("generate_unified_description", e, {"description_count": len(descriptions)})
             # 返回基于第一个维度的默认描述
             if recommended_names:
                 category = recommended_names[0].split('-')[0] if '-' in recommended_names[0] else "整体"
@@ -196,7 +197,7 @@ class ReadingService:
 
         except Exception as e:
             db.rollback()
-            print(f"创建动态维度失败 {name}: {e}")
+            api_logger.log_error("create_dynamic_dimension", e, {"name": name})
             return None
 
     def _get_default_celtic_cross_dimensions(self, db: Session) -> List[Dict[str, Any]]:
@@ -241,7 +242,7 @@ class ReadingService:
             return all_interpretation_result
 
         except Exception as e:
-            print(f"生成多维度解读失败: {e}")
+            api_logger.log_error("generate_reading", e, {"spread_type": request.spread_type})
             raise
 
     async def _resolve_card_info(self, card_info: Dict[str, Any], db: Session) -> Card:
@@ -300,7 +301,7 @@ class ReadingService:
             )
 
         except Exception as e:
-            print(f"生成完整解读失败: {e}")
+            api_logger.log_error("generate_complete_reading", e, {"card_count": len(cards), "dimension_count": len(dimensions)})
             raise
 
     def _build_complete_interpretation_prompt(
@@ -419,7 +420,7 @@ class ReadingService:
             }
 
         except Exception as e:
-            print(f"解析LLM结果失败: {e}")
+            api_logger.log_error("parse_complete_interpretation_result", e, {"result_length": len(str(result))})
             raise ValueError(f"解析LLM返回结果失败: {e}")
 
     def get_basic_interpretation(
@@ -460,7 +461,7 @@ class ReadingService:
             }
 
         except Exception as e:
-            print(f"获取基础解读失败: {e}")
+            api_logger.log_error("get_basic_interpretation", e, {"card_id": card_id, "orientation": orientation})
             return None
 
 

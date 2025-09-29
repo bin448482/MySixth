@@ -18,28 +18,27 @@ from app.models.transaction import CreditTransaction
 from app.models.email_verification import EmailVerification
 from app.models.payment import RedeemCode
 from app.services.user_service import UserService
+from app.utils.logger import admin_logger, api_logger, log_admin_action, log_user_credit_change
 
 
 def get_current_admin_from_cookie(admin_token: Optional[str] = Cookie(None)) -> str:
     """从Cookie获取当前管理员用户"""
-    print(f"DEBUG: get_current_admin_from_cookie 被调用, admin_token = {admin_token}")
     if not admin_token:
-        print("DEBUG: admin_token 为空")
+        admin_logger.debug("管理员token为空")
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authenticated"
         )
 
     username = admin_auth_service.verify_admin_token(admin_token)
-    print(f"DEBUG: verify_admin_token 返回: {username}")
     if not username:
-        print("DEBUG: username 验证失败")
+        admin_logger.warning("管理员token验证失败")
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Invalid authentication credentials"
         )
 
-    print(f"DEBUG: 认证成功，返回用户名: {username}")
+    admin_logger.debug(f"管理员认证成功: {username}")
     return username
 
 
@@ -388,13 +387,12 @@ async def adjust_user_credits(
     db: Session = Depends(get_db)
 ):
     """管理员调整用户积分"""
-    print(f"DEBUG: 进入 adjust_user_credits 方法")
-    print(f"DEBUG: current_admin = {current_admin}")
+    admin_logger.debug(f"管理员积分调整请求", {"admin": current_admin})
 
     # 手动解析请求体
     try:
         body = await raw_request.body()
-        print(f"DEBUG: 原始请求体: {body}")
+        admin_logger.debug(f"接收请求体", {"body_length": len(body)})
 
         import json
         # 尝试多种编码方式解码请求体
@@ -406,21 +404,27 @@ async def adjust_user_credits(
                 try:
                     # 如果UTF-8失败，尝试GBK解码
                     body_str = body.decode('gbk')
+                    admin_logger.debug("使用GBK编码解析请求体")
                 except UnicodeDecodeError:
                     # 如果都失败，使用错误替换模式
                     body_str = body.decode('utf-8', errors='replace')
+                    admin_logger.warning("请求体编码异常，使用替换模式解析")
         else:
             body_str = body
 
         json_data = json.loads(body_str)
-        print(f"DEBUG: 解析后的JSON: {json_data}")
+        admin_logger.debug(f"请求JSON解析成功", {"keys": list(json_data.keys())})
 
         # 手动创建请求对象
         request = AdjustCreditsRequest(**json_data)
-        print(f"DEBUG: 创建的请求对象: {request}")
+        admin_logger.debug(f"积分调整请求验证通过", {
+            "installation_id": request.installation_id,
+            "credits": request.credits,
+            "reason": request.reason
+        })
 
     except Exception as e:
-        print(f"DEBUG: 请求体解析失败: {e}")
+        admin_logger.error(f"请求体解析失败", e, {"raw_body": str(body)[:200]})
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"请求体解析失败: {str(e)}"
@@ -433,6 +437,10 @@ async def adjust_user_credits(
         ).first()
 
         if not user:
+            admin_logger.warning(f"积分调整失败：用户不存在", {
+                "installation_id": request.installation_id,
+                "admin": current_admin
+            })
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="用户不存在"
@@ -447,6 +455,15 @@ async def adjust_user_credits(
             admin_id=None  # TODO: 从管理员认证中获取 admin_id
         )
 
+        # 记录成功的积分调整操作
+        log_user_credit_change(
+            user_id=user.installation_id,
+            change=request.credits,
+            reason=request.reason,
+            admin=current_admin,
+            new_balance=balance.credits
+        )
+
         return AdjustCreditsResponse(
             success=True,
             message=f"积分调整成功：{request.credits:+d}",
@@ -457,6 +474,11 @@ async def adjust_user_credits(
         raise
     except Exception as e:
         db.rollback()
+        admin_logger.error(f"积分调整失败", e, {
+            "installation_id": request.installation_id,
+            "credits": request.credits,
+            "admin": current_admin
+        })
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"积分调整失败: {str(e)}"

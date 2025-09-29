@@ -39,27 +39,27 @@ app.add_middleware(
 # 挂载静态文件目录
 app.mount("/static", StaticFiles(directory=settings.STATIC_DIR), name="static")
 
-# 添加请求调试中间件
+# 添加请求日志中间件
 @app.middleware("http")
-async def debug_requests(request: Request, call_next):
-    # 捕获所有POST请求到admin相关路径
-    if request.method == "POST" and "/admin/" in str(request.url):
-        print(f"DEBUG: 捕获POST请求 {request.method} {request.url}")
-        print(f"DEBUG: 请求头: {dict(request.headers)}")
+async def log_requests(request: Request, call_next):
+    from app.utils.logger import api_logger
 
-        # 读取请求体
-        body = await request.body()
-        print(f"DEBUG: 请求体: {body}")
-
-        # 重新构造请求对象
-        async def receive():
-            return {"type": "http.request", "body": body}
-        request._receive = receive
+    # 记录重要的API请求
+    if request.method == "POST" and ("/admin/" in str(request.url) or "/api/" in str(request.url)):
+        api_logger.log_request(
+            method=request.method,
+            path=str(request.url.path),
+            user=request.headers.get("user-agent", "unknown")[:50]
+        )
 
     response = await call_next(request)
 
-    if request.method == "POST" and "/admin/" in str(request.url):
-        print(f"DEBUG: POST请求响应状态码: {response.status_code}")
+    # 记录错误响应
+    if response.status_code >= 400 and ("/admin/" in str(request.url) or "/api/" in str(request.url)):
+        api_logger.log_response(
+            path=str(request.url.path),
+            status=response.status_code
+        )
 
     return response
 

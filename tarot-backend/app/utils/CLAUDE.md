@@ -6,6 +6,7 @@
 ```
 app/utils/
 ├── __init__.py          # 工具模块初始化
+├── logger.py            # 日志管理工具 (✅ 已实现)
 ├── auth.py              # 认证工具
 ├── redeem_code.py       # 兑换码生成工具
 ├── security.py          # 安全相关工具
@@ -13,6 +14,200 @@ app/utils/
 ├── validators.py        # 数据验证工具
 └── dimension_definitions.py  # 维度定义工具
 ```
+
+## 📝 日志管理系统 (logger.py) - ✅ 已实现
+
+### 设计理念
+统一管理应用日志输出，将详细调试信息记录到文件，关键信息和错误输出到控制台，避免控制台输出过多无关信息。
+
+### 日志架构
+```python
+class AdminLogger:
+    """管理员操作日志记录器"""
+
+    def __init__(self, name: str = "admin"):
+        self.logger = logging.getLogger(name)
+        self._setup_logger()
+
+    def _setup_logger(self):
+        """设置日志记录器"""
+        # 文件处理器 - 记录详细信息到 logs/admin_YYYYMMDD.log
+        file_handler = logging.FileHandler(
+            LOG_DIR / f"admin_{datetime.now().strftime('%Y%m%d')}.log",
+            encoding='utf-8'
+        )
+        file_handler.setLevel(logging.DEBUG)
+
+        # 控制台处理器 - 只记录重要信息 (INFO+)
+        console_handler = logging.StreamHandler(sys.stdout)
+        console_handler.setLevel(logging.INFO)
+
+class APILogger:
+    """API请求日志记录器"""
+
+    def _setup_logger(self):
+        """设置API日志记录器"""
+        # API日志文件 - logs/api_YYYYMMDD.log
+        file_handler.setLevel(logging.DEBUG)
+
+        # 控制台只显示错误 (ERROR+)
+        console_handler.setLevel(logging.ERROR)
+```
+
+### 日志级别策略
+- **DEBUG**: 详细调试信息，仅记录到文件
+- **INFO**: 重要操作流程，记录到文件和控制台
+- **WARNING**: 警告信息，记录到文件和控制台
+- **ERROR**: 错误信息，记录到文件和控制台
+
+### 核心功能
+
+#### 管理员操作日志
+```python
+from app.utils.logger import admin_logger, log_admin_action, log_user_credit_change
+
+# 基础日志记录
+admin_logger.info("管理员登录成功", {"username": "admin"})
+admin_logger.debug("请求参数验证", {"param_count": 3})
+admin_logger.warning("用户不存在", {"installation_id": "xxx"})
+admin_logger.error("数据库连接失败", exception, {"context": "user_query"})
+
+# 专用操作日志
+log_admin_action(
+    action="积分调整",
+    admin="admin",
+    target="user_123",
+    result="success",
+    data={"old_balance": 100, "new_balance": 150}
+)
+
+log_user_credit_change(
+    user_id="user_123",
+    change=50,
+    reason="管理员手动调整",
+    admin="admin",
+    new_balance=150
+)
+```
+
+#### API请求日志
+```python
+from app.utils.logger import api_logger
+
+# API请求记录
+api_logger.log_request(
+    method="POST",
+    path="/api/v1/admin/users/adjust-credits",
+    user="admin_browser"
+)
+
+# API响应记录
+api_logger.log_response(
+    path="/api/v1/admin/users",
+    status=200,
+    message="用户列表查询成功"
+)
+
+# API错误记录
+api_logger.log_error(
+    path="/api/v1/payments/redeem",
+    error=exception,
+    context={"code": "INVALID123", "user_id": 456}
+)
+```
+
+### 日志文件组织
+```
+logs/
+├── admin_20250929.log    # 管理员操作日志
+├── admin_20250928.log    # 历史管理员日志
+├── api_20250929.log      # API请求日志
+└── api_20250928.log      # 历史API日志
+```
+
+### 集成实例
+
+#### 主应用中间件 (app/main.py)
+```python
+# 替换原有的debug中间件
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    from app.utils.logger import api_logger
+
+    # 记录重要的API请求
+    if request.method == "POST" and ("/admin/" in str(request.url) or "/api/" in str(request.url)):
+        api_logger.log_request(
+            method=request.method,
+            path=str(request.url.path),
+            user=request.headers.get("user-agent", "unknown")[:50]
+        )
+
+    response = await call_next(request)
+
+    # 记录错误响应
+    if response.status_code >= 400:
+        api_logger.log_response(
+            path=str(request.url.path),
+            status=response.status_code
+        )
+
+    return response
+```
+
+#### 管理员API (app/api/admin.py)
+```python
+# 替换所有 print() 调用
+@user_router.post("/users/adjust-credits")
+async def adjust_user_credits(...):
+    admin_logger.debug("管理员积分调整请求", {"admin": current_admin})
+
+    try:
+        # 业务逻辑...
+        log_user_credit_change(
+            user_id=user.installation_id,
+            change=request.credits,
+            reason=request.reason,
+            admin=current_admin,
+            new_balance=balance.credits
+        )
+    except Exception as e:
+        admin_logger.error("积分调整失败", e, {
+            "installation_id": request.installation_id,
+            "credits": request.credits,
+            "admin": current_admin
+        })
+```
+
+#### 业务服务 (app/services/)
+```python
+# reading_service.py
+from ..utils.logger import api_logger
+
+try:
+    # LLM调用...
+except Exception as e:
+    api_logger.log_error("analyze_question", e, {"question": question[:100]})
+
+# llm_service.py
+try:
+    # API调用...
+except Exception as e:
+    api_logger.log_error("zhipu_api_call", e, {"prompt_length": len(prompt)})
+```
+
+### 性能优化
+- **按需创建**: 日志实例按需创建，避免重复初始化
+- **异步安全**: 支持FastAPI异步环境
+- **内存友好**: 日志文件按日期分割，避免单文件过大
+- **编码处理**: UTF-8编码，支持中文日志内容
+
+### 监控建议
+- **日志轮转**: 定期清理超过30天的日志文件
+- **错误告警**: 监控ERROR级别日志，及时发现问题
+- **性能指标**: 通过API日志分析响应时间和成功率
+- **用户行为**: 通过管理员日志分析操作模式
+
+---
 
 ## 🔐 认证工具 (auth.py)
 
