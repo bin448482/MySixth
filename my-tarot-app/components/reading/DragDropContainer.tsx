@@ -34,6 +34,7 @@ interface DragDropContainerProps {
   onCardPlacement: (cardId: number, slotIndex: number) => void;
   onAllCardsPlaced: () => void;
   onCardPress?: (card: DrawnCard) => void;
+  canTriggerStars?: boolean; // 新增：控制特效触发
 }
 
 interface SlotPosition {
@@ -53,6 +54,7 @@ export function DragDropContainer({
   onCardPlacement,
   onAllCardsPlaced,
   onCardPress,
+  canTriggerStars = false, // 新增：默认值为false
 }: DragDropContainerProps) {
   const [draggedCardId, setDraggedCardId] = useState<number | null>(null);
   const [highlightedSlot, setHighlightedSlot] = useState<number | null>(null);
@@ -169,6 +171,7 @@ export function DragDropContainer({
                 droppedCard={getCardInSlot(index)}
                 isHighlighted={highlightedSlot === index}
                 onCardPress={onCardPress}
+                canTriggerStars={canTriggerStars} // 传递特效触发状态
               />
             </View>
           ))}

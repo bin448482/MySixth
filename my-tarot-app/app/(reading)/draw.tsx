@@ -40,6 +40,8 @@ export default function DrawCardsScreen() {
   const [allCardsPlaced, setAllCardsPlaced] = useState(false);
   const [isDragMode, setIsDragMode] = useState(true); // 直接进入拖拽模式
   const [error, setError] = useState<string | null>(null);
+  const [canTriggerStars, setCanTriggerStars] = useState(false); // 新增：控制特效触发
+  const [isEffectDisabled, setIsEffectDisabled] = useState(false); // 新增：全局特效禁用状态
 
   const cardService = CardService.getInstance();
   const dimensionService = DimensionService.getInstance();
@@ -127,6 +129,11 @@ export default function DrawCardsScreen() {
         throw new Error('维度数据不完整，请返回上一步重新选择');
       }
 
+      // 点击抽牌按钮时开始3秒计时
+      setTimeout(() => {
+        setCanTriggerStars(true);
+      }, 3000);
+
       // 1. 获取所有卡牌并随机抽取3张
       const cardsResult = await cardService.getAllCards();
       if (!cardsResult.success || !cardsResult.data) {
@@ -201,6 +208,12 @@ export default function DrawCardsScreen() {
   };
 
   const handleCardPlacement = (cardId: number, slotIndex: number) => {
+    // 检查是否在3秒内放入卡槽，如果是则禁用所有特效
+    if (!canTriggerStars) {
+      setIsEffectDisabled(true);
+      console.log('3秒内放入卡槽，禁用所有特效');
+    }
+
     // 更新drawnCards中的dimension绑定，并且设置为revealed状态
     setDrawnCards(prev => prev.map(card =>
       card.cardId === cardId
@@ -269,6 +282,7 @@ export default function DrawCardsScreen() {
           onCardPlacement={handleCardPlacement}
           onAllCardsPlaced={handleAllCardsPlaced}
           onCardPress={handleCardPress}
+          canTriggerStars={canTriggerStars && !isEffectDisabled} // 特效触发需要满足两个条件
         />
       </View>
 
