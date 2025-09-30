@@ -23,6 +23,7 @@ interface CardFlipAnimationProps {
   disabled?: boolean;
   showName?: boolean;
   isInSlot?: boolean;
+  canTriggerStars?: boolean; // 新增：外部控制是否可以触发特效
 }
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -35,6 +36,7 @@ export function CardFlipAnimation({
   disabled = false,
   showName = false,
   isInSlot = false,
+  canTriggerStars = false, // 新增：从外部接收状态
 }: CardFlipAnimationProps) {
   const [animatedValue] = useState(new Animated.Value(0));
   const [isFlipped, setIsFlipped] = useState(false);
@@ -53,6 +55,9 @@ export function CardFlipAnimation({
       y: new Animated.Value(0),
     }))
   ).current;
+
+  // 闪电特效动画
+  const lightningOpacity = useRef(new Animated.Value(0)).current;
   
   // 星星位置状态，会动态更新
   const [starPositions, setStarPositions] = useState(() =>
@@ -61,7 +66,6 @@ export function CardFlipAnimation({
   
   // 特效触发状态
   const [shouldShowStars, setShouldShowStars] = useState(false);
-  const [canTriggerStars, setCanTriggerStars] = useState(false);
   const [hasCheckedTrigger, setHasCheckedTrigger] = useState(false);
 
   // 生成随机位置的函数
@@ -108,23 +112,16 @@ export function CardFlipAnimation({
       }).start(() => {
         setIsFlipped(true);
       });
-      
-      // 抽牌后等待3秒，然后允许触发星星特效
-      if (!canTriggerStars) {
-        setTimeout(() => {
-          setCanTriggerStars(true);
-        }, 3000);
-      }
     }
-  }, [card.revealed, isFlipped, animatedValue, canTriggerStars]);
+  }, [card.revealed, isFlipped, animatedValue]);
 
   // 当卡牌放入卡槽时检查是否触发星星特效
   useEffect(() => {
     if (isInSlot && canTriggerStars && !hasCheckedTrigger) {
       setHasCheckedTrigger(true);
       
-      // 1/5的几率触发特效
-      const shouldTrigger = Math.random() < 0.2; // 20% = 1/5
+      // 1/4的几率触发特效
+      const shouldTrigger = Math.random() < 0.25; // 20% = 1/5
       if (shouldTrigger) {
         setShouldShowStars(true);
         startStarsEffect();
@@ -132,8 +129,59 @@ export function CardFlipAnimation({
     }
   }, [isInSlot, canTriggerStars, hasCheckedTrigger]);
 
+  // 闪电特效函数
+  const startLightningEffect = () => {
+    // 闪电特效：快速闪烁3次
+    const lightningFlash = () => {
+      Animated.sequence([
+        // 第一次闪光
+        Animated.timing(lightningOpacity, {
+          toValue: 0.8,
+          duration: 80,
+          useNativeDriver: true,
+        }),
+        Animated.timing(lightningOpacity, {
+          toValue: 0,
+          duration: 60,
+          useNativeDriver: true,
+        }),
+        // 短暂暂停
+        Animated.delay(40),
+        // 第二次闪光（更强烈）
+        Animated.timing(lightningOpacity, {
+          toValue: 1,
+          duration: 100,
+          useNativeDriver: true,
+        }),
+        Animated.timing(lightningOpacity, {
+          toValue: 0,
+          duration: 80,
+          useNativeDriver: true,
+        }),
+        // 短暂暂停
+        Animated.delay(30),
+        // 第三次闪光（最微弱）
+        Animated.timing(lightningOpacity, {
+          toValue: 0.6,
+          duration: 60,
+          useNativeDriver: true,
+        }),
+        Animated.timing(lightningOpacity, {
+          toValue: 0,
+          duration: 100,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    };
+
+    lightningFlash();
+  };
+
   // 星星特效函数
   const startStarsEffect = () => {
+    // 先触发闪电特效
+    startLightningEffect();
+
     // 初始化星星位置动画
     starPositions.forEach((pos, index) => {
       starPositionAnimations[index].x.setValue(pos.x);
@@ -265,6 +313,17 @@ export function CardFlipAnimation({
       activeOpacity={0.9}
     >
       <View style={[styles.cardContainer, { width: CARD_WIDTH, height: CARD_HEIGHT }]} >
+        {/* 闪电特效层 - 全屏白色闪光 */}
+        <Animated.View
+          style={[
+            styles.lightningOverlay,
+            {
+              opacity: lightningOpacity,
+            }
+          ]}
+          pointerEvents="none"
+        />
+
         {/* 星星特效层 - 只在满足条件时显示 */}
         {card.revealed && shouldShowStars && (
           <Animated.View style={[styles.starsContainer, starsContainerStyle]}>
@@ -462,5 +521,16 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 3,
     fontWeight: 'bold',
+  },
+  // 闪电特效样式
+  lightningOverlay: {
+    position: 'absolute',
+    width: '100%',
+    height: '100%',
+    top: 0,
+    left: 0,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    zIndex: 10, // 确保闪电在最上层
   },
 });

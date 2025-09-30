@@ -46,10 +46,10 @@ cp .env.example .env
 ### 3. 启动服务
 ```bash
 # 启动开发服务器
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8001
 
 # 或使用Python直接启动
-python -m uvicorn app.main:app --reload --port 8000
+python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8001
 ```
 
 ### 4. 访问服务

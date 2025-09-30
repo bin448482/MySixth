@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//d/0-development/projects/MySixth/tarot-backend/app/api/**)",
+      "Read(//d/0-development/projects/MySixth/tarot-backend/app/services/**)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

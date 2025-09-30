@@ -34,6 +34,7 @@ interface CardSlotProps {
   droppedCard?: DrawnCard;
   isHighlighted: boolean;
   onCardPress?: (card: DrawnCard) => void;
+  canTriggerStars?: boolean; // 新增：控制特效触发
 }
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
@@ -47,6 +48,7 @@ export function CardSlot({
   droppedCard,
   isHighlighted,
   onCardPress,
+  canTriggerStars = false, // 新增：默认值为false
 }: CardSlotProps) {
 
   const renderEmptySlot = () => (
@@ -85,6 +87,7 @@ export function CardSlot({
         onPress={() => onCardPress?.(droppedCard!)}
         showName={true}
         isInSlot={true}
+        canTriggerStars={canTriggerStars} // 传递特效触发状态
       />
       <View style={styles.slotLabel}>
         <Text style={styles.slotLabelText}>{dimension.aspect}</Text>

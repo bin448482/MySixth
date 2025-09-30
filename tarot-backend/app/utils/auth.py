@@ -128,16 +128,29 @@ def verify_token(token: str) -> Dict[str, Any]:
 
 def extract_user_id_from_token(token: str) -> str:
     """
-    从JWT令牌中提取用户ID。
+    从JWT令牌中提取用户installation_id。
+    兼容两套认证系统的JWT token格式。
 
     Args:
         token: JWT令牌字符串
 
     Returns:
-        str: 用户ID
+        str: 用户installation_id
 
     Raises:
         HTTPException: 令牌无效时抛出401错误
     """
     payload = verify_jwt_token(token)
-    return payload.get("sub") or str(payload.get("user_id"))
+
+    # 兼容两套系统的token格式
+    # 1. 优先使用 installation_id 字段（users.py系统）
+    # 2. 降级使用 sub 字段（auth.py系统）
+    installation_id = payload.get("installation_id") or payload.get("sub")
+
+    if not installation_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token missing installation_id"
+        )
+
+    return str(installation_id)

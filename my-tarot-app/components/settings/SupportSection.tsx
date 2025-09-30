@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Linking, Alert } from 'react-native';
-import { BlurView } from 'expo-blur';
 import Constants from 'expo-constants';
+import { CollapsibleSection } from '../common/CollapsibleSection';
 
 interface SupportButtonProps {
   icon: string;
@@ -118,101 +118,79 @@ export const SupportSection: React.FC = () => {
   };
 
   return (
-    <View style={styles.sectionContainer}>
-      <Text style={styles.sectionTitle}>帮助与支持</Text>
+    <CollapsibleSection
+      title="帮助与支持"
+      icon="🆘"
+      defaultExpanded={false}
+    >
+      {/* 联系支持 */}
+      <View style={styles.supportGroup}>
+        <Text style={styles.groupTitle}>联系我们</Text>
 
-      <BlurView intensity={20} style={styles.cardContainer}>
-        {/* 联系支持 */}
-        <View style={styles.supportGroup}>
-          <Text style={styles.groupTitle}>联系我们</Text>
+        <SupportButton
+          icon="✉️"
+          title="邮件客服"
+          subtitle="发送邮件获取专业帮助"
+          onPress={() => handleContact('email')}
+        />
 
-          <SupportButton
-            icon="✉️"
-            title="邮件客服"
-            subtitle="发送邮件获取专业帮助"
-            onPress={() => handleContact('email')}
-          />
+        <SupportButton
+          icon="💬"
+          title="用户反馈"
+          subtitle="分享您的建议和意见"
+          onPress={() => handleContact('feedback')}
+        />
+      </View>
 
-          <SupportButton
-            icon="💬"
-            title="用户反馈"
-            subtitle="分享您的建议和意见"
-            onPress={() => handleContact('feedback')}
-          />
-        </View>
+      {/* 应用相关 */}
+      <View style={styles.supportGroup}>
+        <Text style={styles.groupTitle}>应用信息</Text>
 
-        {/* 应用相关 */}
-        <View style={styles.supportGroup}>
-          <Text style={styles.groupTitle}>应用信息</Text>
+        <SupportButton
+          icon="🔄"
+          title="检查更新"
+          subtitle="获取最新版本和功能"
+          onPress={() => handleContact('update')}
+        />
 
-          <SupportButton
-            icon="🔄"
-            title="检查更新"
-            subtitle="获取最新版本和功能"
-            onPress={() => handleContact('update')}
-          />
+        <SupportButton
+          icon="❓"
+          title="使用帮助"
+          subtitle="了解应用功能和操作指南"
+          onPress={() => handleContact('help')}
+        />
 
-          <SupportButton
-            icon="❓"
-            title="使用帮助"
-            subtitle="了解应用功能和操作指南"
-            onPress={() => handleContact('help')}
-          />
+        <SupportButton
+          icon="📋"
+          title="常见问题"
+          subtitle="查看常见问题解答"
+          onPress={() => handleContact('faq')}
+        />
+      </View>
 
-          <SupportButton
-            icon="📋"
-            title="常见问题"
-            subtitle="查看常见问题解答"
-            onPress={() => handleContact('faq')}
-          />
-        </View>
-
-        {/* 版本信息 */}
-        <View style={styles.versionInfo}>
-          <Text style={styles.versionTitle}>版本信息</Text>
-          <View style={styles.versionDetails}>
-            <View style={styles.versionRow}>
-              <Text style={styles.versionLabel}>应用版本</Text>
-              <Text style={styles.versionValue}>{Constants.expoConfig?.version || '1.0.0'}</Text>
-            </View>
-            <View style={styles.versionRow}>
-              <Text style={styles.versionLabel}>构建版本</Text>
-              <Text style={styles.versionValue}>1</Text>
-            </View>
-            <View style={styles.versionRow}>
-              <Text style={styles.versionLabel}>更新时间</Text>
-              <Text style={styles.versionValue}>2024-01-01</Text>
-            </View>
+      {/* 版本信息 */}
+      <View style={styles.versionInfo}>
+        <Text style={styles.versionTitle}>版本信息</Text>
+        <View style={styles.versionDetails}>
+          <View style={styles.versionRow}>
+            <Text style={styles.versionLabel}>应用版本</Text>
+            <Text style={styles.versionValue}>{Constants.expoConfig?.version || '1.0.0'}</Text>
+          </View>
+          <View style={styles.versionRow}>
+            <Text style={styles.versionLabel}>构建版本</Text>
+            <Text style={styles.versionValue}>1</Text>
+          </View>
+          <View style={styles.versionRow}>
+            <Text style={styles.versionLabel}>更新时间</Text>
+            <Text style={styles.versionValue}>2024-01-01</Text>
           </View>
         </View>
-      </BlurView>
-    </View>
+      </View>
+    </CollapsibleSection>
   );
 };
 
 const styles = StyleSheet.create({
-  sectionContainer: {
-    paddingHorizontal: 16,
-    paddingVertical: 24,
-  },
-
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#d4af37',
-    marginBottom: 16,
-    textAlign: 'center',
-  },
-
-  cardContainer: {
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(212, 175, 55, 0.3)',
-    overflow: 'hidden',
-    backgroundColor: 'rgba(20, 20, 40, 0.6)',
-    padding: 16,
-  },
-
   // 支持分组
   supportGroup: {
     marginBottom: 24,
