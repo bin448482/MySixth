@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
+  BackHandler,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useReadingFlow } from '@/lib/contexts/ReadingContext';
@@ -15,12 +16,44 @@ import AIReadingService from '@/lib/services/AIReadingService';
 
 export default function AIInputScreen() {
   const router = useRouter();
-  const { updateStep, updateUserDescription, updateAIDimensions } = useReadingFlow();
+  const { updateStep, updateUserDescription, updateAIDimensions, resetFlow } = useReadingFlow();
 
   const [userDescription, setUserDescription] = useState('');
   const [loading, setLoading] = useState(false);
   const [dimensions, setDimensions] = useState(null);
   const [error, setError] = useState('');
+  const [hasAnalyzed, setHasAnalyzed] = useState(false); // 标记是否已分析成功
+
+  // 添加返回拦截
+  useEffect(() => {
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (hasAnalyzed && dimensions) {
+        // 已经分析成功但未继续，提示用户
+        Alert.alert(
+          '确认返回',
+          '您已完成AI分析，返回将损失1个积分。确定要返回吗？',
+          [
+            {
+              text: '取消',
+              style: 'cancel',
+            },
+            {
+              text: '确定返回',
+              onPress: () => {
+                // 清除分析状态并返回
+                resetFlow();
+                router.back();
+              },
+            },
+          ]
+        );
+        return true; // 阻止默认返回行为
+      }
+      return false; // 允许默认返回
+    });
+
+    return () => backHandler.remove();
+  }, [hasAnalyzed, dimensions, router, resetFlow]);
 
   const handleAnalyze = async () => {
     // 清除之前的错误
@@ -59,6 +92,7 @@ export default function AIInputScreen() {
       updateUserDescription(userDescription.trim());
       updateAIDimensions(result.recommended_dimensions);
       setDimensions(result.recommended_dimensions);
+      setHasAnalyzed(true); // 标记已分析成功
 
       // 移除自动跳转，只能手动点击继续
 

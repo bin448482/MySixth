@@ -9,6 +9,7 @@ import {
   Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import { useReadingFlow } from '@/lib/contexts/ReadingContext';
 import { useAppContext } from '@/lib/contexts/AppContext';
 import UserService from '@/lib/services/UserService';
@@ -26,10 +27,12 @@ export default function TypeSelectionScreen() {
   const hasEnoughCredits = userCredits !== null && userCredits >= 2;
   const isAIButtonDisabled = !isAIServiceAvailable || !hasEnoughCredits;
 
-  // 加载用户积分
-  useEffect(() => {
-    loadUserCredits();
-  }, []);
+  // 页面获得焦点时刷新积分（首次加载和每次返回此页面时都会触发）
+  useFocusEffect(
+    React.useCallback(() => {
+      loadUserCredits();
+    }, [])
+  );
 
   const loadUserCredits = async () => {
     setIsLoadingCredits(true);
