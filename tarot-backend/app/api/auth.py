@@ -88,13 +88,14 @@ async def validate_token(request: TokenValidationRequest):
 # 依赖注入函数：从请求头中获取当前用户ID
 async def get_current_user_id(authorization: Optional[str] = Header(None)) -> str:
     """
-    从Authorization头中提取用户ID的依赖注入函数。
+    从Authorization头中提取用户installation_id的依赖注入函数。
+    兼容两套认证系统的JWT token格式。
 
     Args:
         authorization: Authorization请求头
 
     Returns:
-        str: 用户ID
+        str: 用户installation_id
 
     Raises:
         HTTPException: 认证失败时抛出401错误
@@ -115,8 +116,21 @@ async def get_current_user_id(authorization: Optional[str] = Header(None)) -> st
     # 提取令牌
     token = authorization[7:]  # 移除 "Bearer " 前缀
 
-    # 验证令牌并提取用户ID
-    return extract_user_id_from_token(token)
+    # 验证令牌并提取用户installation_id
+    payload = verify_jwt_token(token)
+
+    # 兼容两套系统的token格式
+    # 1. 优先使用 installation_id 字段（users.py系统）
+    # 2. 降级使用 sub 字段（auth.py系统）
+    installation_id = payload.get("installation_id") or payload.get("sub")
+
+    if not installation_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token missing installation_id"
+        )
+
+    return str(installation_id)
 
 
 # 可选认证的依赖注入函数

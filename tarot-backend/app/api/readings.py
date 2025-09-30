@@ -14,7 +14,9 @@ from ..schemas.reading import (
     CardInfo, DimensionInfo
 )
 from ..services.reading_service import get_reading_service
-from ..api.auth import get_current_user_id_optional
+from ..api.auth import get_current_user_id
+from ..services.user_service import UserService
+from ..models.user import User
 
 router = APIRouter(prefix="/readings", tags=["Readings"])
 
@@ -26,7 +28,7 @@ logger = logging.getLogger(__name__)
 async def analyze_user_description(
     request: AnalyzeRequest,
     db: Session = Depends(get_db),
-    user_id: str = Depends(get_current_user_id_optional)
+    user_id: str = Depends(get_current_user_id)
 ):
     """
     第一步：分析用户描述，返回推荐维度。
@@ -38,17 +40,40 @@ async def analyze_user_description(
     Args:
         request: 包含用户描述和牌阵类型的请求
         db: 数据库会话
-        user_id: 可选的用户ID（用于日志记录）
+        user_id: 用户ID（必需认证）
 
     Returns:
         AnalyzeResponse: 推荐的维度列表
+
+    Raises:
+        402 Payment Required: 积分不足
+        404 Not Found: 用户不存在
+        500 Internal Server Error: LLM调用失败
     """
+    # 获取用户信息
+    user = db.query(User).filter(User.installation_id == user_id).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="用户不存在"
+        )
+
+    # 检查积分余额
+    user_service = UserService()
+    balance = user_service.get_user_balance(db, user.id)
+    if not balance or balance.credits < 1:
+        raise HTTPException(
+            status_code=status.HTTP_402_PAYMENT_REQUIRED,
+            detail="积分不足，请充值后再使用AI分析功能"
+        )
+
     # 调试断点 - 在这里设置断点
     logger.debug(
-        "Received analyze request: description_prefix=%s spread_type=%s user_id=%s",
+        "Received analyze request: description_prefix=%s spread_type=%s user_id=%s credits=%d",
         request.description[:50],
         request.spread_type,
         user_id,
+        balance.credits
     )
 
     try:
@@ -77,6 +102,25 @@ async def analyze_user_description(
                 detail="Failed to analyze user description"
             )
 
+        # LLM调用成功后扣除积分
+        try:
+            user_service.update_user_balance(
+                db=db,
+                user_id=user.id,
+                credit_change=-1,
+                transaction_type="consume",
+                reference_type="reading_analyze",
+                description=f"AI分析用户描述: {request.description[:50]}..."
+            )
+            logger.info(
+                "Successfully deducted 1 credit for user %s (remaining: %d)",
+                user_id, balance.credits - 1
+            )
+        except Exception as e:
+            logger.error("Failed to deduct credit for user %s: %s", user_id, str(e))
+            # 积分扣除失败，但不影响返回结果（因为LLM调用已成功）
+            # 可以考虑记录到异常日志中进行后续处理
+
         return AnalyzeResponse(
             recommended_dimensions=recommended_dimensions,
             user_description=request.description
@@ -96,7 +140,7 @@ async def analyze_user_description(
 async def generate_reading(
     request: GenerateRequest,
     db: Session = Depends(get_db),
-    user_id: str = Depends(get_current_user_id_optional)
+    user_id: str = Depends(get_current_user_id)
 ):
     """
 
@@ -105,13 +149,38 @@ async def generate_reading(
     Args:
         request: 包含卡牌信息、维度信息和用户描述的请求
         db: 数据库会话
-        user_id: 可选的用户ID（用于日志记录）
+        user_id: 用户ID（必需认证）
 
     Returns:
         GenerateResponse: 详细的多维度解读结果
-    """
 
-    logger.info("Generating reading for spread_type=%s cards=%d dimensions=%d user_id=%s", request.spread_type, len(request.cards), len(request.dimensions), user_id)
+    Raises:
+        402 Payment Required: 积分不足
+        404 Not Found: 用户不存在
+        400 Bad Request: 请求参数验证失败
+        500 Internal Server Error: LLM调用失败
+    """
+    # 获取用户信息
+    user = db.query(User).filter(User.installation_id == user_id).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="用户不存在"
+        )
+
+    # 检查积分余额
+    user_service = UserService()
+    balance = user_service.get_user_balance(db, user.id)
+    if not balance or balance.credits < 1:
+        raise HTTPException(
+            status_code=status.HTTP_402_PAYMENT_REQUIRED,
+            detail="积分不足，请充值后再使用AI解读功能"
+        )
+
+    logger.info(
+        "Generating reading for spread_type=%s cards=%d dimensions=%d user_id=%s credits=%d",
+        request.spread_type, len(request.cards), len(request.dimensions), user_id, balance.credits
+    )
 
     try:
         reading_service = get_reading_service()
@@ -169,6 +238,25 @@ async def generate_reading(
             spread_type=request.spread_type,
             db=db
         )
+
+        # LLM调用成功后扣除积分
+        try:
+            user_service.update_user_balance(
+                db=db,
+                user_id=user.id,
+                credit_change=-1,
+                transaction_type="consume",
+                reference_type="reading_generate",
+                description=f"AI生成解读: {request.spread_type} ({len(request.cards)}张卡牌)"
+            )
+            logger.info(
+                "Successfully deducted 1 credit for user %s (remaining: %d)",
+                user_id, balance.credits - 1
+            )
+        except Exception as e:
+            logger.error("Failed to deduct credit for user %s: %s", user_id, str(e))
+            # 积分扣除失败，但不影响返回结果（因为LLM调用已成功）
+            # 可以考虑记录到异常日志中进行后续处理
 
         return GenerateResponse(**interpretation_result)
 

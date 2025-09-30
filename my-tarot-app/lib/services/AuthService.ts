@@ -1,6 +1,7 @@
 import * as SecureStore from 'expo-secure-store';
 import * as Device from 'expo-device';
 import * as Application from 'expo-application';
+import { apiConfig, endpoints, buildApiUrl } from '../config/api';
 
 const TOKEN_KEY = 'user_jwt_token';
 const USER_ID_KEY = 'user_id';
@@ -21,9 +22,6 @@ interface AnonymousUserResponse {
 
 class AuthService {
   private static instance: AuthService;
-  private baseUrl: string = __DEV__
-    ? 'http://192.168.71.3:8001'
-    : 'https://api.yourdomain.com';
 
   private constructor() {}
 
@@ -39,15 +37,17 @@ class AuthService {
     try {
       const installationId = Application.androidId || Device.modelName || 'unknown';
       console.log('📱 Device installation ID:', installationId);
-      console.log('🌐 Base URL:', this.baseUrl);
-      console.log('🔗 Request URL:', `${this.baseUrl}/api/v1/users/register`);
+      console.log('🌐 Base URL:', apiConfig.baseUrl);
+
+      const apiUrl = buildApiUrl(endpoints.auth.register);
+      console.log('🔗 Request URL:', apiUrl);
 
       console.log('📦 Request body:', JSON.stringify({
         installation_id: installationId,
       }));
 
       console.log('🚀 Sending fetch request...');
-      const response = await fetch(`${this.baseUrl}/api/v1/users/register`, {
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

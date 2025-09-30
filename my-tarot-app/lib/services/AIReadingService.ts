@@ -4,6 +4,7 @@
  */
 
 import AuthService from './AuthService';
+import { apiConfig, endpoints, buildApiUrl } from '../config/api';
 
 export interface AnalyzeRequest {
   description: string;
@@ -56,28 +57,11 @@ export interface GenerateResponse {
 
 class AIReadingService {
   private static instance: AIReadingService;
-  private baseUrl: string;
   private authService: AuthService;
 
   private constructor() {
-    // 后端API地址,开发环境使用本地地址
-    // Expo 环境需要使用电脑的实际IP地址，不能使用localhost
-    let devUrl: string;
-
-    if (__DEV__) {
-      // Expo 环境使用电脑的实际IP地址
-      devUrl = 'http://192.168.71.3:8001';
-
-      // 备用选项（如果上面的IP不工作，可以尝试其他地址）：
-      // devUrl = 'http://localhost:8001';    // 仅适用于iOS模拟器
-      // devUrl = 'http://10.0.2.2:8001';    // 仅适用于Android模拟器
-    } else {
-      devUrl = 'https://your-production-api.com';
-    }
-
-    this.baseUrl = devUrl;
     this.authService = AuthService.getInstance();
-    console.log('AI Service Base URL:', this.baseUrl);
+    console.log('AI Service Base URL:', apiConfig.baseUrl);
   }
 
   static getInstance(): AIReadingService {
@@ -113,7 +97,7 @@ class AIReadingService {
 
       const headers = await this.getRequestHeaders();
 
-      const response = await fetch(`${this.baseUrl}/api/v1/readings/analyze`, {
+      const response = await fetch(buildApiUrl(endpoints.readings.analyze), {
         method: 'POST',
         headers,
         body: JSON.stringify(request),
@@ -157,7 +141,7 @@ class AIReadingService {
       };
 
       console.log('🚀 === AIReadingService.generateAIReading 开始 ===');
-      console.log('🌐 请求URL:', `${this.baseUrl}/api/v1/readings/generate`);
+      console.log('🌐 请求URL:', buildApiUrl(endpoints.readings.generate));
       console.log('📋 请求方法: POST');
       console.log('📄 请求体 (完整):', JSON.stringify(request, null, 2));
       console.log('🎴 卡牌详情:');
@@ -182,7 +166,7 @@ class AIReadingService {
       const headers = await this.getRequestHeaders();
       console.log('📦 请求头:', headers);
 
-      const response = await fetch(`${this.baseUrl}/api/v1/readings/generate`, {
+      const response = await fetch(buildApiUrl(endpoints.readings.generate), {
         method: 'POST',
         headers,
         body: JSON.stringify(request),
@@ -291,7 +275,7 @@ class AIReadingService {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 3000); // 减少到3秒超时
 
-      const response = await fetch(`${this.baseUrl}/health`, {
+      const response = await fetch(buildApiUrl(endpoints.health), {
         method: 'GET',
         signal: controller.signal,
       });
@@ -313,7 +297,8 @@ class AIReadingService {
    * 设置API基础URL（用于测试）
    */
   setBaseUrl(url: string): void {
-    this.baseUrl = url;
+    // 现在通过 apiConfig 来设置，保持向后兼容性
+    console.warn('setBaseUrl 已弃用，请使用 apiConfig 来配置API地址');
   }
 }
 
