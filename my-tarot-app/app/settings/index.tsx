@@ -11,11 +11,12 @@ import {
   PrivacySection,
   SupportSection
 } from '@/components/settings';
-import UserService, { BalanceResponse, UserStatsResponse, UserTransaction } from '@/lib/services/UserService';
+import UserService, { BalanceResponse, UserStatsResponse, UserTransaction, UserInfo } from '@/lib/services/UserService';
 
 export default function SettingsScreen() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
+  const [userProfile, setUserProfile] = useState<UserInfo | null>(null);
   const [userBalance, setUserBalance] = useState<BalanceResponse | null>(null);
   const [userStats, setUserStats] = useState<UserStatsResponse | null>(null);
   const [transactions, setTransactions] = useState<UserTransaction[]>([]);
@@ -34,6 +35,7 @@ export default function SettingsScreen() {
       const userService = UserService.getInstance();
       const userInfo = await userService.getUserInfo();
 
+      setUserProfile(userInfo.profile);
       setUserBalance(userInfo.balance);
       setUserStats(userInfo.stats);
       setTransactions(userInfo.transactions);
@@ -71,7 +73,7 @@ export default function SettingsScreen() {
         >
           <RechargeSection
             currentCredits={userBalance?.credits || 0}
-            userEmail={undefined} // 目前后端没有返回邮箱信息
+            userEmail={userProfile?.email}
             rechargeHistory={transactions}
           />
           <AppInfoSection />

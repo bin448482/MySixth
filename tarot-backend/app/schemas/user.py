@@ -30,6 +30,9 @@ class UserResponse(BaseModel):
     """Response schema for user information."""
     id: int
     installation_id: str
+    email: Optional[str] = None
+    email_verified: bool = False
+    email_verified_at: Optional[datetime] = None
     created_at: datetime
     last_active_at: datetime
     total_credits_purchased: int

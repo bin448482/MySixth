@@ -22,8 +22,12 @@ export interface UserInfo {
   id: number;
   installation_id: string;
   email?: string;
+  email_verified: boolean;
+  email_verified_at?: string;
   created_at: string;
   last_active_at: string;
+  total_credits_purchased: number;
+  total_credits_consumed: number;
 }
 
 export interface BalanceResponse {
@@ -58,6 +62,52 @@ class UserService {
       UserService.instance = new UserService();
     }
     return UserService.instance;
+  }
+
+  async getUserProfile(): Promise<UserInfo | null> {
+    console.log('👤 === UserService.getUserProfile() 开始 ===');
+    try {
+      const authHeaders = await this.authService.getAuthHeaders();
+
+      if (!authHeaders.Authorization) {
+        console.log('❌ No authorization token available');
+        return null;
+      }
+
+      const apiUrl = buildApiUrl('/api/v1/me');
+      console.log('🔗 Request URL:', apiUrl);
+
+      const response = await fetch(apiUrl, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          ...authHeaders,
+        },
+      });
+
+      console.log('📡 Response received:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok
+      });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          console.log('🔒 Token expired, clearing auth data');
+          await this.authService.clearAllAuthData();
+          return null;
+        }
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data: UserInfo = await response.json();
+      console.log('✅ User profile retrieved successfully:', data.email ? 'with email' : 'no email');
+      return data;
+    } catch (error) {
+      console.error('❌ Failed to get user profile:', error);
+      return null;
+    }
   }
 
   async getUserBalance(): Promise<BalanceResponse | null> {
@@ -199,18 +249,20 @@ class UserService {
   }
 
   /**
-   * 获取用户完整信息（余额 + 统计数据）
+   * 获取用户完整信息（档案 + 余额 + 统计数据）
    */
-  async getUserInfo(): Promise<{ balance: BalanceResponse | null; stats: UserStatsResponse | null; transactions: UserTransaction[] }> {
+  async getUserInfo(): Promise<{ profile: UserInfo | null; balance: BalanceResponse | null; stats: UserStatsResponse | null; transactions: UserTransaction[] }> {
     console.log('👤 === UserService.getUserInfo() 开始 ===');
     try {
-      const [balance, stats, transactionHistory] = await Promise.all([
+      const [profile, balance, stats, transactionHistory] = await Promise.all([
+        this.getUserProfile(),
         this.getUserBalance(),
         this.getUserStats(),
         this.getUserTransactions(5, 0) // 只获取最近5条交易记录
       ]);
 
       return {
+        profile,
         balance,
         stats,
         transactions: transactionHistory?.transactions || []
@@ -218,6 +270,7 @@ class UserService {
     } catch (error) {
       console.error('❌ Failed to get user info:', error);
       return {
+        profile: null,
         balance: null,
         stats: null,
         transactions: []
