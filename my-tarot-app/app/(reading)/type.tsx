@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,22 +6,70 @@ import {
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useReadingFlow } from '@/lib/contexts/ReadingContext';
 import { useAppContext } from '@/lib/contexts/AppContext';
+import UserService from '@/lib/services/UserService';
 
 export default function TypeSelectionScreen() {
   const router = useRouter();
   const { updateStep, updateType } = useReadingFlow();
   const { state } = useAppContext();
 
+  const [userCredits, setUserCredits] = useState<number | null>(null);
+  const [isLoadingCredits, setIsLoadingCredits] = useState(false);
+
   const isAIServiceAvailable = state.isAIServiceAvailable;
   const isCheckingService = state.isCheckingAIService || !state.isAppInitialized;
+  const hasEnoughCredits = userCredits !== null && userCredits >= 2;
+  const isAIButtonDisabled = !isAIServiceAvailable || !hasEnoughCredits;
+
+  // 加载用户积分
+  useEffect(() => {
+    loadUserCredits();
+  }, []);
+
+  const loadUserCredits = async () => {
+    setIsLoadingCredits(true);
+    try {
+      const userService = UserService.getInstance();
+      const balance = await userService.getUserBalance();
+      if (balance) {
+        setUserCredits(balance.credits);
+      }
+    } catch (error) {
+      console.error('Failed to load user credits:', error);
+    } finally {
+      setIsLoadingCredits(false);
+    }
+  };
 
   const handleTypeSelect = async (type: 'offline' | 'ai') => {
-    if (type === 'ai' && !isAIServiceAvailable) {
-      return; // Prevent selection if AI service is unavailable
+    if (type === 'ai') {
+      // AI占卜前先检查服务和积分
+      if (!isAIServiceAvailable) {
+        return;
+      }
+
+      if (!hasEnoughCredits) {
+        Alert.alert(
+          '积分不足',
+          `AI占卜需要消耗2积分，您当前积分：${userCredits || 0}。请前往充值页面获取积分。`,
+          [
+            {
+              text: '去充值',
+              onPress: () => router.push('/settings'),
+            },
+            {
+              text: '取消',
+              style: 'cancel',
+            },
+          ]
+        );
+        return;
+      }
     }
 
     updateType(type);
@@ -69,47 +117,55 @@ export default function TypeSelectionScreen() {
         <TouchableOpacity
           style={[
             styles.optionCard,
-            isAIServiceAvailable ? styles.availableOption : styles.disabledOption
+            isAIButtonDisabled ? styles.disabledOption : styles.availableOption
           ]}
           onPress={() => handleTypeSelect('ai')}
-          activeOpacity={isAIServiceAvailable ? 0.8 : 1}
-          disabled={!isAIServiceAvailable}
+          activeOpacity={isAIButtonDisabled ? 1 : 0.8}
+          disabled={isAIButtonDisabled}
         >
           <View style={styles.iconContainer}>
             <Text style={[
               styles.icon,
-              isAIServiceAvailable ? styles.availableIcon : styles.disabledIcon
+              isAIButtonDisabled ? styles.disabledIcon : styles.availableIcon
             ]}>🤖</Text>
           </View>
           <Text style={[
             styles.optionTitle,
-            isAIServiceAvailable ? styles.availableTitle : styles.disabledTitle
+            isAIButtonDisabled ? styles.disabledTitle : styles.availableTitle
           ]}>
-            AI占卜
+            AI占卜 {userCredits !== null && `(需要2积分)`}
           </Text>
           <Text style={[
             styles.optionDescription,
-            isAIServiceAvailable ? styles.availableDescription : styles.disabledDescription
+            isAIButtonDisabled ? styles.disabledDescription : styles.availableDescription
           ]}>
             {isCheckingService
               ? '正在检查服务状态...'
-              : isAIServiceAvailable
-                ? '智能解读服务，个性化分析'
-                : 'AI服务暂时不可用，请稍后重试'
+              : isLoadingCredits
+                ? '正在加载积分信息...'
+                : !isAIServiceAvailable
+                  ? 'AI服务暂时不可用，请稍后重试'
+                  : !hasEnoughCredits
+                    ? `当前积分：${userCredits || 0}，积分不足`
+                    : `智能解读服务，个性化分析 (当前积分：${userCredits})`
             }
           </Text>
           <Text style={[
             styles.optionStatus,
-            isAIServiceAvailable ? styles.availableStatus : styles.disabledStatus
+            isAIButtonDisabled ? styles.disabledStatus : styles.availableStatus
           ]}>
             {isCheckingService
               ? '[检查中...]'
-              : isAIServiceAvailable
-                ? '[可用]'
-                : '[不可用]'
+              : isLoadingCredits
+                ? '[加载中...]'
+                : !isAIServiceAvailable
+                  ? '[不可用]'
+                  : !hasEnoughCredits
+                    ? '[积分不足]'
+                    : '[可用]'
             }
           </Text>
-          {isCheckingService && (
+          {(isCheckingService || isLoadingCredits) && (
             <ActivityIndicator
               size="small"
               color="#888888"
