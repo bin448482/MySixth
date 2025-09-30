@@ -2,7 +2,7 @@
 
 ## 📱 项目概述
 
-**塔罗牌应用** 是一个全栈的跨平台塔罗牌应用，采用 Expo React Native + FastAPI 架构，提供塔罗牌抽牌、解读和付费AI解读服务。
+**塔罗牌应用** 是一个全栈的跨平台塔罗牌应用，采用 Expo React Native + FastAPI + Next.js 架构，提供塔罗牌抽牌、解读和付费AI解读服务，以及现代化的Web管理后台。
 
 ### 核心功能
 - 匿名用户支持（无需注册）
@@ -12,6 +12,7 @@
 - 完整的占卜历史记录功能
 - 离线同步机制
 - 跨平台支持（Android/iOS）
+- 现代化Web管理后台系统
 
 ## 🏗️ 整体架构
 
@@ -30,6 +31,13 @@
     ├── 支付 (Stripe Checkout) (🔄 待实现)
     ├── SQLite 独立数据库
     └── 静态资源 (卡牌图片)
+    ↓ Web管理后台
+[Next.js Web管理后台 (tarot-admin-web/)]
+    ├── 用户管理 (✅ 已实现)
+    ├── 兑换码管理 (✅ 已实现)
+    ├── 订单管理 (🔄 待实现)
+    ├── 数据仪表板 (✅ 已实现)
+    └── 系统监控 (✅ 已实现)
     ↑ 数据生成
 [AI生成工具 (tarot-ai-generator/)]
     ├── 维度解读生成 (✅ 已实现)
@@ -55,6 +63,15 @@
 - **支付**: Stripe Checkout (🔄 待集成)
 - **部署**: 单体服务器 + Nginx
 
+### Web管理后台 (tarot-admin-web/)
+- **框架**: Next.js ~15.5.4 (App Router)
+- **语言**: TypeScript ~5.0
+- **UI库**: Ant Design ~6.x
+- **图表**: @ant-design/charts ~2.6
+- **状态管理**: Zustand ~5.0
+- **数据获取**: SWR ~2.3
+- **样式**: Tailwind CSS + Ant Design
+
 ### 开发工具 (tarot-ai-generator/)
 - **功能**: AI解读内容生成工具 (✅ 已实现)
 - **语言**: Python
@@ -75,6 +92,13 @@ MySixth/
 │   ├── app/                         # 应用代码
 │   ├── static/                      # 静态资源
 │   └── CLAUDE.md                    # 后端开发指南
+├── tarot-admin-web/                 # Web管理后台 (Next.js)
+│   ├── src/                         # 源代码
+│   │   ├── app/                     # 页面路由
+│   │   ├── components/              # 组件库
+│   │   ├── lib/                     # API客户端
+│   │   └── types/                   # TypeScript类型
+│   └── CLAUDE.md                    # Web管理后台开发指南
 ├── tarot-ai-generator/              # AI解读生成工具 (Python)
 │   ├── main.py                      # 主程序
 │   ├── config.py                    # 配置管理
@@ -96,6 +120,17 @@ MySixth/
 | POST | `/readings/generate` | 第二步：基于选定维度生成多维度解读 | ✅ 已实现 |
 | POST | `/payments/checkout` | 创建 Stripe Checkout 会话 | 🔄 待实现 |
 
+### 管理后台接口
+
+| 方法   | 路径                   | 说明                    | 状态 |
+| ---- | -------------------- | --------------------- | --- |
+| POST | `/admin/login`       | 管理员登录                | ✅ 已实现 |
+| GET  | `/admin/users`       | 获取用户列表               | ✅ 已实现 |
+| PUT  | `/admin/users/{id}/credits` | 调整用户积分         | ✅ 已实现 |
+| GET  | `/admin/redeem-codes` | 获取兑换码列表            | ✅ 已实现 |
+| POST | `/admin/redeem-codes/generate` | 批量生成兑换码     | ✅ 已实现 |
+| GET  | `/admin/dashboard/metrics` | 获取仪表板统计数据    | ✅ 已实现 |
+
 ### 解读API流程
 
 **分两步解读设计**：
@@ -112,12 +147,13 @@ MySixth/
 
 ## 🎯 开发优先级
 
-### ✅ 已完成阶段 - 后端核心架构
+### ✅ 已完成阶段 - 核心架构
 1. ✅ FastAPI后端框架搭建
 2. ✅ 数据库设计和SQLAlchemy模型
 3. ✅ 核心API接口实现（认证、卡牌、维度、牌阵）
 4. ✅ LLM集成服务（智谱AI + OpenAI双支持）
 5. ✅ 分两步解读API流程实现
+6. ✅ Next.js Web管理后台开发完成
 
 ### 🔄 当前优先级 - 前端开发
 1. **第一阶段**: 首页设计与组件架构
@@ -128,6 +164,7 @@ MySixth/
 ### 🔄 待实现功能
 - Stripe支付集成（后端）
 - 离线同步机制
+- 订单管理功能（Web管理后台）
 - 部署和监控
 
 ## 📚 详细开发指南
@@ -144,6 +181,12 @@ MySixth/
   - 数据库表结构详情
   - LLM集成架构
   - API接口实现细节
+
+- **Web管理后台**: 参考 `tarot-admin-web/CLAUDE.md`
+  - Next.js + Ant Design架构设计
+  - 管理后台功能实现
+  - API集成和认证系统
+  - 现代化Web体验设计
 
 - **AI工具使用**: 参考 `tarot-ai-generator/CLAUDE.md`
   - 维度解读生成工具
@@ -163,10 +206,12 @@ MySixth/
 3. **API集成**: 优先实现与已完成后端API的集成
 4. **架构一致性**: 严格按照架构文档的设计模式开发
 5. **类型安全**: 前后端都要确保类型定义正确
+6. **管理后台**: 现代化Web管理后台已完成，支持用户管理、兑换码管理等功能
 
 ### 技术要求
 - **前端**: 遵循 React Native 和 TypeScript 最佳实践
 - **后端**: 遵循 FastAPI 和 Python 最佳实践
+- **Web管理后台**: 遵循 Next.js 和 Ant Design 最佳实践
 - **数据库**: 保持数据一致性和完整性
 - **API**: RESTful 设计，清晰的错误处理
 
