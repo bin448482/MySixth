@@ -7,10 +7,12 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  BackHandler,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import { useReadingFlow } from '@/lib/contexts/ReadingContext';
 import AIReadingService from '@/lib/services/AIReadingService';
 import { CardImageLoader } from '@/components/reading/CardImageLoader';
@@ -52,6 +54,36 @@ export default function AIResultScreen() {
   const [error, setError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
   const [hasSaved, setHasSaved] = useState(false); // 本地保存状态标记
+
+  // 添加硬件返回键拦截 - 只在页面聚焦时生效
+  useFocusEffect(
+    React.useCallback(() => {
+      const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+        // AI结果页面返回提示 - 已经消耗积分
+        Alert.alert(
+          '确认返回',
+          '您已完成AI解读，返回将结束当前占卜。确定要返回吗？',
+          [
+            {
+              text: '取消',
+              style: 'cancel',
+            },
+            {
+              text: '确定返回',
+              onPress: () => {
+                // 清除状态并直接跳转到选择占卜类型页面
+                resetFlow();
+                router.push('/(reading)/type');
+              },
+            },
+          ]
+        );
+        return true; // 阻止默认返回行为
+      });
+
+      return () => backHandler.remove();
+    }, [router, resetFlow])
+  );
 
   useEffect(() => {
     // 检查是否已经有AI解读结果

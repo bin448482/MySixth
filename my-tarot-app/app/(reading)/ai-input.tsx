@@ -11,6 +11,7 @@ import {
   BackHandler,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import { useReadingFlow } from '@/lib/contexts/ReadingContext';
 import AIReadingService from '@/lib/services/AIReadingService';
 
@@ -24,14 +25,20 @@ export default function AIInputScreen() {
   const [error, setError] = useState('');
   const [hasAnalyzed, setHasAnalyzed] = useState(false); // 标记是否已分析成功
 
-  // 添加返回拦截
-  useEffect(() => {
-    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
-      if (hasAnalyzed && dimensions) {
-        // 已经分析成功但未继续，提示用户
+  // 添加返回拦截 - 只在页面聚焦时生效
+  useFocusEffect(
+    React.useCallback(() => {
+      const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+        // 根据是否已分析成功来判断积分扣除状态
+        const hasConsumedCredits = hasAnalyzed && dimensions;
+        const title = '确认返回';
+        const message = hasConsumedCredits
+          ? '您已完成AI分析，返回将损失已消耗的积分。确定要返回吗？'
+          : '返回将取消当前占卜流程。确定要返回吗？';
+
         Alert.alert(
-          '确认返回',
-          '您已完成AI分析，返回将损失1个积分。确定要返回吗？',
+          title,
+          message,
           [
             {
               text: '取消',
@@ -40,20 +47,19 @@ export default function AIInputScreen() {
             {
               text: '确定返回',
               onPress: () => {
-                // 清除分析状态并返回
+                // 清除状态并直接跳转到选择占卜类型页面
                 resetFlow();
-                router.back();
+                router.push('/(reading)/type');
               },
             },
           ]
         );
         return true; // 阻止默认返回行为
-      }
-      return false; // 允许默认返回
-    });
+      });
 
-    return () => backHandler.remove();
-  }, [hasAnalyzed, dimensions, router, resetFlow]);
+      return () => backHandler.remove();
+    }, [router, resetFlow, hasAnalyzed, dimensions])
+  );
 
   const handleAnalyze = async () => {
     // 清除之前的错误

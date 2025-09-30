@@ -7,8 +7,10 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  BackHandler,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import { useReadingFlow } from '@/lib/contexts/ReadingContext';
 import { CardService } from '@/lib/services/CardService';
 import { DimensionService } from '@/lib/services/DimensionService';
@@ -30,7 +32,7 @@ interface DrawnCard {
 
 export default function DrawCardsScreen() {
   const router = useRouter();
-  const { state, updateStep, updateCards } = useReadingFlow();
+  const { state, updateStep, updateCards, resetFlow } = useReadingFlow();
   const [drawnCards, setDrawnCards] = useState<DrawnCard[]>([]);
   const [dimensions, setDimensions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -46,6 +48,44 @@ export default function DrawCardsScreen() {
   useEffect(() => {
     loadDimensions();
   }, []);
+
+  // 添加硬件返回键拦截 - 只在页面聚焦时生效
+  useFocusEffect(
+    React.useCallback(() => {
+      const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+        // 根据占卜类型判断积分扣除状态
+        const isAIReading = state.type === 'ai';
+        const hasConsumedCredits = isAIReading && state.userDescription && state.aiDimensions;
+
+        const title = '确认返回';
+        const message = hasConsumedCredits
+          ? '您已完成AI分析，返回将损失已消耗的积分。确定要返回吗？'
+          : '返回将取消当前占卜流程。确定要返回吗？';
+
+        Alert.alert(
+          title,
+          message,
+          [
+            {
+              text: '取消',
+              style: 'cancel',
+            },
+            {
+              text: '确定返回',
+              onPress: () => {
+                // 清除状态并直接跳转到选择占卜类型页面
+                resetFlow();
+                router.push('/(reading)/type');
+              },
+            },
+          ]
+        );
+        return true; // 阻止默认返回行为
+      });
+
+      return () => backHandler.remove();
+    }, [router, resetFlow, state.type, state.userDescription, state.aiDimensions])
+  );
 
   const loadDimensions = async () => {
     try {

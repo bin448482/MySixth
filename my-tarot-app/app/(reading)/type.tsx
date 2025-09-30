@@ -7,6 +7,7 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
+  BackHandler,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
@@ -33,6 +34,17 @@ export default function TypeSelectionScreen() {
       loadUserCredits();
     }, [])
   );
+
+  // 添加硬件返回键处理
+  useEffect(() => {
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+      // 直接跳转到首页，而不是使用默认的router.back()
+      router.push('/(tabs)/');
+      return true; // 阻止默认返回行为
+    });
+
+    return () => backHandler.remove();
+  }, [router]);
 
   const loadUserCredits = async () => {
     setIsLoadingCredits(true);
@@ -93,7 +105,7 @@ export default function TypeSelectionScreen() {
       <View style={styles.header}>
         <Text style={styles.title}>选择占卜方式</Text>
         <Text style={styles.subtitle}>
-          请选择您希望的占卜方式
+          请选择您希望的占卜方式,手势左滑返回首页
         </Text>
       </View>
 
