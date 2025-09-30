@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { BlurView } from 'expo-blur';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
+import { CollapsibleSection } from '../common/CollapsibleSection';
 
 interface PrivacyItem {
   id: string;
@@ -91,57 +91,35 @@ export const PrivacySection: React.FC = () => {
   };
 
   return (
-    <View style={styles.sectionContainer}>
-      <Text style={styles.sectionTitle}>隐私政策</Text>
+    <CollapsibleSection
+      title="隐私政策"
+      icon="🔒"
+      defaultExpanded={false}
+    >
+      <View style={styles.privacyList}>
+        {privacyItems.map((item) => (
+          <PrivacyCard
+            key={item.id}
+            item={item}
+            expanded={expandedItem === item.id}
+            onToggle={() => handleToggle(item.id)}
+          />
+        ))}
+      </View>
 
-      <BlurView intensity={20} style={styles.cardContainer}>
-        <View style={styles.privacyList}>
-          {privacyItems.map((item) => (
-            <PrivacyCard
-              key={item.id}
-              item={item}
-              expanded={expandedItem === item.id}
-              onToggle={() => handleToggle(item.id)}
-            />
-          ))}
-        </View>
-
-        {/* 联系方式 */}
-        <View style={styles.contactInfo}>
-          <Text style={styles.contactTitle}>📧 隐私问题咨询</Text>
-          <Text style={styles.contactContent}>
-            如果您对我们的隐私政策有任何疑问，请通过以下方式联系我们：
-          </Text>
-          <Text style={styles.contactEmail}>privacy@tarotapp.com</Text>
-        </View>
-      </BlurView>
-    </View>
+      {/* 联系方式 */}
+      <View style={styles.contactInfo}>
+        <Text style={styles.contactTitle}>📧 隐私问题咨询</Text>
+        <Text style={styles.contactContent}>
+          如果您对我们的隐私政策有任何疑问，请通过以下方式联系我们：
+        </Text>
+        <Text style={styles.contactEmail}>privacy@tarotapp.com</Text>
+      </View>
+    </CollapsibleSection>
   );
 };
 
 const styles = StyleSheet.create({
-  sectionContainer: {
-    paddingHorizontal: 16,
-    paddingVertical: 24,
-  },
-
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#d4af37',
-    marginBottom: 16,
-    textAlign: 'center',
-  },
-
-  cardContainer: {
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(212, 175, 55, 0.3)',
-    overflow: 'hidden',
-    backgroundColor: 'rgba(20, 20, 40, 0.6)',
-    padding: 16,
-  },
-
   privacyList: {
     marginBottom: 20,
   },

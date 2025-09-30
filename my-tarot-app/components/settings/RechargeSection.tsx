@@ -1,6 +1,8 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, Linking } from 'react-native';
 import { BlurView } from 'expo-blur';
+import { Ionicons } from '@expo/vector-icons';
+import { UserTransaction } from '../../lib/services/UserService';
 
 interface RechargeRecord {
   id: string;
@@ -19,7 +21,8 @@ interface RechargePackage {
 
 interface RechargeSectionProps {
   currentCredits?: number;
-  rechargeHistory?: RechargeRecord[];
+  userEmail?: string;
+  rechargeHistory?: UserTransaction[];
 }
 
 interface PackageCardProps {
@@ -28,61 +31,57 @@ interface PackageCardProps {
 }
 
 interface HistoryItemProps {
-  record: RechargeRecord;
+  record: UserTransaction;
 }
 
-const rechargePackages: RechargePackage[] = [
-  { amount: 10, credits: 10, popular: false },
-  { amount: 30, credits: 30, popular: true },
-  { amount: 50, credits: 50, popular: false },
-  { amount: 100, credits: 100, popular: false },
-  { amount: 300, credits: 300, popular: false },
-  { amount: 500, credits: 500, popular: false }
-];
-
-const PackageCard: React.FC<PackageCardProps> = ({ package: pkg, onPress }) => {
-  return (
-    <TouchableOpacity style={styles.packageCard} onPress={onPress} activeOpacity={0.7}>
-      {pkg.popular && (
-        <View style={styles.popularBadge}>
-          <Text style={styles.popularText}>推荐</Text>
-        </View>
-      )}
-      <Text style={styles.packageAmount}>¥{pkg.amount}</Text>
-      <Text style={styles.packageCredits}>{pkg.credits} 积分</Text>
-    </TouchableOpacity>
-  );
-};
-
 const HistoryItem: React.FC<HistoryItemProps> = ({ record }) => {
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'success': return '#27ae60';
-      case 'pending': return '#f39c12';
-      case 'failed': return '#e74c3c';
+  const getStatusColor = (type: string) => {
+    switch (type) {
+      case 'recharge': return '#27ae60';
+      case 'consume': return '#e74c3c';
+      case 'refund': return '#f39c12';
       default: return '#8b8878';
     }
   };
 
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case 'success': return '成功';
-      case 'pending': return '处理中';
-      case 'failed': return '失败';
-      default: return '未知';
+  const getStatusText = (type: string) => {
+    switch (type) {
+      case 'recharge': return '充值';
+      case 'consume': return '消费';
+      case 'refund': return '退款';
+      default: return '其他';
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('zh-CN', {
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch {
+      return dateString;
     }
   };
 
   return (
     <View style={styles.historyItem}>
       <View style={styles.historyLeft}>
-        <Text style={styles.historyAmount}>¥{record.amount}</Text>
-        <Text style={styles.historyTime}>{record.timestamp}</Text>
+        <Text style={styles.historyDescription}>{record.description}</Text>
+        <Text style={styles.historyTime}>{formatDate(record.created_at)}</Text>
       </View>
       <View style={styles.historyRight}>
-        <Text style={styles.historyCredits}>+{record.credits} 积分</Text>
-        <Text style={[styles.historyStatus, { color: getStatusColor(record.status) }]}>
-          {getStatusText(record.status)}
+        <Text style={[
+          styles.historyCredits,
+          { color: record.credit_change > 0 ? '#27ae60' : '#e74c3c' }
+        ]}>
+          {record.credit_change > 0 ? '+' : ''}{record.credit_change} 积分
+        </Text>
+        <Text style={[styles.historyStatus, { color: getStatusColor(record.transaction_type) }]}>
+          {getStatusText(record.transaction_type)}
         </Text>
       </View>
     </View>
@@ -91,21 +90,18 @@ const HistoryItem: React.FC<HistoryItemProps> = ({ record }) => {
 
 export const RechargeSection: React.FC<RechargeSectionProps> = ({
   currentCredits = 0,
+  userEmail,
   rechargeHistory = []
 }) => {
-  const handlePackagePress = (pkg: RechargePackage) => {
-    // TODO: 实现充值逻辑
-    console.log('充值套餐选择:', pkg);
+  const handleRedeemCode = () => {
+    // 兑换码充值功能 - 打开Web页面
+    const redeemUrl = 'https://your-admin-web.com/redeem'; // 替换为实际的管理后台兑换页面URL
+    Linking.openURL(redeemUrl).catch(err => {
+      console.error('Failed to open redeem URL:', err);
+    });
   };
 
-  const renderPackage = ({ item }: { item: RechargePackage }) => (
-    <PackageCard
-      package={item}
-      onPress={() => handlePackagePress(item)}
-    />
-  );
-
-  const renderHistoryItem = ({ item }: { item: RechargeRecord }) => (
+  const renderHistoryItem = ({ item }: { item: UserTransaction }) => (
     <HistoryItem record={item} />
   );
 
@@ -114,26 +110,35 @@ export const RechargeSection: React.FC<RechargeSectionProps> = ({
       <Text style={styles.sectionTitle}>积分管理</Text>
 
       <BlurView intensity={20} style={styles.cardContainer}>
-        {/* 当前余额 */}
-        <View style={styles.balanceCard}>
-          <Text style={styles.balanceLabel}>当前积分余额</Text>
-          <Text style={styles.balanceAmount}>{currentCredits}</Text>
-          <Text style={styles.balanceNote}>1 积分 = 1 元人民币</Text>
+        {/* 用户信息区域 */}
+        <View style={styles.userInfoCard}>
+          {userEmail && (
+            <View style={styles.emailContainer}>
+              <Ionicons name="mail" size={16} color="#d4af37" />
+              <Text style={styles.emailText}>{userEmail}</Text>
+            </View>
+          )}
+          <View style={styles.balanceContainer}>
+            <Text style={styles.balanceLabel}>当前积分余额</Text>
+            <Text style={styles.balanceAmount}>{currentCredits}</Text>
+            <Text style={styles.balanceNote}>1 积分 = 1 元人民币</Text>
+          </View>
         </View>
 
-        {/* 充值套餐 */}
-        <View style={styles.packagesContainer}>
-          <Text style={styles.subsectionTitle}>充值套餐</Text>
-          <FlatList
-            data={rechargePackages}
-            renderItem={renderPackage}
-            keyExtractor={(item) => `${item.amount}`}
-            numColumns={2}
-            scrollEnabled={false}
-            columnWrapperStyle={styles.packageRow}
-            contentContainerStyle={styles.packageGrid}
-          />
-        </View>
+        {/* 兑换码充值按钮 */}
+        <TouchableOpacity
+          style={styles.redeemButton}
+          onPress={handleRedeemCode}
+          activeOpacity={0.7}
+        >
+          <View style={styles.redeemButtonContent}>
+            <View style={styles.redeemButtonLeft}>
+              <Ionicons name="gift" size={20} color="#d4af37" />
+              <Text style={styles.redeemButtonTitle}>兑换码充值</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color="#8b8878" />
+          </View>
+        </TouchableOpacity>
 
         {/* 充值记录 */}
         {rechargeHistory.length > 0 && (
@@ -142,7 +147,7 @@ export const RechargeSection: React.FC<RechargeSectionProps> = ({
             <FlatList
               data={rechargeHistory.slice(0, 5)} // 只显示最近5条
               renderItem={renderHistoryItem}
-              keyExtractor={(item) => item.id}
+              keyExtractor={(item) => item.id.toString()}
               scrollEnabled={false}
             />
             {rechargeHistory.length > 5 && (
@@ -187,15 +192,34 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
 
-  // 余额卡片
-  balanceCard: {
-    alignItems: 'center',
+  // 用户信息卡片
+  userInfoCard: {
     paddingVertical: 20,
-    marginBottom: 24,
+    marginBottom: 20,
     backgroundColor: 'rgba(212, 175, 55, 0.05)',
     borderRadius: 12,
     borderWidth: 1,
     borderColor: 'rgba(212, 175, 55, 0.1)',
+  },
+
+  emailContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+    paddingHorizontal: 16,
+  },
+
+  emailText: {
+    fontSize: 14,
+    color: '#e6e6fa',
+    marginLeft: 8,
+    fontFamily: 'monospace',
+  },
+
+  balanceContainer: {
+    alignItems: 'center',
+    paddingHorizontal: 16,
   },
 
   balanceLabel: {
@@ -216,61 +240,37 @@ const styles = StyleSheet.create({
     color: '#8b8878',
   },
 
-  // 充值套餐
-  packagesContainer: {
-    marginBottom: 24,
-  },
-
-  packageGrid: {
-    gap: 12,
-  },
-
-  packageRow: {
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-
-  packageCard: {
-    flex: 0.48,
-    aspectRatio: 1.2,
+  // 兑换码充值按钮
+  redeemButton: {
     backgroundColor: 'rgba(212, 175, 55, 0.05)',
     borderRadius: 12,
     borderWidth: 1,
     borderColor: 'rgba(212, 175, 55, 0.2)',
+    marginBottom: 20,
+  },
+
+  redeemButtonContent: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
   },
 
-  popularBadge: {
-    position: 'absolute',
-    top: -6,
-    right: -6,
-    backgroundColor: '#f39c12',
-    borderRadius: 10,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
+  redeemButtonLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
   },
 
-  popularText: {
-    fontSize: 10,
-    color: '#fff',
+  redeemButtonTitle: {
+    fontSize: 16,
     fontWeight: '500',
-  },
-
-  packageAmount: {
-    fontSize: 20,
-    fontWeight: '600',
     color: '#d4af37',
-    marginBottom: 4,
+    marginLeft: 12,
   },
 
-  packageCredits: {
-    fontSize: 14,
-    color: '#e6e6fa',
-  },
-
-  // 充值记录
+  // 交易记录
   historyContainer: {
     marginTop: 8,
   },
@@ -290,7 +290,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 
-  historyAmount: {
+  historyDescription: {
     fontSize: 16,
     fontWeight: '500',
     color: '#e6e6fa',

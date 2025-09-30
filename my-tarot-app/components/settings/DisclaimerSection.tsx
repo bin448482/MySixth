@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { BlurView } from 'expo-blur';
+import { CollapsibleSection } from '../common/CollapsibleSection';
 
 interface DisclaimerItem {
   icon: string;
@@ -81,52 +81,30 @@ export const DisclaimerSection: React.FC = () => {
   ];
 
   return (
-    <View style={styles.sectionContainer}>
-      <Text style={styles.sectionTitle}>使用声明</Text>
+    <CollapsibleSection
+      title="使用声明"
+      icon="⚠️"
+      defaultExpanded={false}
+    >
+      <View style={styles.disclaimerList}>
+        {disclaimers.map((item, index) => (
+          <DisclaimerCard key={index} item={item} />
+        ))}
+      </View>
 
-      <BlurView intensity={20} style={styles.cardContainer}>
-        <View style={styles.disclaimerList}>
-          {disclaimers.map((item, index) => (
-            <DisclaimerCard key={index} item={item} />
-          ))}
-        </View>
-
-        {/* 重要提醒 */}
-        <View style={styles.importantNotice}>
-          <Text style={styles.noticeTitle}>⚡ 重要提醒</Text>
-          <Text style={styles.noticeContent}>
-            塔罗牌是一种心理投射工具，其价值在于帮助用户反思和探索内心。
-            请将占卜结果作为参考和启发，而非绝对真理或行动指南。
-          </Text>
-        </View>
-      </BlurView>
-    </View>
+      {/* 重要提醒 */}
+      <View style={styles.importantNotice}>
+        <Text style={styles.noticeTitle}>⚡ 重要提醒</Text>
+        <Text style={styles.noticeContent}>
+          塔罗牌是一种心理投射工具，其价值在于帮助用户反思和探索内心。
+          请将占卜结果作为参考和启发，而非绝对真理或行动指南。
+        </Text>
+      </View>
+    </CollapsibleSection>
   );
 };
 
 const styles = StyleSheet.create({
-  sectionContainer: {
-    paddingHorizontal: 16,
-    paddingVertical: 24,
-  },
-
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#d4af37',
-    marginBottom: 16,
-    textAlign: 'center',
-  },
-
-  cardContainer: {
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(212, 175, 55, 0.3)',
-    overflow: 'hidden',
-    backgroundColor: 'rgba(20, 20, 40, 0.6)',
-    padding: 16,
-  },
-
   disclaimerList: {
     marginBottom: 20,
   },
