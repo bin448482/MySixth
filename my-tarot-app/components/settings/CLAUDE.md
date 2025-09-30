@@ -26,16 +26,16 @@ components/settings/
 
 ## 🏗️ 核心组件设计
 
-### 1. AppInfoSection - 应用基本信息
+### 1. AppInfoSection - 应用基本信息 (✅ 可折叠)
 
 #### 设计规范
-- **布局**: 卡片式容器，垂直排列
+- **布局**: 使用CollapsibleSection包装，默认折叠
 - **内容结构**:
   - 应用Logo和名称
   - 版本信息
   - 愿景声明
   - 使命描述
-- **展开状态**: 默认展开，不可折叠
+- **展开状态**: 默认折叠，与其他组件保持一致
 
 #### 实现要点
 ```typescript
@@ -49,11 +49,19 @@ export const AppInfoSection: React.FC<AppInfoSectionProps> = ({
   buildNumber = "1"
 }) => {
   return (
-    <View style={styles.sectionContainer}>
-      <Text style={styles.sectionTitle}>应用信息</Text>
+    <CollapsibleSection
+      title="应用信息"
+      icon="📱"
+      defaultExpanded={false}  // 默认折叠
+    >
       {/* Logo区域 */}
+      <View style={styles.logoContainer}>
+        <Text style={styles.appLogo}>🔮</Text>
+        <Text style={styles.appName}>神秘塔罗牌</Text>
+        <Text style={styles.versionText}>v{version} ({buildNumber})</Text>
+      </View>
       {/* 愿景使命 */}
-    </View>
+    </CollapsibleSection>
   );
 };
 ```
@@ -359,12 +367,12 @@ import {
 export default function SettingsPage() {
   return (
     <ScrollView>
-      <AppInfoSection />                    {/* 默认展开 */}
-      <RechargeSection                      {/* 默认展开，集成API */}
+      <RechargeSection                      {/* 默认展开，集成API - 置顶显示 */}
         currentCredits={userBalance?.credits || 0}
         userEmail={userEmail}
         rechargeHistory={transactions}
       />
+      <AppInfoSection />                    {/* 默认折叠 */}
       <DisclaimerSection />                 {/* 默认折叠 */}
       <PrivacySection />                    {/* 默认折叠 */}
       <SupportSection />                    {/* 默认折叠 */}
@@ -372,6 +380,13 @@ export default function SettingsPage() {
   );
 }
 ```
+
+### 组件展示优先级
+1. **RechargeSection**: 最高优先级，默认展开，用户最关心的积分信息
+2. **AppInfoSection**: 应用基本信息，默认折叠
+3. **DisclaimerSection**: 使用声明，默认折叠
+4. **PrivacySection**: 隐私政策，默认折叠
+5. **SupportSection**: 帮助支持，默认折叠
 
 ### API数据流
 1. **页面加载**: `useEffect` 自动触发 `loadUserData()`

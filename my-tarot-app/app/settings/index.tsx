@@ -69,12 +69,12 @@ export default function SettingsScreen() {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          <AppInfoSection />
           <RechargeSection
             currentCredits={userBalance?.credits || 0}
             userEmail={undefined} // 目前后端没有返回邮箱信息
             rechargeHistory={transactions}
           />
+          <AppInfoSection />
           <DisclaimerSection />
           <PrivacySection />
           <SupportSection />

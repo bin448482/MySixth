@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { BlurView } from 'expo-blur';
 import Constants from 'expo-constants';
+import { CollapsibleSection } from '../common/CollapsibleSection';
 
 interface AppInfoSectionProps {
   version?: string;
@@ -31,57 +31,36 @@ export const AppInfoSection: React.FC<AppInfoSectionProps> = ({
   buildNumber = "1"
 }) => {
   return (
-    <View style={styles.sectionContainer}>
-      <Text style={styles.sectionTitle}>应用信息</Text>
+    <CollapsibleSection
+      title="应用信息"
+      icon="📱"
+      defaultExpanded={false}
+    >
+      {/* Logo区域 */}
+      <View style={styles.logoContainer}>
+        <Text style={styles.appLogo}>🔮</Text>
+        <Text style={styles.appName}>神秘塔罗牌</Text>
+        <Text style={styles.versionText}>v{version} ({buildNumber})</Text>
+      </View>
 
-      <BlurView intensity={20} style={styles.cardContainer}>
-        {/* Logo区域 */}
-        <View style={styles.logoContainer}>
-          <Text style={styles.appLogo}>🔮</Text>
-          <Text style={styles.appName}>神秘塔罗牌</Text>
-          <Text style={styles.versionText}>v{version} ({buildNumber})</Text>
-        </View>
-
-        {/* 愿景使命 */}
-        <View style={styles.missionContainer}>
-          <InfoCard
-            icon="✨"
-            title="我们的愿景"
-            content="为用户提供深入、个性化的塔罗牌洞察"
-          />
-          <InfoCard
-            icon="🎯"
-            title="我们的使命"
-            content="结合传统塔罗智慧与现代AI技术，帮助用户探索内心世界"
-          />
-        </View>
-      </BlurView>
-    </View>
+      {/* 愿景使命 */}
+      <View style={styles.missionContainer}>
+        <InfoCard
+          icon="✨"
+          title="我们的愿景"
+          content="为用户提供深入、个性化的塔罗牌洞察"
+        />
+        <InfoCard
+          icon="🎯"
+          title="我们的使命"
+          content="结合传统塔罗智慧与现代AI技术，帮助用户探索内心世界"
+        />
+      </View>
+    </CollapsibleSection>
   );
 };
 
 const styles = StyleSheet.create({
-  sectionContainer: {
-    paddingHorizontal: 16,
-    paddingVertical: 24,
-  },
-
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#d4af37',
-    marginBottom: 16,
-    textAlign: 'center',
-  },
-
-  cardContainer: {
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(212, 175, 55, 0.3)',
-    overflow: 'hidden',
-    backgroundColor: 'rgba(20, 20, 40, 0.6)',
-  },
-
   // Logo区域样式
   logoContainer: {
     alignItems: 'center',
