@@ -48,3 +48,30 @@ Join our community of developers creating universal apps.
 
 - [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
 - [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+
+
+
+cd "D:\0-development\projects\MySixth\my-tarot-app"
+  npx expo login
+
+  然后输入你的 Expo 账户邮箱和密码。
+
+  登录完成后，我们就可以开始云构建了。构建命令如下：
+
+  # 构建 APK 预览版本
+  npx eas build --platform android --profile preview
+
+  # 或者构建生产版本的 AAB 文件
+  npx eas build --platform android --profile production
+
+  EAS Build 配置说明：
+
+  我已经为你创建了 eas.json 配置文件，包含三个构建配置：
+
+  1. development: 开发版本，支持开发客户端
+  2. preview: 预览版本，生成 APK 文件（适合直接安装测试）
+  3. production: 生产版本，生成 AAB 文件（适合上传 Google Play）
+
+  如果你想要直接安装的 APK 文件，建议使用 preview 配置。
+
+  请先手动登录 Expo 账户，然后告诉我，我会帮你执行构建命令。
