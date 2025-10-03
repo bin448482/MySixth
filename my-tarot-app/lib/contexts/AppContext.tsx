@@ -1,8 +1,13 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import AuthService from '../services/AuthService';
 import AIReadingService from '../services/AIReadingService';
+import { DatabaseService } from '../services/DatabaseService';
 
 interface AppState {
+  isDatabaseInitialized: boolean;
+  isInitializingDatabase: boolean;
+  databaseError: string | null;
+
   isAIServiceAvailable: boolean;
   isCheckingAIService: boolean;
   aiServiceError: string | null;
@@ -27,6 +32,10 @@ interface AppContextType {
 }
 
 const defaultState: AppState = {
+  isDatabaseInitialized: false,
+  isInitializingDatabase: true,
+  databaseError: null,
+
   isAIServiceAvailable: false,
   isCheckingAIService: true,
   aiServiceError: null,
@@ -64,22 +73,45 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     try {
       setState(prev => ({
         ...prev,
+        isInitializingDatabase: true,
         isCheckingAIService: true,
         isAuthenticating: true,
       }));
 
+      // 1. 初始化数据库（必须最先完成）
+      console.log('🗄️ Initializing database...');
+      const dbService = DatabaseService.getInstance();
+      const dbResult = await dbService.initialize();
+
+      if (!dbResult.success) {
+        throw new Error(`Database initialization failed: ${dbResult.error}`);
+      }
+
+      // 验证核心数据表
+      const verifyResult = await dbService.verifyCoreTables();
+      if (!verifyResult.success) {
+        throw new Error(`Database verification failed: ${verifyResult.error}`);
+      }
+
+      console.log('✅ Database initialized and verified');
+
+      // 2. 检查AI服务健康状态
       console.log('🔍 Checking AI service health...');
       const aiService = AIReadingService.getInstance();
       const isAIHealthy = await aiService.checkServiceHealth();
 
+      // 3. 初始化匿名用户认证
       console.log('👤 Initializing anonymous user...');
       const authService = AuthService.getInstance();
       const authSuccess = await authService.initializeUser();
-
       const token = await authService.getToken();
 
       setState(prev => ({
         ...prev,
+        isDatabaseInitialized: true,
+        isInitializingDatabase: false,
+        databaseError: null,
+
         isAIServiceAvailable: isAIHealthy,
         isCheckingAIService: false,
         aiServiceError: isAIHealthy ? null : 'AI service is unavailable',
@@ -94,6 +126,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       }));
 
       console.log('✅ App initialization completed', {
+        database: '✅',
         aiService: isAIHealthy ? '✅' : '❌',
         auth: authSuccess ? '✅' : '❌',
       });
@@ -103,6 +136,10 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
 
       setState(prev => ({
         ...prev,
+        isDatabaseInitialized: false,
+        isInitializingDatabase: false,
+        databaseError: errorMessage,
+
         isCheckingAIService: false,
         isAuthenticating: false,
         isAppInitialized: true,

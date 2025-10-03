@@ -8,7 +8,6 @@ import tamaguiConfig from '../tamagui.config';
 import { useEffect } from 'react';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { DatabaseInitializer } from '@/lib/database/initializer';
 import { AppProvider, useAppContext } from '@/lib/contexts/AppContext';
 import { initializeApiConfig } from '@/lib/config/api';
 
@@ -29,19 +28,7 @@ function RootLayoutContent() {
         console.log('🌐 Initializing API configuration...');
         await initializeApiConfig();
 
-        // 2. 初始化数据库
-        console.log('🗄️ Starting database initialization...');
-        const initializer = new DatabaseInitializer();
-        const dbSuccess = await initializer.initialize();
-
-        if (!dbSuccess) {
-          console.error('❌ Database initialization failed');
-          return;
-        }
-
-        console.log('✅ Database initialization completed successfully');
-
-        // 3. 初始化应用状态（AI服务检查 + 认证）
+        // 2. 初始化应用状态（包括数据库、AI服务检查、认证）
         console.log('🔐 Starting app context initialization...');
         await actions.initializeApp();
 

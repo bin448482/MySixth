@@ -95,22 +95,25 @@ lib/services/
 └── sync.ts                # 数据同步服务
 ```
 
-### 全局状态管理 (✅ 已实现)
+### 全局状态管理 (✅ 已实现并优化)
 ```typescript
 lib/contexts/
-├── AppContext.tsx         # 全局应用状态（AI服务状态 + 认证状态）
+├── AppContext.tsx         # 全局应用状态（数据库 + AI服务 + 认证）
 └── ReadingContext.tsx     # 占卜流程状态
 ```
 
 **AppContext提供的全局状态**：
+- **数据库状态**: `isDatabaseInitialized`, `isInitializingDatabase`, `databaseError` (✅ 新增)
 - **AI服务状态**: `isAIServiceAvailable`, `isCheckingAIService`, `aiServiceError`
 - **认证状态**: `isAuthenticated`, `isAuthenticating`, `authError`, `userToken`
 - **初始化状态**: `isAppInitialized`, `initializationError`
 
 **核心功能**：
-- 应用启动时一次性完成AI服务健康检查和匿名用户认证
-- 所有页面可直接从Context获取状态，无需重复检查
-- 支持手动刷新AI服务状态和认证状态
+- **数据库初始化管理**: 在AppContext中统一管理数据库初始化流程，包括表验证 (✅ 新增)
+- **初始化顺序保证**: 数据库 → AI服务 → 认证，严格按顺序初始化
+- **全局状态同步**: 所有页面可直接从Context获取状态，无需重复检查
+- **错误处理**: 数据库初始化失败时提供详细错误信息和用户提示
+- **支持手动刷新**: AI服务状态和认证状态支持手动刷新
 
 ## 📡 API集成架构
 
@@ -130,20 +133,36 @@ lib/contexts/
 - **错误处理机制**：网络异常自动降级到离线模式，401错误自动清除token
 - **状态管理**：统一的加载、错误、成功状态处理
 
-### 应用启动流程 (✅ 已实现)
+### 应用启动流程 (✅ 已实现并优化)
 ```
 1. 用户启动应用
    ↓
-2. 数据库初始化 (DatabaseInitializer)
+2. 初始化API配置 (initializeApiConfig)
    ↓
-3. AI服务健康检查 (AIReadingService.checkServiceHealth)
+3. AppContext.initializeApp() 执行以下步骤:
+   ├─ 3.1 数据库初始化 (DatabaseService.initialize)
+   │   ├── 复制预置数据库到可写目录
+   │   ├── 打开数据库连接
+   │   ├── 验证核心表存在 (card, spread, dimension, card_interpretation) ✅ 新增
+   │   └── 创建用户表 (user_history)
+   │
+   ├─ 3.2 AI服务健康检查 (AIReadingService.checkServiceHealth)
+   │
+   └─ 3.3 匿名用户认证 (AuthService.initializeUser)
    ↓
-4. 匿名用户认证 (AuthService.initializeUser)
+4. 更新全局状态 (AppContext state)
+   ├── isDatabaseInitialized = true
+   ├── isAIServiceAvailable = ...
+   └── isAuthenticated = ...
    ↓
-5. 更新全局状态 (AppContext)
-   ↓
-6. 应用就绪
+5. 应用就绪 (isAppInitialized = true)
 ```
+
+**关键改进**：
+- ✅ **数据库表验证**: 在初始化时验证核心表是否存在，防止生产环境找不到表的错误
+- ✅ **状态追踪**: 通过 `isDatabaseInitialized` 状态让页面知道何时可以安全访问数据库
+- ✅ **错误处理**: 数据库初始化失败时，`databaseError` 包含详细错误信息
+- ✅ **初始化顺序**: 严格保证数据库先初始化，其他服务才能正常工作
 
 ## 🎯 开发重点
 

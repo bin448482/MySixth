@@ -48,26 +48,33 @@ export class DatabaseService {
    */
   async initialize(): Promise<ServiceResponse<DatabaseStatus>> {
     try {
-      // console.log('[DatabaseService] Starting database initialization...');
-      
+      console.log('[DatabaseService] Starting database initialization...');
+
       // 1. 确保预置数据库已复制到可写目录
       await this.ensureAssetDatabaseCopied();
-      
+
       // 2. 打开数据库连接
       if (!this.db) {
         const dbFile = this.getDatabaseFile();
         const dbPath = dbFile.uri;
-        // console.log(`[DatabaseService] Opening database at: ${dbPath}`);
+        console.log(`[DatabaseService] Opening database at: ${dbPath}`);
         this.db = SQLite.openDatabaseSync(dbPath);
         this.migrations = new DatabaseMigrations(this.db);
       }
-      
-      // 3. 确保用户表存在（仅创建用户表，不创建静态数据表）
+
+      // 3. 验证核心数据表是否存在
+      this.isInitialized = true; // 临时设置为 true 以便验证
+      const verifyResult = await this.verifyCoreTables();
+      if (!verifyResult.success) {
+        this.isInitialized = false;
+        throw new Error(verifyResult.error || 'Core tables verification failed');
+      }
+
+      // 4. 确保用户表存在（仅创建用户表，不创建静态数据表）
       await this.ensureUserTablesExist();
-      
-      this.isInitialized = true;
-      // console.log('[DatabaseService] Database initialization completed');
-      
+
+      console.log('[DatabaseService] Database initialization completed');
+
       return {
         success: true,
         data: {
@@ -78,6 +85,7 @@ export class DatabaseService {
       };
     } catch (error) {
       console.error('[DatabaseService] Database initialization failed:', error);
+      this.isInitialized = false;
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error'
@@ -135,10 +143,10 @@ export class DatabaseService {
       const result = this.db.getFirstSync<{count: number}>(
         "SELECT COUNT(*) as count FROM sqlite_master WHERE type='table' AND name='user_history'"
       );
-      
+
       if ((result?.count || 0) === 0) {
-        // console.log('[DatabaseService] Creating user_history table...');
-        
+        console.log('[DatabaseService] Creating user_history table...');
+
         // 仅创建user_history表
         const userHistorySQL = `
           CREATE TABLE IF NOT EXISTS user_history (
@@ -152,21 +160,66 @@ export class DatabaseService {
             FOREIGN KEY (spread_id) REFERENCES spread (id)
           );
         `;
-        
+
         this.db.execSync(userHistorySQL);
-        
+
         // 创建用户历史索引
         this.db.execSync(
           'CREATE INDEX IF NOT EXISTS idx_user_history_user_timestamp ON user_history (user_id, timestamp);'
         );
-        
-        // console.log('[DatabaseService] User tables created successfully');
+
+        console.log('[DatabaseService] User tables created successfully');
       } else {
-        // console.log('[DatabaseService] User tables already exist');
+        console.log('[DatabaseService] User tables already exist');
       }
     } catch (error) {
       console.error('[DatabaseService] Failed to create user tables:', error);
       throw error;
+    }
+  }
+
+  /**
+   * 验证核心数据表是否存在
+   */
+  async verifyCoreTables(): Promise<ServiceResponse<boolean>> {
+    try {
+      if (!this.isInitialized) {
+        return {
+          success: false,
+          error: 'Database not initialized'
+        };
+      }
+
+      const requiredTables = ['card', 'spread', 'dimension', 'card_interpretation'];
+      const missingTables: string[] = [];
+
+      for (const tableName of requiredTables) {
+        const result = this.db.getFirstSync<{count: number}>(
+          "SELECT COUNT(*) as count FROM sqlite_master WHERE type='table' AND name=?",
+          [tableName]
+        );
+
+        if ((result?.count || 0) === 0) {
+          missingTables.push(tableName);
+        }
+      }
+
+      if (missingTables.length > 0) {
+        console.error('[DatabaseService] Missing core tables:', missingTables);
+        return {
+          success: false,
+          error: `Missing required tables: ${missingTables.join(', ')}`
+        };
+      }
+
+      console.log('[DatabaseService] All core tables verified successfully');
+      return { success: true, data: true };
+    } catch (error) {
+      console.error('[DatabaseService] Table verification failed:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Table verification failed'
+      };
     }
   }
 

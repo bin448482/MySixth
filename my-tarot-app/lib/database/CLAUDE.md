@@ -19,22 +19,53 @@
    - **特性**: 独立管理，永久保存
    - **生命周期**: 用户数据持久化
 
-### 数据库初始化方案
+### 数据库初始化方案 (✅ 已优化)
 
 #### 配置数据库初始化
 1. **资源位置**
    - 预置数据库: `assets/db/tarot_config.db`
-   - 运行时位置: 复制到应用可写目录
+   - 运行时位置: 复制到应用可写目录 (`SQLite/tarot_config.db`)
 
-2. **初始化流程**
+2. **初始化流程** (实现于 `DatabaseService.ts`)
    - 首次启动：将预置数据库复制到可写目录
-   - 后续启动：检查版本并决定是否更新
+   - 后续启动：检查数据库文件是否存在
    - 版本升级：替换配置数据库，保留用户数据库
 
-3. **数据完整性**
-   - 验证静态数据表存在性
+3. **数据完整性验证** (✅ 新增)
+   - ✅ **核心表验证**: 验证 `card`, `spread`, `dimension`, `card_interpretation` 表是否存在
+   - ✅ **错误处理**: 表缺失时抛出详细错误信息，阻止应用继续初始化
+   - ✅ **日志记录**: 完整的初始化日志，便于调试生产环境问题
    - 检查卡牌、牌阵等核心数据数量
    - 确保 78 张塔罗牌（22 大阿卡纳 + 56 小阿卡纳）
+
+**DatabaseService.verifyCoreTables()方法**:
+```typescript
+async verifyCoreTables(): Promise<ServiceResponse<boolean>> {
+  const requiredTables = ['card', 'spread', 'dimension', 'card_interpretation'];
+  const missingTables: string[] = [];
+
+  for (const tableName of requiredTables) {
+    // 检查每个核心表是否存在
+    const result = this.db.getFirstSync<{count: number}>(
+      "SELECT COUNT(*) as count FROM sqlite_master WHERE type='table' AND name=?",
+      [tableName]
+    );
+
+    if ((result?.count || 0) === 0) {
+      missingTables.push(tableName);
+    }
+  }
+
+  if (missingTables.length > 0) {
+    return {
+      success: false,
+      error: `Missing required tables: ${missingTables.join(', ')}`
+    };
+  }
+
+  return { success: true, data: true };
+}
+```
 
 #### 用户数据库初始化
 1. **创建策略**
@@ -99,6 +130,97 @@
 - 提供数据结构升级脚本
 - 确保向后兼容性
 - 支持数据导入导出
+
+## 📋 数据库初始化管理 (✅ 已实现)
+
+### 统一初始化流程
+
+**核心设计原则**: 数据库初始化在 **AppContext** 中统一管理，而非分散在各个服务或页面中。
+
+### 初始化架构
+
+```
+app/_layout.tsx
+  └── AppProvider (提供全局状态)
+      └── AppContext.initializeApp()
+          └── DatabaseService.initialize()
+              ├── ensureAssetDatabaseCopied()  # 复制预置数据库
+              ├── openDatabaseSync()            # 打开数据库连接
+              ├── verifyCoreTables()            # ✅ 验证核心表
+              └── ensureUserTablesExist()       # 创建用户表
+```
+
+### 状态管理
+
+**AppContext 中的数据库状态**:
+```typescript
+interface AppState {
+  isDatabaseInitialized: boolean;    // 数据库是否已初始化完成
+  isInitializingDatabase: boolean;   // 是否正在初始化数据库
+  databaseError: string | null;      // 数据库初始化错误信息
+}
+```
+
+### 页面使用模式
+
+**正确的页面初始化模式**:
+```typescript
+export default function SomeScreen() {
+  const { state: appState } = useAppContext();
+  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState([]);
+
+  const loadData = async () => {
+    // 检查数据库是否已初始化
+    if (!appState.isDatabaseInitialized) {
+      console.log('Waiting for database initialization...');
+      setLoading(true);
+      return;
+    }
+
+    // 数据库就绪，安全加载数据
+    setLoading(true);
+    const result = await someService.getData();
+    setData(result);
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    // 当数据库初始化完成后加载数据
+    if (appState.isDatabaseInitialized) {
+      loadData();
+    }
+  }, [appState.isDatabaseInitialized]);
+
+  // 显示加载状态或错误
+  if (loading || !appState.isDatabaseInitialized) {
+    return (
+      <View>
+        <ActivityIndicator />
+        <Text>
+          {appState.databaseError
+            ? '数据库初始化失败'
+            : appState.isInitializingDatabase
+              ? '正在初始化数据库...'
+              : '加载数据...'}
+        </Text>
+        {appState.databaseError && (
+          <Text style={styles.errorText}>{appState.databaseError}</Text>
+        )}
+      </View>
+    );
+  }
+
+  return <View>{/* 正常UI */}</View>;
+}
+```
+
+### 关键优势
+
+1. **防止竞态条件**: 页面不会在数据库未就绪时访问数据
+2. **统一错误处理**: 数据库初始化错误在全局捕获和展示
+3. **状态透明性**: 所有页面都能知道数据库的准确状态
+4. **调试友好**: 完整的日志记录，便于定位生产环境问题
 
 ## 🚨 遗留代码清理
 
