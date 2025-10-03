@@ -9,7 +9,11 @@
       "Bash(npm install)",
       "Bash(timeout:*)",
       "Bash(npm install:*)",
-      "Bash(npx expo:*)"
+      "Bash(npx expo:*)",
+      "Bash(java:*)",
+      "Bash(where gradle)",
+      "Bash(.gradlew assembleRelease)",
+      "Bash(sqlite3:*)"
     ],
     "deny": [],
     "ask": []
