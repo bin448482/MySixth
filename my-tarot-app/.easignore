@@ -35,4 +35,16 @@ __tests__/
 *.spec.*
 
 # Large asset directories that might not be needed
-.docs/
+.docs/# Android build caches and outputs
+android/.gradle/
+android/build/
+android/app/build/
+android/.cxx/
+android/local.properties
+android/app/debug.keystore
+
+# Gradle/IDE noise
+.gradle/
+*.iml
+.idea/
+
