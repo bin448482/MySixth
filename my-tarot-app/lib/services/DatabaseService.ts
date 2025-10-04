@@ -109,7 +109,7 @@ export class DatabaseService {
       const fileInfo = dbFile.info();
 
       if (!fileInfo.exists) {
-        // console.log('[DatabaseService] Copying bundled database to writable directory...');
+        console.log('[DatabaseService] Copying bundled database to writable directory...');
 
         // 加载预置数据库资�?
         const asset = Asset.fromModule(require('../../assets/db/tarot_config.db'));
@@ -123,9 +123,15 @@ export class DatabaseService {
         const assetFile = new File(asset.localUri);
         assetFile.copy(dbFile);
 
-        // console.log('[DatabaseService] Bundled database copied successfully');
+        // 验证文件复制完成
+        const copiedFileInfo = dbFile.info();
+        if (!copiedFileInfo.exists || copiedFileInfo.size === 0) {
+          throw new Error('Database file copy failed or incomplete');
+        }
+
+        console.log(`[DatabaseService] Database copied successfully, size: ${copiedFileInfo.size} bytes`);
       } else {
-        // console.log('[DatabaseService] Database already exists in writable directory');
+        console.log('[DatabaseService] Database already exists in writable directory');
       }
     } catch (error) {
       console.error('[DatabaseService] Failed to copy bundled database:', error);

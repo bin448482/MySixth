@@ -1,13 +1,13 @@
-import { DatabaseService } from './DatabaseService';
+import { ConfigDatabaseService } from '../database/config-db';
 import type { ServiceResponse } from '../types/database';
 import type { DimensionData } from '../contexts/ReadingContext';
 
 export class DimensionService {
   private static instance: DimensionService;
-  private dbService: DatabaseService;
+  private dbService: ConfigDatabaseService;
 
   private constructor() {
-    this.dbService = DatabaseService.getInstance();
+    this.dbService = ConfigDatabaseService.getInstance();
   }
 
   static getInstance(): DimensionService {

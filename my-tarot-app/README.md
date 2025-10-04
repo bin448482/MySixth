@@ -75,3 +75,17 @@ cd "D:\0-development\projects\MySixth\my-tarot-app"
   如果你想要直接安装的 APK 文件，建议使用 preview 配置。
 
   请先手动登录 Expo 账户，然后告诉我，我会帮你执行构建命令。
+
+  本地重建：
+
+   确认：本地构建 APK 步骤
+
+  # 1. 进入项目目录
+  cd D:\0-development\projects\MySixth\my-tarot-app
+
+  # 2. 重新生成原生项目（应用新的 splash screen 配置）
+  npx expo prebuild --platform android --clean
+
+  # 3. 构建 APK
+  cd android
+  .\gradlew.bat assembleRelease

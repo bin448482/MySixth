@@ -67,7 +67,7 @@ export class DatabaseConnectionManager {
    */
   async initialize(): Promise<ServiceResponse<DatabaseStatus>> {
     try {
-      console.log('[ConnectionManager] Starting dual database initialization...');
+      // console.log('[ConnectionManager] Starting dual database initialization...');
 
       // 1. 初始化配置数据库（只读）
       await this.initializeConfigDatabase();
@@ -75,7 +75,7 @@ export class DatabaseConnectionManager {
       // 2. 初始化用户数据库（读写）
       await this.initializeUserDatabase();
 
-      console.log('[ConnectionManager] Dual database initialization completed');
+      console.log('[ConnectionManager] ✅ Dual database initialization completed');
 
       return {
         success: true,
@@ -86,7 +86,7 @@ export class DatabaseConnectionManager {
         }
       };
     } catch (error) {
-      console.error('[ConnectionManager] Dual database initialization failed:', error);
+      console.error('[ConnectionManager] ❌ Dual database initialization failed:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error'
@@ -99,7 +99,7 @@ export class DatabaseConnectionManager {
    */
   private async initializeConfigDatabase(): Promise<void> {
     try {
-      console.log('[ConnectionManager] Initializing config database...');
+      // console.log('[ConnectionManager] Initializing config database...');
 
       // 确保预置数据库已复制到可写目录
       await this.ensureConfigDatabaseCopied();
@@ -107,15 +107,19 @@ export class DatabaseConnectionManager {
       // 打开配置数据库连接
       const configDbFile = this.getConfigDatabaseFile();
       const configDbPath = configDbFile.uri;
+      console.log('[ConnectionManager] Opening config database at:', configDbPath);
+
       this.configDb = SQLite.openDatabaseSync(configDbPath);
+      console.log('[ConnectionManager] Config DB opened, instance exists:', !!this.configDb);
 
       // 验证配置数据库完整性
       await this.verifyConfigDatabase();
 
       this.isConfigInitialized = true;
-      console.log('[ConnectionManager] Config database initialized successfully');
+      console.log('[ConnectionManager] ✅ Config DB initialized, flag:', this.isConfigInitialized);
     } catch (error) {
-      console.error('[ConnectionManager] Config database initialization failed:', error);
+      console.error('[ConnectionManager] ❌ Config DB init failed:', error);
+      this.isConfigInitialized = false;
       throw error;
     }
   }
@@ -125,7 +129,7 @@ export class DatabaseConnectionManager {
    */
   private async initializeUserDatabase(): Promise<void> {
     try {
-      console.log('[ConnectionManager] Initializing user database...');
+      // console.log('[ConnectionManager] Initializing user database...');
 
       // 创建用户数据库文件引用
       const userDbFile = this.getUserDatabaseFile();
@@ -141,9 +145,9 @@ export class DatabaseConnectionManager {
       await this.createUserTables();
 
       this.isUserInitialized = true;
-      console.log('[ConnectionManager] User database initialized successfully');
+      // console.log('[ConnectionManager] User database initialized successfully');
     } catch (error) {
-      console.error('[ConnectionManager] User database initialization failed:', error);
+      console.error('[ConnectionManager] ❌ User database initialization failed:', error);
       throw error;
     }
   }
@@ -157,7 +161,7 @@ export class DatabaseConnectionManager {
     const configDbFile = this.getConfigDatabaseFile();
 
     try {
-      console.log('[ConnectionManager] Force copying bundled config database on every startup...');
+      // console.log('[ConnectionManager] Force copying bundled config database on every startup...');
 
       // 确保SQLite目录存在
       this.ensureSQLiteDirectoryExists();
@@ -180,13 +184,13 @@ export class DatabaseConnectionManager {
         const assetFile = new File(asset.localUri);
         assetFile.copy(configDbFile);
 
-        console.log('[ConnectionManager] Config database force copied successfully');
+        // console.log('[ConnectionManager] Config database force copied successfully');
       } catch (assetError) {
-        console.error('[ConnectionManager] Asset loading failed:', assetError);
+        console.error('[ConnectionManager] ❌ Asset loading failed:', assetError);
         throw new Error(`Failed to load config database asset: ${assetError instanceof Error ? assetError.message : 'Unknown error'}`);
       }
     } catch (error) {
-      console.error('[ConnectionManager] Failed to copy config database:', error);
+      console.error('[ConnectionManager] ❌ Failed to copy config database:', error);
       throw new Error(`Failed to copy config database: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -211,9 +215,9 @@ export class DatabaseConnectionManager {
         }
       }
 
-      console.log('[ConnectionManager] Config database integrity verified');
+      // console.log('[ConnectionManager] Config database integrity verified');
     } catch (error) {
-      console.error('[ConnectionManager] Config database verification failed:', error);
+      console.error('[ConnectionManager] ❌ Config database verification failed:', error);
       throw error;
     }
   }
@@ -244,7 +248,7 @@ export class DatabaseConnectionManager {
       const tableInfo = this.userDb.getAllSync<{name: string, type: string}>(
         "PRAGMA table_info(user_history)"
       );
-      console.log('[ConnectionManager] User history table structure:', tableInfo);
+      // console.log('[ConnectionManager] User history table structure:', tableInfo);
 
       // 创建索引
       const indexSQL = `
@@ -255,9 +259,9 @@ export class DatabaseConnectionManager {
 
       this.userDb.execSync(indexSQL);
 
-      console.log('[ConnectionManager] User tables created successfully');
+      // console.log('[ConnectionManager] User tables created successfully');
     } catch (error) {
-      console.error('[ConnectionManager] Failed to create user tables:', error);
+      console.error('[ConnectionManager] ❌ Failed to create user tables:', error);
       throw error;
     }
   }
@@ -314,11 +318,13 @@ export class DatabaseConnectionManager {
 
   /**
    * 配置数据库查询（只读操作）
+   * 前提：DatabaseConnectionManager 必须已经在 AppContext 中初始化完成
    */
   async queryConfig<T>(sql: string, params: any[] = []): Promise<ServiceResponse<T[]>> {
     try {
-      if (!this.isConfigInitialized) {
-        await this.initialize();
+      if (!this.configDb) {
+        console.error('[queryConfig] ❌ configDb is NULL! Database not initialized in AppContext!');
+        throw new Error('Config database not initialized. This should never happen.');
       }
 
       const result = this.configDb.getAllSync<T>(sql, params);
@@ -327,7 +333,7 @@ export class DatabaseConnectionManager {
         data: result
       };
     } catch (error) {
-      console.error('Config database query failed:', error);
+      console.error('[queryConfig] ❌ Query failed:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Config query failed'
@@ -337,11 +343,13 @@ export class DatabaseConnectionManager {
 
   /**
    * 配置数据库单行查询
+   * 前提：DatabaseConnectionManager 必须已经在 AppContext 中初始化完成
    */
   async queryConfigFirst<T>(sql: string, params: any[] = []): Promise<ServiceResponse<T | null>> {
     try {
-      if (!this.isConfigInitialized) {
-        await this.initialize();
+      if (!this.configDb) {
+        console.error('[queryConfigFirst] ❌ configDb is NULL! Database not initialized in AppContext!');
+        throw new Error('Config database not initialized. This should never happen.');
       }
 
       const result = this.configDb.getFirstSync<T>(sql, params);
@@ -350,7 +358,7 @@ export class DatabaseConnectionManager {
         data: result || null
       };
     } catch (error) {
-      console.error('Config database queryFirst failed:', error);
+      console.error('[queryConfigFirst] ❌ Query failed:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Config query failed'
@@ -360,11 +368,13 @@ export class DatabaseConnectionManager {
 
   /**
    * 用户数据库查询
+   * 前提：DatabaseConnectionManager 必须已经在 AppContext 中初始化完成
    */
   async queryUser<T>(sql: string, params: any[] = []): Promise<ServiceResponse<T[]>> {
     try {
-      if (!this.isUserInitialized) {
-        await this.initialize();
+      if (!this.userDb) {
+        console.error('[queryUser] ❌ userDb is NULL! Database not initialized in AppContext!');
+        throw new Error('User database not initialized. This should never happen.');
       }
 
       const result = this.userDb.getAllSync<T>(sql, params);
@@ -373,7 +383,7 @@ export class DatabaseConnectionManager {
         data: result
       };
     } catch (error) {
-      console.error('User database query failed:', error);
+      console.error('[queryUser] ❌ Query failed:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'User query failed'
@@ -383,11 +393,13 @@ export class DatabaseConnectionManager {
 
   /**
    * 用户数据库单行查询
+   * 前提：DatabaseConnectionManager 必须已经在 AppContext 中初始化完成
    */
   async queryUserFirst<T>(sql: string, params: any[] = []): Promise<ServiceResponse<T | null>> {
     try {
-      if (!this.isUserInitialized) {
-        await this.initialize();
+      if (!this.userDb) {
+        console.error('[queryUserFirst] ❌ userDb is NULL! Database not initialized in AppContext!');
+        throw new Error('User database not initialized. This should never happen.');
       }
 
       const result = this.userDb.getFirstSync<T>(sql, params);
@@ -396,7 +408,7 @@ export class DatabaseConnectionManager {
         data: result || null
       };
     } catch (error) {
-      console.error('User database queryFirst failed:', error);
+      console.error('[queryUserFirst] ❌ Query failed:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'User query failed'
@@ -406,11 +418,13 @@ export class DatabaseConnectionManager {
 
   /**
    * 用户数据库执行命令（INSERT, UPDATE, DELETE）
+   * 前提：DatabaseConnectionManager 必须已经在 AppContext 中初始化完成
    */
   async executeUser(sql: string, params: any[] = []): Promise<ServiceResponse<DatabaseOperationResult>> {
     try {
-      if (!this.isUserInitialized) {
-        await this.initialize();
+      if (!this.userDb) {
+        console.error('[executeUser] ❌ userDb is NULL! Database not initialized in AppContext!');
+        throw new Error('User database not initialized. This should never happen.');
       }
 
       const result = this.userDb.runSync(sql, params);
@@ -424,7 +438,7 @@ export class DatabaseConnectionManager {
         }
       };
     } catch (error) {
-      console.error('User database execute failed:', error);
+      console.error('[executeUser] ❌ Execute failed:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'User execute failed'
@@ -434,11 +448,13 @@ export class DatabaseConnectionManager {
 
   /**
    * 用户数据库事务执行
+   * 前提：DatabaseConnectionManager 必须已经在 AppContext 中初始化完成
    */
   async userTransaction(callback: () => void): Promise<ServiceResponse<void>> {
     try {
-      if (!this.isUserInitialized) {
-        await this.initialize();
+      if (!this.userDb) {
+        console.error('[userTransaction] ❌ userDb is NULL! Database not initialized in AppContext!');
+        throw new Error('User database not initialized. This should never happen.');
       }
 
       this.userDb.withTransactionSync(callback);
@@ -447,7 +463,7 @@ export class DatabaseConnectionManager {
         success: true
       };
     } catch (error) {
-      console.error('User database transaction failed:', error);
+      console.error('[userTransaction] ❌ Transaction failed:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'User transaction failed'
