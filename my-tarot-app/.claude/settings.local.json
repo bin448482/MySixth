@@ -13,7 +13,9 @@
       "Bash(java:*)",
       "Bash(where gradle)",
       "Bash(.gradlew assembleRelease)",
-      "Bash(sqlite3:*)"
+      "Bash(sqlite3:*)",
+      "Bash(adb shell pm clear:*)",
+      "Bash(adb uninstall:*)"
     ],
     "deny": [],
     "ask": []

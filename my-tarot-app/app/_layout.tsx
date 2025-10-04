@@ -11,10 +11,6 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AppProvider, useAppContext } from '@/lib/contexts/AppContext';
 import { initializeApiConfig } from '@/lib/config/api';
 
-export const unstable_settings = {
-  anchor: '(tabs)',
-};
-
 function RootLayoutContent() {
   const colorScheme = useColorScheme();
   const { actions } = useAppContext();
@@ -45,12 +41,13 @@ function RootLayoutContent() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <TamaguiProvider config={tamaguiConfig}>
         <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-          <Stack>
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen name="(reading)" options={{ headerShown: false }} />
-            <Stack.Screen name="(history)" options={{ headerShown: false }} />
-            <Stack.Screen name="cards" options={{ headerShown: false }} />
-            <Stack.Screen name="settings" options={{ headerShown: false }} />
+          <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="index" />
+            <Stack.Screen name="(tabs)" />
+            <Stack.Screen name="(reading)" />
+            <Stack.Screen name="(history)" />
+            <Stack.Screen name="cards" />
+            <Stack.Screen name="settings" />
             <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
           </Stack>
           <StatusBar style="auto" />
