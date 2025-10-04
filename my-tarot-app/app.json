@@ -13,9 +13,8 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#5B4A8A",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
@@ -30,19 +29,46 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 200,
+          "image": "./assets/images/icon.png",
+          "imageWidth": 240,
           "resizeMode": "contain",
-          "backgroundColor": "#ffffff",
+          "backgroundColor": "#5B4A8A",
           "dark": {
-            "backgroundColor": "#000000"
+            "image": "./assets/images/icon.png",
+            "backgroundColor": "#5B4A8A"
           }
         }
       ]
     ],
     "experiments": {
       "typedRoutes": true,
-      "reactCompiler": true
-    }
+      "reactCompiler": false
+    },
+    "extra": {
+      "tabsConfig": {
+        "tabBarEnabled": false,
+        "tabs": {
+          "home": {
+            "enabled": true,
+            "title": "Home",
+            "icon": "house.fill"
+          },
+          "explore": {
+            "enabled": true,
+            "title": "Explore",
+            "icon": "paperplane.fill"
+          }
+        }
+      },
+      "router": {},
+      "eas": {
+        "projectId": "0d19ed54-5efd-4fe1-ae51-23a1b6602215"
+      }
+    },
+    "assetBundlePatterns": [
+      "assets/images/**/*",
+      "assets/db/**/*",
+      "assets/data/**/*"
+    ]
   }
 }

@@ -1,8 +1,13 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import AuthService from '../services/AuthService';
 import AIReadingService from '../services/AIReadingService';
+import { DatabaseConnectionManager } from '../database/connection';
 
 interface AppState {
+  isDatabaseInitialized: boolean;
+  isInitializingDatabase: boolean;
+  databaseError: string | null;
+
   isAIServiceAvailable: boolean;
   isCheckingAIService: boolean;
   aiServiceError: string | null;
@@ -27,6 +32,10 @@ interface AppContextType {
 }
 
 const defaultState: AppState = {
+  isDatabaseInitialized: false,
+  isInitializingDatabase: true,
+  databaseError: null,
+
   isAIServiceAvailable: false,
   isCheckingAIService: true,
   aiServiceError: null,
@@ -59,43 +68,63 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   const [state, setState] = useState<AppState>(defaultState);
 
   const initializeApp = async () => {
-    console.log('🚀 Starting app initialization...');
+    console.log('🚀 Starting app initialization (DEBUG MODE - Database Only)...');
 
     try {
       setState(prev => ({
         ...prev,
-        isCheckingAIService: true,
-        isAuthenticating: true,
+        isInitializingDatabase: true,
+        isCheckingAIService: false, // 调试模式：跳过AI服务检查
+        isAuthenticating: false, // 调试模式：跳过认证
       }));
 
-      console.log('🔍 Checking AI service health...');
-      const aiService = AIReadingService.getInstance();
-      const isAIHealthy = await aiService.checkServiceHealth();
+      // 1. 初始化数据库（必须最先完成）
+      console.log('🗄️ Initializing database...');
+      const connectionManager = DatabaseConnectionManager.getInstance();
+      const dbResult = await connectionManager.initialize();
 
-      console.log('👤 Initializing anonymous user...');
-      const authService = AuthService.getInstance();
-      const authSuccess = await authService.initializeUser();
+      if (!dbResult.success) {
+        throw new Error(`Database initialization failed: ${dbResult.error}`);
+      }
 
-      const token = await authService.getToken();
+      console.log('✅ Database initialized successfully');
+
+      // 🔧 调试模式：临时注释掉 AI服务检查和认证
+      // // 2. 检查AI服务健康状态
+      // console.log('🔍 Checking AI service health...');
+      // const aiService = AIReadingService.getInstance();
+      // const isAIHealthy = await aiService.checkServiceHealth();
+
+      // // 3. 初始化匿名用户认证
+      // console.log('👤 Initializing anonymous user...');
+      // const authService = AuthService.getInstance();
+      // const authSuccess = await authService.initializeUser();
+      // const token = await authService.getToken();
 
       setState(prev => ({
         ...prev,
-        isAIServiceAvailable: isAIHealthy,
-        isCheckingAIService: false,
-        aiServiceError: isAIHealthy ? null : 'AI service is unavailable',
+        isDatabaseInitialized: true,
+        isInitializingDatabase: false,
+        databaseError: null,
 
-        isAuthenticated: authSuccess,
+        // 🔧 调试模式：AI服务和认证状态设为默认值
+        isAIServiceAvailable: false,
+        isCheckingAIService: false,
+        aiServiceError: 'Disabled in debug mode',
+
+        isAuthenticated: false,
         isAuthenticating: false,
-        authError: authSuccess ? null : 'Authentication failed',
-        userToken: token,
+        authError: 'Disabled in debug mode',
+        userToken: null,
 
         isAppInitialized: true,
         initializationError: null,
       }));
 
-      console.log('✅ App initialization completed', {
-        aiService: isAIHealthy ? '✅' : '❌',
-        auth: authSuccess ? '✅' : '❌',
+      console.log('✅ App initialization completed (DEBUG MODE)', {
+        database: '✅',
+        aiService: '🔧 Disabled',
+        auth: '🔧 Disabled',
       });
     } catch (error) {
       console.error('❌ App initialization error:', error);
@@ -103,6 +132,10 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
 
       setState(prev => ({
         ...prev,
+        isDatabaseInitialized: false,
+        isInitializingDatabase: false,
+        databaseError: errorMessage,
+
         isCheckingAIService: false,
         isAuthenticating: false,
         isAppInitialized: true,

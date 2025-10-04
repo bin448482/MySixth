@@ -1,4 +1,4 @@
-import { DatabaseService } from './DatabaseService';
+import { ConfigDatabaseService } from '../database/config-db';
 import type { ServiceResponse } from '../types/database';
 
 export interface CardInterpretationData {
@@ -20,10 +20,10 @@ export interface CardInterpretationDimensionData {
 
 export class CardInterpretationService {
   private static instance: CardInterpretationService;
-  private dbService: DatabaseService;
+  private dbService: ConfigDatabaseService;
 
   private constructor() {
-    this.dbService = DatabaseService.getInstance();
+    this.dbService = ConfigDatabaseService.getInstance();
   }
 
   static getInstance(): CardInterpretationService {

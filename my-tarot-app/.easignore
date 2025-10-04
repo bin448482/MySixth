@@ -1,0 +1,50 @@
+# Dependencies
+node_modules/
+
+# Development files
+.git/
+.expo/
+.vscode/
+.idea/
+
+# Build outputs
+dist/
+build/
+out/
+
+# Logs and cache
+*.log
+.DS_Store
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Temporary files
+tmp/
+temp/
+
+# Scripts and documentation (if not needed for build)
+scripts/
+docs/
+*.md
+
+# Test files
+__tests__/
+*.test.*
+*.spec.*
+
+# Large asset directories that might not be needed
+.docs/# Android build caches and outputs
+android/.gradle/
+android/build/
+android/app/build/
+android/.cxx/
+android/local.properties
+android/app/debug.keystore
+
+# Gradle/IDE noise
+.gradle/
+*.iml
+.idea/
+

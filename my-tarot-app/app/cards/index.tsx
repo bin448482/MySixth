@@ -25,6 +25,7 @@ import Animated, {
 import { CardInfoService } from '@/lib/services/card-info';
 import type { CardSummary, CardDetail, TarotHistory, CardFilters, CardSide } from '@/lib/types/cards';
 import { Colors } from '@/constants/theme';
+import { useAppContext } from '@/lib/contexts/AppContext';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -227,6 +228,7 @@ const InterpretationContent: React.FC<InterpretationContentProps> = ({ card, sid
 };
 
 export default function CardsIndexScreen() {
+  const { state: appState } = useAppContext();
   const [cards, setCards] = useState<CardSummary[]>([]);
   const [history, setHistory] = useState<TarotHistory | null>(null);
   const [loading, setLoading] = useState(true);
@@ -248,6 +250,13 @@ export default function CardsIndexScreen() {
 
   const loadData = async (showRefreshIndicator = false) => {
     try {
+      // 检查数据库是否已初始化
+      if (!appState.isDatabaseInitialized) {
+        console.log('[CardsIndexScreen] Waiting for database initialization...');
+        setLoading(true);
+        return;
+      }
+
       if (showRefreshIndicator) {
         setRefreshing(true);
       } else {
@@ -327,8 +336,11 @@ export default function CardsIndexScreen() {
   };
 
   useEffect(() => {
-    loadData();
-  }, []);
+    // 当数据库初始化完成后加载数据
+    if (appState.isDatabaseInitialized) {
+      loadData();
+    }
+  }, [appState.isDatabaseInitialized]);
 
   const renderCard = ({ item }: { item: CardSummary }) => (
     <CardItem card={item} onPress={handleCardPress} />
@@ -412,12 +424,21 @@ export default function CardsIndexScreen() {
     </View>
   );
 
-  if (loading) {
+  if (loading || !appState.isDatabaseInitialized) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={Colors.light.tint} />
-          <Text style={styles.loadingText}>加载卡牌数据...</Text>
+          <Text style={styles.loadingText}>
+            {appState.databaseError
+              ? '数据库初始化失败'
+              : appState.isInitializingDatabase
+                ? '正在初始化数据库...'
+                : '加载卡牌数据...'}
+          </Text>
+          {appState.databaseError && (
+            <Text style={styles.errorText}>{appState.databaseError}</Text>
+          )}
         </View>
       </SafeAreaView>
     );
@@ -585,6 +606,13 @@ const styles = StyleSheet.create({
     marginTop: 16,
     fontSize: 16,
     color: '#888',
+  },
+  errorText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: '#ff6b6b',
+    textAlign: 'center',
+    paddingHorizontal: 24,
   },
   header: {
     marginBottom: 24,
