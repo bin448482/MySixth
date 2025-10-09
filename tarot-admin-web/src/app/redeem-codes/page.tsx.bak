@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useEffect } from 'react';
 import {
@@ -52,24 +52,24 @@ export default function RedeemCodesPage() {
   const [pageSize, setPageSize] = useState(20);
   const [stats, setStats] = useState<any>({});
 
-  // 筛选条件
+  // 缁涙盯鈧娼禒?
   const [filters, setFilters] = useState<RedeemCodeFilters>({
     page: 1,
     size: 20,
   });
 
-  // 模态框状态
+  // 濡剝鈧焦顢嬮悩鑸碘偓?
   const [generateVisible, setGenerateVisible] = useState(false);
   const [detailVisible, setDetailVisible] = useState(false);
   const [selectedCode, setSelectedCode] = useState<RedeemCode | null>(null);
 
-  // 表单实例
+  // 鐞涖劌宕熺€圭偘绶?
   const [generateForm] = Form.useForm();
 
-  // 批次列表
+  // 閹佃顐奸崚妤勩€?
   const [batches, setBatches] = useState<string[]>([]);
 
-  // 加载兑换码列表
+  // 閸旂姾娴囬崗鎴炲床閻礁鍨悰?
   const loadRedeemCodes = async () => {
     setLoading(true);
     try {
@@ -82,20 +82,20 @@ export default function RedeemCodesPage() {
       setTotal(response.total);
       setStats(response.stats);
     } catch (error) {
-      message.error('加载兑换码列表失败');
+      message.error('Operation failed');
       console.error(error);
     } finally {
       setLoading(false);
     }
   };
 
-  // 加载批次列表
+  // 閸旂姾娴囬幍瑙勵偧閸掓銆?
   const loadBatches = async () => {
     try {
       const response = await redeemCodesApi.getBatches();
       setBatches(response.batches);
     } catch (error) {
-      console.error('加载批次列表失败:', error);
+      console.error('閸旂姾娴囬幍瑙勵偧閸掓銆冩径杈Е:', error);
     }
   };
 
@@ -107,44 +107,44 @@ export default function RedeemCodesPage() {
     loadBatches();
   }, []);
 
-  // 生成兑换码
+  // 閻㈢喐鍨氶崗鎴炲床閻?
   const handleGenerate = async (values: GenerateRedeemCodesRequest) => {
     try {
       const response = await redeemCodesApi.generateRedeemCodes(values);
-      message.success(`成功生成 ${response.count} 个兑换码`);
+      message.success(`閹存劕濮涢悽鐔稿灇 ${response.count} 娑擃亜鍘幑銏㈢垳`);
       setGenerateVisible(false);
       generateForm.resetFields();
       loadRedeemCodes();
-      loadBatches(); // 重新加载批次列表
+      loadBatches(); // 闁插秵鏌婇崝鐘烘祰閹佃顐奸崚妤勩€?
     } catch (error) {
-      message.error('生成兑换码失败');
+      message.error('Operation failed');
     }
   };
 
-  // 查看详情
+  // 閺屻儳婀呯拠锔藉剰
   const handleViewDetail = (code: RedeemCode) => {
     setSelectedCode(code);
     setDetailVisible(true);
   };
 
-  // 更新状态
+  // 閺囧瓨鏌婇悩鑸碘偓?
   const handleUpdateStatus = async (code: RedeemCode, status: string) => {
     try {
       await redeemCodesApi.updateRedeemCodeStatus(code.id, status);
-      message.success('状态更新成功');
+      message.success('Status updated');      message.success('Status updated');
       loadRedeemCodes();
     } catch (error) {
-      message.error('状态更新失败');
+      message.error('Operation failed');
     }
   };
 
-  // 复制兑换码
+  // 婢跺秴鍩楅崗鎴炲床閻?
   const handleCopyCode = (code: string) => {
     navigator.clipboard.writeText(code);
-    message.success('兑换码已复制');
+    message.success('Code copied');
   };
 
-  // 导出数据
+  // 鐎电厧鍤弫鐗堝祦
   const handleExport = async () => {
     try {
       const blob = await redeemCodesApi.exportRedeemCodes(filters);
@@ -156,28 +156,23 @@ export default function RedeemCodesPage() {
       a.click();
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
-      message.success('导出成功');
+      message.success('鐎电厧鍤幋鎰');
     } catch (error) {
-      message.error('导出失败');
+      message.error('鐎电厧鍤径杈Е');
     }
   };
 
-  // 状态渲染函数
+  // 閻樿埖鈧焦瑕嗛弻鎾冲毐閺?
   const renderStatus = (status: string) => {
-    const statusMap = {
-      active: { label: '有效', color: 'green', icon: <CheckCircleOutlined /> },
-      used: { label: '已使用', color: 'blue', icon: <CheckCircleOutlined /> },
-      expired: { label: '已过期', color: 'red', icon: <ClockCircleOutlined /> },
-      disabled: { label: '已禁用', color: 'gray', icon: <StopOutlined /> },
-    };
+    const statusMap = { active: { label: 'Active', color: 'green', icon: <CheckCircleOutlined /> }, used: { label: 'Used', color: 'blue', icon: <CheckCircleOutlined /> }, expired: { label: 'Expired', color: 'red', icon: <ClockCircleOutlined /> }, disabled: { label: 'Disabled', color: 'gray', icon: <StopOutlined /> }, };
     const config = statusMap[status as keyof typeof statusMap] || { label: status, color: 'default', icon: null };
     return <Tag color={config.color} icon={config.icon}>{config.label}</Tag>;
   };
 
-  // 表格列配置
+  // 鐞涖劍鐗搁崚妤呭帳缂?
   const columns: ColumnsType<RedeemCode> = [
     {
-      title: '兑换码',
+title: 'Redeem Code',
       dataIndex: 'code',
       key: 'code',
       width: 200,
@@ -186,7 +181,7 @@ export default function RedeemCodesPage() {
           <Text code style={{ fontSize: 12, fontWeight: 'bold' }}>
             {code}
           </Text>
-          <Tooltip title="复制兑换码">
+          <Tooltip title="Copy code">
             <Button
               type="text"
               size="small"
@@ -198,7 +193,7 @@ export default function RedeemCodesPage() {
       ),
     },
     {
-      title: '积分值',
+title: 'Credits',
       dataIndex: 'credits',
       key: 'credits',
       width: 100,
@@ -208,25 +203,26 @@ export default function RedeemCodesPage() {
       sorter: (a, b) => a.credits - b.credits,
     },
     {
-      title: '状态',
+title: 'Status',
       dataIndex: 'status',
       key: 'status',
       width: 120,
       render: renderStatus,
-      filters: [
-        { text: '有效', value: 'active' },
-        { text: '已使用', value: 'used' },
-        { text: '已过期', value: 'expired' },
-        { text: '已禁用', value: 'disabled' },
-      ],
-    },
+filters:
+  [
+    { text: 'Active', value: 'active' },
+    { text: 'Used', value: 'used' },
+    { text: 'Expired', value: 'expired' },
+    { text: 'Disabled', value: 'disabled' },
+  ],
+} ,
     {
-      title: '使用用户',
+title: 'Used By',
       dataIndex: 'used_by_user',
       key: 'used_by_user',
       width: 150,
       render: (user: any) => {
-        if (!user) return <Text type="secondary">未使用</Text>;
+        if (!user) return <Text type="secondary">Not used</Text>;
         return (
           <Text code style={{ fontSize: 12 }}>
             {user.installation_id.substring(0, 8)}...
@@ -235,39 +231,36 @@ export default function RedeemCodesPage() {
       },
     },
     {
-      title: '使用时间',
+title: 'Used At',
       dataIndex: 'used_at',
       key: 'used_at',
       width: 180,
       render: (date: string | null) => {
-        if (!date) return <Text type="secondary">未使用</Text>;
-        return new Date(date).toLocaleString('zh-CN');
+        if (!date) return <Text type="secondary">Not used</Text>;
       },
     },
     {
-      title: '过期时间',
+title: 'Expires At',
       dataIndex: 'expires_at',
       key: 'expires_at',
       width: 180,
       render: (date: string | null) => {
-        if (!date) return <Text type="secondary">永不过期</Text>;
-        const expireDate = new Date(date);
+        return <Text type="secondary">No expiry</Text>;
         const now = new Date();
         const isExpired = expireDate < now;
         return (
           <Text type={isExpired ? 'danger' : undefined}>
-            {expireDate.toLocaleString('zh-CN')}
           </Text>
         );
       },
     },
     {
-      title: '批次ID',
+title: 'Batch ID',
       dataIndex: 'batch_id',
       key: 'batch_id',
       width: 150,
       render: (batchId: string | null) => {
-        if (!batchId) return <Text type="secondary">无批次</Text>;
+        if (!batchId) return <Text type="secondary">N/A</Text>;
         return (
           <Text code style={{ fontSize: 11 }}>
             {batchId.length > 15 ? `${batchId.substring(0, 15)}...` : batchId}
@@ -276,7 +269,7 @@ export default function RedeemCodesPage() {
       },
     },
     {
-      title: '创建时间',
+title: 'Created At',
       dataIndex: 'created_at',
       key: 'created_at',
       width: 180,
@@ -284,13 +277,13 @@ export default function RedeemCodesPage() {
       sorter: (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
     },
     {
-      title: '操作',
+      title: 'Actions',
       key: 'actions',
       width: 200,
       fixed: 'right',
       render: (_, record) => (
         <Space size="small">
-          <Tooltip title="查看详情">
+          <Tooltip title="View Details">
             <Button
               type="text"
               size="small"
@@ -301,12 +294,12 @@ export default function RedeemCodesPage() {
 
           {record.status === 'active' && (
             <Popconfirm
-              title="确定禁用此兑换码吗？"
+              title="Disable this code?"
               onConfirm={() => handleUpdateStatus(record, 'disabled')}
-              okText="确定"
-              cancelText="取消"
+              okText="OK"
+              cancelText="Cancel"
             >
-              <Tooltip title="禁用">
+              <Tooltip title="Disable">
                 <Button
                   type="text"
                   size="small"
@@ -318,7 +311,7 @@ export default function RedeemCodesPage() {
           )}
 
           {record.status === 'disabled' && (
-            <Tooltip title="启用">
+            <Tooltip title="Enable">
               <Button
                 type="text"
                 size="small"
@@ -331,17 +324,15 @@ export default function RedeemCodesPage() {
       ),
     },
   ];
-
   return (
     <AdminLayout>
       <div style={{ marginBottom: 24 }}>
         <Row justify="space-between" align="middle">
           <Col>
             <Title level={2} style={{ margin: 0 }}>
-              兑换码管理
+            Redeem Codes
             </Title>
             <Text type="secondary">
-              管理所有兑换码的生成、状态和使用情况
             </Text>
           </Col>
           <Col>
@@ -350,14 +341,14 @@ export default function RedeemCodesPage() {
                 icon={<ExportOutlined />}
                 onClick={handleExport}
               >
-                导出数据
+                鐎电厧鍤弫鐗堝祦
               </Button>
               <Button
                 icon={<PlusOutlined />}
                 type="primary"
                 onClick={() => setGenerateVisible(true)}
               >
-                生成兑换码
+                閻㈢喐鍨氶崗鎴炲床閻?
               </Button>
               <Button
                 type="default"
@@ -365,19 +356,19 @@ export default function RedeemCodesPage() {
                 onClick={loadRedeemCodes}
                 loading={loading}
               >
-                刷新
+                閸掗攱鏌?
               </Button>
             </Space>
           </Col>
         </Row>
       </div>
 
-      {/* 统计卡片 */}
+      {/* 缂佺喕顓搁崡锛勫 */}
       <Row gutter={16} style={{ marginBottom: 24 }}>
         <Col xs={24} sm={6}>
           <Card>
             <Statistic
-              title="总兑换码"
+              title="閹鍘幑銏㈢垳"
               value={stats.total || 0}
               prefix={<GiftOutlined />}
             />
@@ -386,7 +377,7 @@ export default function RedeemCodesPage() {
         <Col xs={24} sm={6}>
           <Card>
             <Statistic
-              title="有效兑换码"
+              title="閺堝鏅ラ崗鎴炲床閻?
               value={stats.active || 0}
               styles={{ content: { color: '#52c41a' } }}
             />
@@ -401,7 +392,7 @@ export default function RedeemCodesPage() {
         <Col xs={24} sm={6}>
           <Card>
             <Statistic
-              title="已使用"
+              title="瀹歌弓濞囬悽?
               value={stats.used || 0}
               styles={{ content: { color: '#1890ff' } }}
             />
@@ -416,7 +407,7 @@ export default function RedeemCodesPage() {
         <Col xs={24} sm={6}>
           <Card>
             <Statistic
-              title="已过期/禁用"
+              title="瀹歌尪绻冮張?缁備胶鏁?
               value={(stats.expired || 0) + (stats.disabled || 0)}
               styles={{ content: { color: '#ff4d4f' } }}
             />
@@ -430,32 +421,32 @@ export default function RedeemCodesPage() {
         </Col>
       </Row>
 
-      {/* 筛选区域 */}
+      {/* 缁涙盯鈧灏崺?*/}
       <Card style={{ marginBottom: 24 }}>
         <Row gutter={[16, 16]}>
           <Col xs={24} sm={8}>
             <Search
-              placeholder="搜索兑换码"
+              placeholder="閹兼粎鍌ㄩ崗鎴炲床閻?
               allowClear
               onSearch={(value) => setFilters(prev => ({ ...prev, code: value }))}
             />
           </Col>
           <Col xs={24} sm={6}>
             <Select
-              placeholder="状态筛选"
+              placeholder="閻樿埖鈧胶鐡柅?
               allowClear
               style={{ width: '100%' }}
               onChange={(value) => setFilters(prev => ({ ...prev, status: value }))}
             >
-              <Option value="active">有效</Option>
-              <Option value="used">已使用</Option>
-              <Option value="expired">已过期</Option>
-              <Option value="disabled">已禁用</Option>
+              <Option value="active">閺堝鏅?/Option>
+              <Option value="used">瀹歌弓濞囬悽?/Option>
+              <Option value="expired">瀹歌尪绻冮張?/Option>
+              <Option value="disabled">瀹歌尙顩﹂悽?/Option>
             </Select>
           </Col>
           <Col xs={24} sm={10}>
             <Select
-              placeholder="批次筛选"
+              placeholder="閹佃顐肩粵娑⑩偓?
               allowClear
               style={{ width: '100%' }}
               onChange={(value) => setFilters(prev => ({ ...prev, batch_id: value }))}
@@ -473,7 +464,7 @@ export default function RedeemCodesPage() {
         </Row>
       </Card>
 
-      {/* 兑换码表格 */}
+      {/* 閸忔垶宕查惍浣姐€冮弽?*/}
       <Card>
         <Table
           columns={columns}
@@ -487,7 +478,7 @@ export default function RedeemCodesPage() {
             total: total,
             showSizeChanger: true,
             showQuickJumper: true,
-            showTotal: (total, range) => `第 ${range[0]}-${range[1]} 条，共 ${total} 条`,
+            showTotal: (total, range) => `缁?${range[0]}-${range[1]} 閺夆槄绱濋崗?${total} 閺夘摝,
             onChange: (page, size) => {
               setCurrentPage(page);
               setPageSize(size);
@@ -496,9 +487,9 @@ export default function RedeemCodesPage() {
         />
       </Card>
 
-      {/* 生成兑换码模态框 */}
+      {/* 閻㈢喐鍨氶崗鎴炲床閻焦膩閹焦顢?*/}
       <Modal
-        title="生成兑换码"
+        title="閻㈢喐鍨氶崗鎴炲床閻?
         open={generateVisible}
         onCancel={() => setGenerateVisible(false)}
         footer={null}
@@ -516,10 +507,10 @@ export default function RedeemCodesPage() {
             <Col span={12}>
               <Form.Item
                 name="count"
-                label="生成数量"
+                label="閻㈢喐鍨氶弫浼村櫤"
                 rules={[
-                  { required: true, message: '请输入生成数量' },
-                  { type: 'integer', min: 1, max: 1000, message: '数量必须在1-1000之间' },
+                  { required: true, message: '鐠囩柉绶崗銉ф晸閹存劖鏆熼柌? },
+                  { type: 'integer', min: 1, max: 1000, message: '閺佷即鍣鸿箛鍛淬€忛崷?-1000娑斿妫? },
                 ]}
               >
                 <InputNumber
@@ -533,15 +524,15 @@ export default function RedeemCodesPage() {
             <Col span={12}>
               <Form.Item
                 name="credits"
-                label="积分值"
+                label="缁夘垰鍨庨崐?
                 rules={[
-                  { required: true, message: '请输入积分值' },
-                  { type: 'integer', min: 1, message: '积分值必须大于0' },
+                  { required: true, message: '鐠囩柉绶崗銉濋崚鍡椻偓? },
+                  { type: 'integer', min: 1, message: '缁夘垰鍨庨崐鐓庣箑妞よ銇囨禍?' },
                 ]}
               >
                 <InputNumber
                   style={{ width: '100%' }}
-                  placeholder="每个兑换码的积分值"
+                  placeholder="濮ｅ繋閲滈崗鎴炲床閻胶娈戠粔顖氬瀻閸?
                   min={1}
                 />
               </Form.Item>
@@ -550,15 +541,15 @@ export default function RedeemCodesPage() {
 
           <Form.Item
             name="expires_days"
-            label="有效期（天）"
+            label="閺堝鏅ラ張鐕傜礄婢垛晪绱?
             rules={[
-              { required: true, message: '请输入有效期' },
-              { type: 'integer', min: 1, max: 3650, message: '有效期必须在1-3650天之间' },
+              { required: true, message: '鐠囩柉绶崗銉︽箒閺佸牊婀? },
+              { type: 'integer', min: 1, max: 3650, message: '閺堝鏅ラ張鐔风箑妞よ婀?-3650婢垛晙绠ｉ梻? },
             ]}
           >
             <InputNumber
               style={{ width: '100%' }}
-              placeholder="1-3650天"
+              placeholder="1-3650婢?
               min={1}
               max={3650}
             />
@@ -566,11 +557,11 @@ export default function RedeemCodesPage() {
 
           <Form.Item
             name="batch_name"
-            label="批次名称"
-            extra="可选，用于标识这批兑换码"
+            label="閹佃顐奸崥宥囆?
+            extra="閸欘垶鈧绱濋悽銊ょ艾閺嶅洩鐦戞潻娆愬閸忔垶宕查惍?
           >
             <Input
-              placeholder="例如：2024春节活动"
+              placeholder="娓氬顩ч敍?024閺勩儴濡ú璇插З"
               maxLength={50}
             />
           </Form.Item>
@@ -578,19 +569,19 @@ export default function RedeemCodesPage() {
           <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
             <Space>
               <Button onClick={() => setGenerateVisible(false)}>
-                取消
+                閸欐牗绉?
               </Button>
               <Button type="primary" htmlType="submit">
-                生成兑换码
+                閻㈢喐鍨氶崗鎴炲床閻?
               </Button>
             </Space>
           </Form.Item>
         </Form>
       </Modal>
 
-      {/* 兑换码详情模态框 */}
+      {/* 閸忔垶宕查惍浣筋嚊閹懏膩閹焦顢?*/}
       <Modal
-        title="兑换码详情"
+        title="閸忔垶宕查惍浣筋嚊閹?
         open={detailVisible}
         onCancel={() => setDetailVisible(false)}
         footer={null}
@@ -598,7 +589,7 @@ export default function RedeemCodesPage() {
       >
         {selectedCode && (
           <Descriptions bordered column={2}>
-            <Descriptions.Item label="兑换码" span={2}>
+            <Descriptions.Item label="閸忔垶宕查惍? span={2}>
               <Space>
                 <Text code style={{ fontSize: 14, fontWeight: 'bold' }}>
                   {selectedCode.code}
@@ -611,42 +602,38 @@ export default function RedeemCodesPage() {
                 />
               </Space>
             </Descriptions.Item>
-            <Descriptions.Item label="积分值">
+            <Descriptions.Item label="缁夘垰鍨庨崐?>
               <Tag color="gold" style={{ fontSize: 14 }}>
                 {selectedCode.credits}
               </Tag>
             </Descriptions.Item>
-            <Descriptions.Item label="当前状态">
+            <Descriptions.Item label="瑜版挸澧犻悩鑸碘偓?>
               {renderStatus(selectedCode.status)}
             </Descriptions.Item>
-            <Descriptions.Item label="使用用户">
+            <Descriptions.Item label="娴ｈ法鏁ら悽銊﹀煕">
               {selectedCode.used_by_user ? (
                 <Text code>{selectedCode.used_by_user.installation_id}</Text>
               ) : (
-                <Text type="secondary">未使用</Text>
-              )}
+                <Text type="secondary">閺堫亙濞囬悽?/Text>
             </Descriptions.Item>
-            <Descriptions.Item label="使用时间">
+            <Descriptions.Item label="娴ｈ法鏁ら弮鍫曟？">
               {selectedCode.used_at ?
                 new Date(selectedCode.used_at).toLocaleString('zh-CN') :
-                <Text type="secondary">未使用</Text>
-              }
+                <Text type="secondary">閺堫亙濞囬悽?/Text>
             </Descriptions.Item>
-            <Descriptions.Item label="过期时间">
+            <Descriptions.Item label="鏉╁洦婀￠弮鍫曟？">
               {selectedCode.expires_at ?
                 new Date(selectedCode.expires_at).toLocaleString('zh-CN') :
-                <Text type="secondary">永不过期</Text>
-              }
+                <Text type="secondary">濮橀晲绗夋潻鍥ㄦ埂</Text>
             </Descriptions.Item>
-            <Descriptions.Item label="创建时间">
+            <Descriptions.Item label="閸掓稑缂撻弮鍫曟？">
               {new Date(selectedCode.created_at).toLocaleString('zh-CN')}
             </Descriptions.Item>
-            <Descriptions.Item label="批次ID" span={2}>
+            <Descriptions.Item label="閹佃顐糏D" span={2}>
               {selectedCode.batch_id ? (
                 <Text code>{selectedCode.batch_id}</Text>
               ) : (
-                <Text type="secondary">无批次</Text>
-              )}
+                <Text type="secondary">閺冪姵澹掑▎?/Text>
             </Descriptions.Item>
           </Descriptions>
         )}
@@ -654,3 +641,6 @@ export default function RedeemCodesPage() {
     </AdminLayout>
   );
 }
+
+
+
