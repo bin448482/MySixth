@@ -572,7 +572,7 @@ export default function UsersPage() {
                 },
               ]}
               pagination={false}
-              rowKey={(record) => record.id || `transaction-${record.credits}-${record.created_at}`}
+              rowKey={(record, index) => `transaction-${index}-${record.credits}-${record.created_at}`}
             />
           </div>
         )}

@@ -68,16 +68,21 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   const [state, setState] = useState<AppState>(defaultState);
 
   const initializeApp = async () => {
-    console.log('🚀 Starting app initialization (DEBUG MODE - Database Only)...');
+    console.log('🚀 Starting app initialization...');
+
+    setState(prev => ({
+      ...prev,
+      isInitializingDatabase: true,
+      databaseError: null,
+      isCheckingAIService: true,
+      aiServiceError: null,
+      isAuthenticating: true,
+      authError: null,
+      initializationError: null,
+      isAppInitialized: false,
+    }));
 
     try {
-      setState(prev => ({
-        ...prev,
-        isInitializingDatabase: true,
-        isCheckingAIService: false, // 调试模式：跳过AI服务检查
-        isAuthenticating: false, // 调试模式：跳过认证
-      }));
-
       // 1. 初始化数据库（必须最先完成）
       console.log('🗄️ Initializing database...');
       const connectionManager = DatabaseConnectionManager.getInstance();
@@ -89,42 +94,79 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
 
       console.log('✅ Database initialized successfully');
 
-      // 🔧 调试模式：临时注释掉 AI服务检查和认证
-      // // 2. 检查AI服务健康状态
-      // console.log('🔍 Checking AI service health...');
-      // const aiService = AIReadingService.getInstance();
-      // const isAIHealthy = await aiService.checkServiceHealth();
+      // 2. 检查AI服务健康状态
+      console.log('🔍 Checking AI service health...');
+      const aiService = AIReadingService.getInstance();
+      let isAIServiceAvailable = false;
+      let aiServiceError: string | null = null;
 
-      // // 3. 初始化匿名用户认证
-      // console.log('👤 Initializing anonymous user...');
-      // const authService = AuthService.getInstance();
-      // const authSuccess = await authService.initializeUser();
-      // const token = await authService.getToken();
+      try {
+        const healthCheck = await aiService.checkServiceHealth();
+        isAIServiceAvailable = healthCheck;
+        if (!healthCheck) {
+          aiServiceError = 'AI service is unavailable';
+          console.warn('⚠️ AI service health check returned unavailable');
+        } else {
+          console.log('✅ AI service is reachable');
+        }
+      } catch (error) {
+        aiServiceError = error instanceof Error ? error.message : 'Unknown error';
+        console.error('❌ AI service health check failed:', error);
+      }
+
+      // 3. 初始化匿名用户认证
+      console.log('👤 Initializing anonymous user...');
+      const authService = AuthService.getInstance();
+      let isAuthenticated = false;
+      let authError: string | null = null;
+      let userToken: string | null = null;
+      let userId: string | null = null;
+
+      try {
+        isAuthenticated = await authService.initializeUser();
+        userToken = await authService.getToken();
+        userId = await authService.getUserId();
+
+        if (!isAuthenticated) {
+          authError = 'Authentication failed';
+          console.warn('⚠️ Anonymous user initialization failed');
+        } else {
+          console.log('✅ Anonymous user initialized successfully', { userId });
+        }
+      } catch (error) {
+        authError = error instanceof Error ? error.message : 'Unknown error';
+        console.error('❌ Anonymous user initialization error:', error);
+      }
+
+      const initializationErrors: string[] = [];
+      if (aiServiceError) {
+        initializationErrors.push(`AI service: ${aiServiceError}`);
+      }
+      if (authError) {
+        initializationErrors.push(`Auth: ${authError}`);
+      }
 
       setState(prev => ({
         ...prev,
         isDatabaseInitialized: true,
         isInitializingDatabase: false,
         databaseError: null,
-
-        // 🔧 调试模式：AI服务和认证状态设为默认值
-        isAIServiceAvailable: false,
+        isAIServiceAvailable,
         isCheckingAIService: false,
-        aiServiceError: 'Disabled in debug mode',
-
-        isAuthenticated: false,
+        aiServiceError,
+        isAuthenticated,
         isAuthenticating: false,
-        authError: 'Disabled in debug mode',
-        userToken: null,
-
+        authError,
+        userToken,
+        userId,
         isAppInitialized: true,
-        initializationError: null,
+        initializationError: initializationErrors.length ? initializationErrors.join('; ') : null,
       }));
 
-      console.log('✅ App initialization completed (DEBUG MODE)', {
+      console.log('🎉 App initialization completed', {
         database: '✅',
-        aiService: '🔧 Disabled',
-        auth: '🔧 Disabled',
+        aiService: isAIServiceAvailable ? '✅' : '⚠️',
+        auth: isAuthenticated ? '✅' : '⚠️',
       });
     } catch (error) {
       console.error('❌ App initialization error:', error);
@@ -135,9 +177,14 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
         isDatabaseInitialized: false,
         isInitializingDatabase: false,
         databaseError: errorMessage,
-
+        isAIServiceAvailable: false,
         isCheckingAIService: false,
+        aiServiceError: errorMessage,
+        isAuthenticated: false,
         isAuthenticating: false,
+        authError: errorMessage,
+        userToken: null,
+        userId: null,
         isAppInitialized: true,
         initializationError: errorMessage,
       }));

@@ -82,7 +82,7 @@ export default function RedeemCodesPage() {
       setTotal(response.total);
       setStats(response.stats);
     } catch (error) {
-      message.error('加载兑换码列表失败');
+      message.error('加载失败');
       console.error(error);
     } finally {
       setLoading(false);
@@ -115,9 +115,9 @@ export default function RedeemCodesPage() {
       setGenerateVisible(false);
       generateForm.resetFields();
       loadRedeemCodes();
-      loadBatches(); // 重新加载批次列表
+      loadBatches(); // 刷新批次列表
     } catch (error) {
-      message.error('生成兑换码失败');
+      message.error('生成失败');
     }
   };
 
@@ -131,10 +131,10 @@ export default function RedeemCodesPage() {
   const handleUpdateStatus = async (code: RedeemCode, status: string) => {
     try {
       await redeemCodesApi.updateRedeemCodeStatus(code.id, status);
-      message.success('状态更新成功');
+      message.success('状态已更新');
       loadRedeemCodes();
     } catch (error) {
-      message.error('状态更新失败');
+      message.error('操作失败');
     }
   };
 
@@ -162,10 +162,10 @@ export default function RedeemCodesPage() {
     }
   };
 
-  // 状态渲染函数
+  // 渲染状态标签
   const renderStatus = (status: string) => {
     const statusMap = {
-      active: { label: '有效', color: 'green', icon: <CheckCircleOutlined /> },
+      active: { label: '可用', color: 'green', icon: <CheckCircleOutlined /> },
       used: { label: '已使用', color: 'blue', icon: <CheckCircleOutlined /> },
       expired: { label: '已过期', color: 'red', icon: <ClockCircleOutlined /> },
       disabled: { label: '已禁用', color: 'gray', icon: <StopOutlined /> },
@@ -214,14 +214,14 @@ export default function RedeemCodesPage() {
       width: 120,
       render: renderStatus,
       filters: [
-        { text: '有效', value: 'active' },
+        { text: '可用', value: 'active' },
         { text: '已使用', value: 'used' },
         { text: '已过期', value: 'expired' },
         { text: '已禁用', value: 'disabled' },
       ],
     },
     {
-      title: '使用用户',
+      title: '使用者',
       dataIndex: 'used_by_user',
       key: 'used_by_user',
       width: 150,
@@ -267,7 +267,7 @@ export default function RedeemCodesPage() {
       key: 'batch_id',
       width: 150,
       render: (batchId: string | null) => {
-        if (!batchId) return <Text type="secondary">无批次</Text>;
+        if (!batchId) return <Text type="secondary">无</Text>;
         return (
           <Text code style={{ fontSize: 11 }}>
             {batchId.length > 15 ? `${batchId.substring(0, 15)}...` : batchId}
@@ -341,7 +341,7 @@ export default function RedeemCodesPage() {
               兑换码管理
             </Title>
             <Text type="secondary">
-              管理所有兑换码的生成、状态和使用情况
+              管理所有兑换码和批次
             </Text>
           </Col>
           <Col>
@@ -386,9 +386,9 @@ export default function RedeemCodesPage() {
         <Col xs={24} sm={6}>
           <Card>
             <Statistic
-              title="有效兑换码"
+              title="可用兑换码"
               value={stats.active || 0}
-              styles={{ content: { color: '#52c41a' } }}
+              valueStyle={{ color: '#52c41a' }}
             />
             <Progress
               percent={stats.total ? Math.round((stats.active / stats.total) * 100) : 0}
@@ -403,7 +403,7 @@ export default function RedeemCodesPage() {
             <Statistic
               title="已使用"
               value={stats.used || 0}
-              styles={{ content: { color: '#1890ff' } }}
+              valueStyle={{ color: '#1890ff' }}
             />
             <Progress
               percent={stats.total ? Math.round((stats.used / stats.total) * 100) : 0}
@@ -416,9 +416,9 @@ export default function RedeemCodesPage() {
         <Col xs={24} sm={6}>
           <Card>
             <Statistic
-              title="已过期/禁用"
+              title="过期/禁用"
               value={(stats.expired || 0) + (stats.disabled || 0)}
-              styles={{ content: { color: '#ff4d4f' } }}
+              valueStyle={{ color: '#ff4d4f' }}
             />
             <Progress
               percent={stats.total ? Math.round(((stats.expired + stats.disabled) / stats.total) * 100) : 0}
@@ -442,12 +442,12 @@ export default function RedeemCodesPage() {
           </Col>
           <Col xs={24} sm={6}>
             <Select
-              placeholder="状态筛选"
+              placeholder="选择状态"
               allowClear
               style={{ width: '100%' }}
               onChange={(value) => setFilters(prev => ({ ...prev, status: value }))}
             >
-              <Option value="active">有效</Option>
+              <Option value="active">可用</Option>
               <Option value="used">已使用</Option>
               <Option value="expired">已过期</Option>
               <Option value="disabled">已禁用</Option>
@@ -455,7 +455,7 @@ export default function RedeemCodesPage() {
           </Col>
           <Col xs={24} sm={10}>
             <Select
-              placeholder="批次筛选"
+              placeholder="选择批次"
               allowClear
               style={{ width: '100%' }}
               onChange={(value) => setFilters(prev => ({ ...prev, batch_id: value }))}
@@ -496,7 +496,7 @@ export default function RedeemCodesPage() {
         />
       </Card>
 
-      {/* 生成兑换码模态框 */}
+      {/* 生成兑换码弹窗 */}
       <Modal
         title="生成兑换码"
         open={generateVisible}
@@ -519,7 +519,7 @@ export default function RedeemCodesPage() {
                 label="生成数量"
                 rules={[
                   { required: true, message: '请输入生成数量' },
-                  { type: 'integer', min: 1, max: 1000, message: '数量必须在1-1000之间' },
+                  { type: 'integer', min: 1, max: 1000, message: '数量范围为1-1000个' },
                 ]}
               >
                 <InputNumber
@@ -541,7 +541,7 @@ export default function RedeemCodesPage() {
               >
                 <InputNumber
                   style={{ width: '100%' }}
-                  placeholder="每个兑换码的积分值"
+                  placeholder="请输入每个兑换码的积分值"
                   min={1}
                 />
               </Form.Item>
@@ -553,7 +553,7 @@ export default function RedeemCodesPage() {
             label="有效期（天）"
             rules={[
               { required: true, message: '请输入有效期' },
-              { type: 'integer', min: 1, max: 3650, message: '有效期必须在1-3650天之间' },
+              { type: 'integer', min: 1, max: 3650, message: '有效期范围为1-3650天' },
             ]}
           >
             <InputNumber
@@ -567,7 +567,7 @@ export default function RedeemCodesPage() {
           <Form.Item
             name="batch_name"
             label="批次名称"
-            extra="可选，用于标识这批兑换码"
+            extra="可选，用于标识这批兑换码的用途"
           >
             <Input
               placeholder="例如：2024春节活动"
@@ -588,7 +588,7 @@ export default function RedeemCodesPage() {
         </Form>
       </Modal>
 
-      {/* 兑换码详情模态框 */}
+      {/* 兑换码详情弹窗 */}
       <Modal
         title="兑换码详情"
         open={detailVisible}
@@ -616,10 +616,10 @@ export default function RedeemCodesPage() {
                 {selectedCode.credits}
               </Tag>
             </Descriptions.Item>
-            <Descriptions.Item label="当前状态">
+            <Descriptions.Item label="状态">
               {renderStatus(selectedCode.status)}
             </Descriptions.Item>
-            <Descriptions.Item label="使用用户">
+            <Descriptions.Item label="使用者">
               {selectedCode.used_by_user ? (
                 <Text code>{selectedCode.used_by_user.installation_id}</Text>
               ) : (
@@ -645,7 +645,7 @@ export default function RedeemCodesPage() {
               {selectedCode.batch_id ? (
                 <Text code>{selectedCode.batch_id}</Text>
               ) : (
-                <Text type="secondary">无批次</Text>
+                <Text type="secondary">无</Text>
               )}
             </Descriptions.Item>
           </Descriptions>

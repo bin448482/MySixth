@@ -128,8 +128,11 @@ export const redeemCodesApi = {
   },
 
   // 生成兑换码
-  generateRedeemCodes: async (request: GenerateRedeemCodesRequest) => {
-    return apiClient.post('/api/v1/admin/redeem-codes/generate', request);
+  generateRedeemCodes: async (request: GenerateRedeemCodesRequest): Promise<{ count: number }> => {
+    return apiClient.post<{ count: number }>(
+      '/api/v1/admin/redeem-codes/generate',
+      request
+    );
   },
 
   // 更新兑换码状态
@@ -143,8 +146,8 @@ export const redeemCodesApi = {
   },
 
   // 获取批次列表
-  getBatches: async () => {
-    return apiClient.get('/api/v1/admin/redeem-codes/batches');
+  getBatches: async (): Promise<{ batches: string[] }> => {
+    return apiClient.get<{ batches: string[] }>('/api/v1/admin/redeem-codes/batches');
   },
 
   // 导出兑换码数据
@@ -215,15 +218,15 @@ export const dashboardApi = {
     }
   },
 
-  // 获取图表数据
+  // 获取图表数据（临时使用模拟数据，等待后端接口准备好）
   getChartData: async (): Promise<Record<string, unknown>> => {
-    // 暂时使用模拟数据，后续可以基于真实交易数据生成
+    // TODO: 替换为真实的后端API调用
     return {
-      revenue_labels: ['1月', '2月', '3月', '4月', '5月', '6月'],
+      revenue_labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
       revenue_data: [4200, 5100, 4800, 6200, 5800, 6800],
-      user_growth_labels: ['周一', '周二', '周三', '周四', '周五', '周六', '周日'],
+      user_growth_labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
       user_growth_data: [12, 19, 15, 25, 22, 18, 28],
-      platform_labels: ['Google Play', '兑换码', '其他'],
+      platform_labels: ['Google Play', 'Redeem', 'Other'],
       platform_data: [65, 28, 7],
     };
   },

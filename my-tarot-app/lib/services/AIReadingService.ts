@@ -3,6 +3,7 @@
  * 负责与后端AI解读API的交互
  */
 
+import { apiConfig, endpoints } from '../config/api';
 import AuthService from './AuthService';
 
 export interface AnalyzeRequest {
@@ -60,22 +61,7 @@ class AIReadingService {
   private authService: AuthService;
 
   private constructor() {
-    // 后端API地址,开发环境使用本地地址
-    // Expo 环境需要使用电脑的实际IP地址，不能使用localhost
-    let devUrl: string;
-
-    if (__DEV__) {
-      // Expo 环境使用电脑的实际IP地址
-      devUrl = 'http://192.168.71.6:8001';
-
-      // 备用选项（如果上面的IP不工作，可以尝试其他地址）：
-      // devUrl = 'http://localhost:8001';    // 仅适用于iOS模拟器
-      // devUrl = 'http://10.0.2.2:8001';    // 仅适用于Android模拟器
-    } else {
-      devUrl = 'https://your-production-api.com';
-    }
-
-    this.baseUrl = devUrl;
+    this.baseUrl = apiConfig.baseUrl;
     this.authService = AuthService.getInstance();
     console.log('AI Service Base URL:', this.baseUrl);
   }
@@ -85,6 +71,10 @@ class AIReadingService {
       AIReadingService.instance = new AIReadingService();
     }
     return AIReadingService.instance;
+  }
+
+  private buildUrl(endpoint: string): string {
+    return `${this.baseUrl}${endpoint}`;
   }
 
   private async getRequestHeaders(): Promise<Record<string, string>> {
@@ -113,7 +103,7 @@ class AIReadingService {
 
       const headers = await this.getRequestHeaders();
 
-      const response = await fetch(`${this.baseUrl}/api/v1/readings/analyze`, {
+      const response = await fetch(this.buildUrl(endpoints.readings.analyze), {
         method: 'POST',
         headers,
         body: JSON.stringify(request),
@@ -182,7 +172,7 @@ class AIReadingService {
       const headers = await this.getRequestHeaders();
       console.log('📦 请求头:', headers);
 
-      const response = await fetch(`${this.baseUrl}/api/v1/readings/generate`, {
+      const response = await fetch(this.buildUrl(endpoints.readings.generate), {
         method: 'POST',
         headers,
         body: JSON.stringify(request),
@@ -291,7 +281,7 @@ class AIReadingService {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 3000); // 减少到3秒超时
 
-      const response = await fetch(`${this.baseUrl}/health`, {
+      const response = await fetch(this.buildUrl(endpoints.health), {
         method: 'GET',
         signal: controller.signal,
       });

@@ -3,29 +3,120 @@
  * 统一管理所有API相关的配置
  */
 
-import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 
 interface ApiConfig {
   baseUrl: string;
   timeout: number;
 }
 
-// 开发环境配置
-const developmentConfig: ApiConfig = {
-  // Expo 环境需要使用电脑的实际IP地址，不能使用localhost
-  // 修改这里的IP地址为你的电脑IP
-  baseUrl: 'http://192.168.71.6:8001',
-  timeout: 10000, // 10秒超时
+const DOCKER_API_PORT = 8000;
+const FALLBACK_LOCAL_IP = '192.168.71.8'; // 确保始终使用局域网IP
+
+const disallowedHosts = new Set(['localhost', '127.0.0.1', '0.0.0.0']);
+
+const normaliseUrl = (value: string): string | null => {
+  if (!value) {
+    return null;
+  }
+
+  let url = value.trim();
+  if (!url) {
+    return null;
+  }
+
+  if (!/^https?:\/\//i.test(url)) {
+    url = `http://${url}`;
+  }
+
+  try {
+    const parsed = new URL(url);
+    if (disallowedHosts.has(parsed.hostname)) {
+      return null;
+    }
+    return parsed.origin;
+  } catch {
+    return null;
+  }
 };
 
-// 生产环境配置
-const productionConfig: ApiConfig = {
-  baseUrl: 'https://your-production-api.com',
-  timeout: 15000, // 15秒超时
+const extractHostIpFromExpo = (): string | null => {
+  const hostUri =
+    Constants.expoConfig?.hostUri ||
+    // @ts-expect-error - legacy manifest shape
+    Constants.manifest?.hostUri ||
+    // @ts-expect-error - Expo Go config shape
+    Constants.expoGoConfig?.hostUri ||
+    '';
+
+  const match = hostUri.match(/(\d{1,3}(?:\.\d{1,3}){3})/);
+  if (!match) {
+    return null;
+  }
+
+  const ip = match[1];
+  if (disallowedHosts.has(ip)) {
+    return null;
+  }
+
+  return ip;
 };
 
-// 根据环境选择配置
-export const apiConfig: ApiConfig = __DEV__ ? developmentConfig : productionConfig;
+const resolveDevelopmentBaseUrl = (): string => {
+  const envUrl =
+    process.env.EXPO_PUBLIC_API_BASE_URL ||
+    process.env.API_BASE_URL ||
+    // Expo extra config
+    (Constants.expoConfig?.extra?.API_BASE_URL as string | undefined);
+
+  const normalisedEnv = envUrl ? normaliseUrl(envUrl) : null;
+  if (normalisedEnv) {
+    return normalisedEnv;
+  }
+
+  const inferredIp = extractHostIpFromExpo();
+  if (inferredIp && inferredIp.startsWith('192.')) {
+    return `http://${inferredIp}:${DOCKER_API_PORT}`;
+  }
+
+  // Expo hostUri 可能返回 10.x 或 172.x 的局域网地址，按需接受
+  if (inferredIp && !disallowedHosts.has(inferredIp)) {
+    return `http://${inferredIp}:${DOCKER_API_PORT}`;
+  }
+
+  return `http://${FALLBACK_LOCAL_IP}:${DOCKER_API_PORT}`;
+};
+
+const resolveProductionBaseUrl = (): string => {
+  const envUrl =
+    process.env.EXPO_PUBLIC_API_BASE_URL ||
+    process.env.API_BASE_URL ||
+    (Constants.expoConfig?.extra?.API_BASE_URL as string | undefined);
+
+  const normalised = envUrl ? normaliseUrl(envUrl) : null;
+  if (normalised) {
+    return normalised;
+  }
+
+  // 默认生产地址占位，部署前需覆盖
+  return 'https://your-production-api.com';
+};
+
+const createApiConfig = (): ApiConfig => {
+  if (__DEV__) {
+    return {
+      baseUrl: resolveDevelopmentBaseUrl(),
+      timeout: 10000,
+    };
+  }
+
+  return {
+    baseUrl: resolveProductionBaseUrl(),
+    timeout: 15000,
+  };
+};
+
+export const apiConfig: ApiConfig = createApiConfig();
 
 // 常用的API端点
 export const endpoints = {
@@ -67,5 +158,5 @@ export const getRequestConfig = (options: RequestInit = {}): RequestInit => {
 // 初始化API配置（简化版本，不依赖额外的包）
 export const initializeApiConfig = async (): Promise<void> => {
   console.log('🌐 API配置初始化完成，使用地址:', apiConfig.baseUrl);
-  console.log('💡 如需修改IP地址，请编辑 lib/config/api.ts 文件中的 developmentConfig.baseUrl');
+  console.log('💡 可通过 EXPO_PUBLIC_API_BASE_URL 或 app.json extra.API_BASE_URL 自定义后端地址');
 };

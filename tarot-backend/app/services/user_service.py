@@ -11,6 +11,7 @@ from sqlalchemy import func
 from ..models import User, UserBalance, CreditTransaction
 from ..database import get_db
 from ..utils.auth import create_access_token, verify_token
+from ..config import settings
 
 
 class UserService:
@@ -59,13 +60,33 @@ class UserService:
                 version=1
             )
             db.add(balance)
+            db.flush()
 
-            db.commit()
+            initial_credits = max(0, settings.DEFAULT_INITIAL_CREDITS)
+
+            if initial_credits > 0:
+                # Grant initial credits and record transaction
+                balance, _ = UserService.update_user_balance(
+                    db=db,
+                    user_id=user.id,
+                    credit_change=initial_credits,
+                    transaction_type="earn",
+                    reference_type="system",
+                    reference_id=None,
+                    description="Initial signup bonus"
+                )
+            else:
+                db.commit()
+
+            db.refresh(user)
             return user
 
         except IntegrityError:
             db.rollback()
             raise ValueError(f"User with installation_id {installation_id} already exists")
+        except Exception:
+            db.rollback()
+            raise
 
     @staticmethod
     def authenticate_user(db: Session, installation_id: str) -> Tuple[User, str]:
