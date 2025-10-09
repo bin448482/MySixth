@@ -123,6 +123,16 @@ class AuthService {
     }
   }
 
+  async getUserId(): Promise<string | null> {
+    try {
+      const userId = await SecureStore.getItemAsync(USER_ID_KEY);
+      return userId;
+    } catch (error) {
+      console.error('Failed to get user id:', error);
+      return null;
+    }
+  }
+
   async validateToken(): Promise<boolean> {
     try {
       const expiryStr = await SecureStore.getItemAsync(TOKEN_EXPIRY_KEY);
