@@ -59,6 +59,7 @@ class Settings(BaseSettings):
     REDEEM_CODE_DAILY_LIMIT_PER_DEVICE: int = 5
 
     # 积分系统配置
+    DEFAULT_INITIAL_CREDITS: int = 10
     DEFAULT_CREDITS_PER_AI_READING: int = 1
     CREDITS_EXPIRE_DAYS: int = 0  # 0表示永不过期
 
