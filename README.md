@@ -151,3 +151,58 @@ Stop & Clean
 - docker compose down
 - To rebuild after changes: docker compose build && docker compose up -d
 
+
+
+## 本地 Docker 迭代与部署（后端更新）
+
+快速流程
+- 重建后端镜像：`docker compose build backend`
+- 以新镜像重启后端：`docker compose up -d backend`
+- 验证
+  - 后端健康（直连）：http://localhost:8000/health
+  - 通过 Nginx 验证真实 API（示例）：GET http://localhost/api/v1/cards
+  - 查看日志：`docker compose logs -f backend`
+
+常见改动与对应命令
+- 仅后端代码改动（`tarot-backend/app` 内的 .py）
+  - `docker compose build backend && docker compose up -d backend`
+- 修改后端依赖（`tarot-backend/requirements.txt`）
+  - `docker compose build --no-cache backend && docker compose up -d --force-recreate backend`
+- 修改后端环境变量（`tarot-backend/.env`）
+  - `docker compose up -d --force-recreate backend`
+- 修改后端静态资源（`tarot-backend/static`）
+  - 已通过只读挂载映射到容器，刷新页面/重新请求即可生效
+- 管理后台代码或配置有改动
+  - `docker compose build admin && docker compose up -d admin`
+- 大版本/全量重建
+  - `docker compose build && docker compose up -d --force-recreate`
+
+数据库（SQLite）持久化与维护
+- 持久化：命名卷 `backend_data` 挂载容器路径 `/data/backend_tarot.db`（镜像重建/容器重启不会丢）
+- 备份下载：
+  - `docker cp $(docker compose ps -q backend):/data/backend_tarot.db ./backend_tarot.db`
+- 安全替换（原子）：
+  - `docker cp ./backend_tarot.db $(docker compose ps -q backend):/data/backend_tarot.new`
+  - `docker exec $(docker compose ps -q backend) sh -lc "sqlite3 /data/backend_tarot.new 'PRAGMA integrity_check;' && mv /data/backend_tarot.db /data/backend_tarot.bak && mv /data/backend_tarot.new /data/backend_tarot.db"`
+
+端口与访问
+- 统一入口：Nginx 80 → http://localhost/
+- 直连后端调试：http://localhost:8000
+- 如 80 被占用：把 compose 里 nginx 的 `ports` 暂改为 `"8080:80"`，访问 `http://localhost:8080/`
+
+可选：更快的本地迭代（热重载）
+- 新建 `docker-compose.dev.yml` 覆盖 backend 启动与源码挂载：
+
+```yaml
+services:
+  backend:
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      - ./tarot-backend/app:/app/app
+      - ./tarot-backend/static:/app/static:ro
+```
+
+- 启动（仅后端热重载）：
+  - `docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build backend`
+- 全套（nginx/admin + 后端热重载）：
+  - `docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build`
