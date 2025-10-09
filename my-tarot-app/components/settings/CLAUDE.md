@@ -66,6 +66,8 @@ export const AppInfoSection: React.FC<AppInfoSectionProps> = ({
 };
 ```
 
+兑换码充值按钮通过 `apiConfig.baseUrl`（来源 `lib/config/api`）解析协议 + 主机名（去除端口），再拼接 `/verify-email` 链接，从而复用 `app.json` 中配置的主机地址。
+
 ### 2. RechargeSection - 积分管理组件 (✅ 已重新设计)
 
 #### 设计规范
@@ -81,15 +83,35 @@ interface RechargeSectionProps {
   rechargeHistory?: UserTransaction[];  // 更新：使用后端数据类型
 }
 
+const resolveRedeemOrigin = (): string => {
+  try {
+    const parsed = new URL(apiConfig.baseUrl);
+    return `${parsed.protocol}//${parsed.hostname}`;
+  } catch {
+    const trimmed = apiConfig.baseUrl.trim();
+    const match = trimmed.match(/^(https?:\/\/[^/:]+)(?::\d+)?/i);
+    return match ? match[1] : trimmed;
+  }
+};
+
 export const RechargeSection: React.FC<RechargeSectionProps> = ({
   currentCredits = 0,
   userEmail,
   rechargeHistory = []
 }) => {
-  const handleRedeemCode = () => {
-    // 兑换码充值功能 - 打开Web页面
-    const redeemUrl = 'https://your-admin-web.com/redeem';
-    Linking.openURL(redeemUrl);
+  const handleRedeemCode = async () => {
+    const redeemUrl = new URL(
+      '/verify-email?installation_id=23049RAD8C',
+      resolveRedeemOrigin()
+    ).toString();
+
+    const canOpen = await Linking.canOpenURL(redeemUrl);
+    if (!canOpen) {
+      console.warn('Redeem URL cannot be opened:', redeemUrl);
+      return;
+    }
+
+    await Linking.openURL(redeemUrl);
   };
 
   return (
@@ -121,7 +143,7 @@ export const RechargeSection: React.FC<RechargeSectionProps> = ({
 #### 关键变更
 1. **隐藏充值套餐**: 移除了充值套餐展示，简化界面
 2. **用户邮箱显示**: 如果用户有邮箱则显示，无邮箱则隐藏
-3. **兑换码充值**: 新增兑换码充值按钮，类似"检查更新"风格
+3. **兑换码充值**: 新增兑换码充值按钮，动态拼接去除端口后的 `API_BASE_URL` 的 `/verify-email` 地址
 4. **交易记录优化**: 使用后端API返回的UserTransaction类型
 5. **日期格式化**: 改进日期显示格式，更加友好
 
