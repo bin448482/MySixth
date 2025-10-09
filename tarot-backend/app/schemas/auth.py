@@ -103,3 +103,13 @@ class ResetPasswordResponse(BaseModel):
     success: bool
     message: str
     user_id: str
+
+
+class EmailStatusResponse(BaseModel):
+    """获取邮箱状态响应"""
+    success: bool
+    user_id: str = Field(..., description="匿名用户 installation_id")
+    email: Optional[EmailStr] = Field(None, description="用户绑定的邮箱")
+    email_verified: bool = Field(..., description="邮箱是否已验证")
+    email_verified_at: Optional[str] = Field(None, description="邮箱验证时间，ISO 格式")
+    message: Optional[str] = Field(None, description="附加提示信息")

@@ -2,7 +2,7 @@
 Authentication API endpoints.
 """
 from datetime import datetime, timezone
-from fastapi import APIRouter, HTTPException, status, Depends, Header
+from fastapi import APIRouter, HTTPException, status, Depends, Header, Query
 from typing import Optional
 from sqlalchemy.orm import Session
 
@@ -13,7 +13,7 @@ from ..schemas.auth import (
     SetPasswordRequest, SetPasswordResponse,
     EmailLoginRequest, EmailLoginResponse,
     SendPasswordResetRequest, SendPasswordResetResponse,
-    ResetPasswordRequest, ResetPasswordResponse
+    ResetPasswordRequest, ResetPasswordResponse, EmailStatusResponse
 )
 from ..utils.auth import generate_anonymous_user_id, create_jwt_token, verify_jwt_token, extract_user_id_from_token
 from ..utils.password import hash_password, verify_password, validate_password_strength
@@ -83,6 +83,43 @@ async def validate_token(request: TokenValidationRequest):
             user_id=None,
             expires_at=None
         )
+
+
+@router.get("/email/status", response_model=EmailStatusResponse)
+async def get_email_status(
+    installation_id: str = Query(..., description="匿名用户 installation_id"),
+    db: Session = Depends(get_db)
+):
+    """
+    获取匿名用户的邮箱验证状态。
+
+    Args:
+        installation_id: 匿名用户 installation_id
+        db: 数据库会话
+
+    Returns:
+        EmailStatusResponse: 邮箱状态
+    """
+    user = db.query(User).filter(User.installation_id == installation_id).first()
+
+    if not user:
+        return EmailStatusResponse(
+            success=False,
+            user_id=installation_id,
+            email=None,
+            email_verified=False,
+            email_verified_at=None,
+            message="用户不存在，请在应用内先完成注册"
+        )
+
+    return EmailStatusResponse(
+        success=True,
+        user_id=user.installation_id,
+        email=user.email,
+        email_verified=bool(user.email_verified),
+        email_verified_at=user.email_verified_at.isoformat() if user.email_verified_at else None,
+        message="邮箱已验证" if user.email_verified else "邮箱未验证"
+    )
 
 
 # 依赖注入函数：从请求头中获取当前用户ID

@@ -12,6 +12,9 @@ import {
   GenerateRedeemCodesRequest,
   DashboardMetrics,
   RecentActivity,
+  EmailStatusResponse,
+  AnonymousRedeemRequest,
+  AnonymousRedeemResponse,
 } from '@/types';
 
 // 管理员认证API
@@ -65,6 +68,16 @@ export const authApi = {
     return apiClient.post('/api/v1/auth/email/verify', {
       token: token
     });
+  },
+
+  // 获取匿名用户邮箱状态
+  getEmailStatus: async (installationId: string): Promise<EmailStatusResponse> => {
+    return apiClient.get<EmailStatusResponse>(`/api/v1/auth/email/status?installation_id=${encodeURIComponent(installationId)}`);
+  },
+
+  // 匿名用户使用兑换码
+  redeemWithCode: async (payload: AnonymousRedeemRequest): Promise<AnonymousRedeemResponse> => {
+    return apiClient.post<AnonymousRedeemResponse>('/api/v1/payments/redeem', payload);
   },
 };
 
