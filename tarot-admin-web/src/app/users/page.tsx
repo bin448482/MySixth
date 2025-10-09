@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { useState, useEffect } from 'react';
 import {
@@ -53,23 +53,23 @@ export default function UsersPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
 
-  // 绛涢€夋潯浠?
+  // 筛选条件
   const [filters, setFilters] = useState<UserFilters>({
     page: 1,
     size: 20,
   });
 
-  // 妯℃€佹鐘舵€?
+  // 模态框状态
   const [userDetailVisible, setUserDetailVisible] = useState(false);
   const [adjustCreditsVisible, setAdjustCreditsVisible] = useState(false);
   const [emailVerificationVisible, setEmailVerificationVisible] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
 
-  // 琛ㄥ崟瀹炰緥
+  // 表单实例
   const [adjustForm] = Form.useForm();
   const [emailForm] = Form.useForm();
 
-  // 鍔犺浇鐢ㄦ埛鍒楄〃
+  // 加载用户列表
   const loadUsers = async () => {
     setLoading(true);
     try {
@@ -81,7 +81,7 @@ export default function UsersPage() {
       setUsers(response.users);
       setTotal(response.total);
     } catch (error) {
-      message.error('鍔犺浇鐢ㄦ埛鍒楄〃澶辫触');
+      message.error('加载用户列表失败');
       console.error(error);
     } finally {
       setLoading(false);
@@ -92,25 +92,25 @@ export default function UsersPage() {
     loadUsers();
   }, [currentPage, pageSize, filters]);
 
-  // 鏌ョ湅鐢ㄦ埛璇︽儏
+  // 查看用户详情
   const handleViewUser = async (user: User) => {
     try {
       const response = await usersApi.getUserDetail(user.installation_id);
       setSelectedUser(response.user);
       setUserDetailVisible(true);
     } catch (error) {
-      message.error('鑾峰彇鐢ㄦ埛璇︽儏澶辫触');
+      message.error('获取用户详情失败');
     }
   };
 
-  // 璋冩暣绉垎
+  // 调整积分
   const handleAdjustCredits = (user: User) => {
     setSelectedUser(user);
     adjustForm.resetFields();
     setAdjustCreditsVisible(true);
   };
 
-  // 鎻愪氦绉垎璋冩暣
+  // 提交积分调整
   const handleAdjustSubmit = async (values: Omit<AdjustCreditsRequest, 'installation_id'>) => {
     if (!selectedUser) return;
 
@@ -120,26 +120,26 @@ export default function UsersPage() {
         credits: values.credits,
         reason: values.reason,
       });
-      message.success('绉垎璋冩暣鎴愬姛');
+      message.success('积分调整成功');
       setAdjustCreditsVisible(false);
-      loadUsers(); // 閲嶆柊鍔犺浇鍒楄〃
+      loadUsers(); // 重新加载列表
     } catch (error) {
-      message.error('绉垎璋冩暣澶辫触');
+      message.error('积分调整失败');
     }
   };
 
-  // 鍒犻櫎鐢ㄦ埛
+  // 删除用户
   const handleDeleteUser = async (user: User) => {
     try {
       await usersApi.deleteUser(user.installation_id);
-      message.success('鐢ㄦ埛鍒犻櫎鎴愬姛');
+      message.success('用户删除成功');
       loadUsers();
     } catch (error) {
-      message.error('鐢ㄦ埛鍒犻櫎澶辫触');
+      message.error('用户删除失败');
     }
   };
 
-  // 瀵煎嚭鐢ㄦ埛鏁版嵁
+  // 导出用户数据
   const handleExport = async () => {
     try {
       const blob = await usersApi.exportUsers(filters);
@@ -151,43 +151,43 @@ export default function UsersPage() {
       a.click();
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
-      message.success('瀵煎嚭鎴愬姛');
+      message.success('导出成功');
     } catch (error) {
-      message.error('瀵煎嚭澶辫触');
+      message.error('导出失败');
     }
   };
 
-  // 澶嶅埗鐢ㄦ埛ID
+  // 复制用户ID
   const handleCopyId = (id: string) => {
     navigator.clipboard.writeText(id);
-    message.success('鐢ㄦ埛ID宸插鍒?);
+    message.success('用户ID已复制');
   };
 
-  // 鍙戦€侀偖绠遍獙璇侀偖浠?
+  // 发送邮箱验证邮件
   const handleEmailVerification = (user: User) => {
     setSelectedUser(user);
     emailForm.resetFields();
     setEmailVerificationVisible(true);
   };
 
-  // 鎻愪氦閭楠岃瘉
+  // 提交邮箱验证
   const handleEmailVerificationSubmit = async (values: { email: string }) => {
     if (!selectedUser) return;
 
     try {
       await authApi.sendVerificationEmail(selectedUser.installation_id, values.email);
-      message.success('楠岃瘉閭欢宸插彂閫?);
+      message.success('验证邮件已发送');
       setEmailVerificationVisible(false);
-      loadUsers(); // 閲嶆柊鍔犺浇鍒楄〃
+      loadUsers(); // 重新加载列表
     } catch (error) {
-      message.error('鍙戦€侀獙璇侀偖浠跺け璐?);
+      message.error('发送验证邮件失败');
     }
   };
 
-  // 琛ㄦ牸鍒楅厤缃?
+  // 表格列配置
   const columns: ColumnsType<User> = [
     {
-      title: '鐢ㄦ埛ID',
+      title: '用户ID',
       dataIndex: 'installation_id',
       key: 'installation_id',
       width: 200,
@@ -196,7 +196,7 @@ export default function UsersPage() {
           <Text code style={{ fontSize: 12 }}>
             {id.substring(0, 12)}...
           </Text>
-          <Tooltip title="澶嶅埗瀹屾暣ID">
+          <Tooltip title="复制完整ID">
             <Button
               type="text"
               size="small"
@@ -208,23 +208,23 @@ export default function UsersPage() {
       ),
     },
     {
-      title: '閭鐘舵€?,
+      title: '邮箱状态',
       dataIndex: 'email',
       key: 'email',
       width: 150,
       render: (email: string, record: User) => {
         if (!email) {
-          return <Tag color="gray">鏈粦瀹?/Tag>;
+          return <Tag color="gray">未绑定</Tag>;
         }
         return record.email_verified ? (
-          <Tag color="green" icon={<CheckCircleOutlined />}>宸查獙璇?/Tag>
+          <Tag color="green" icon={<CheckCircleOutlined />}>已验证</Tag>
         ) : (
-          <Tag color="orange" icon={<CloseCircleOutlined />}>鏈獙璇?/Tag>
+          <Tag color="orange" icon={<CloseCircleOutlined />}>未验证</Tag>
         );
       },
     },
     {
-      title: '褰撳墠绉垎',
+      title: '当前积分',
       dataIndex: 'credits',
       key: 'credits',
       width: 120,
@@ -236,7 +236,7 @@ export default function UsersPage() {
       sorter: (a, b) => a.credits - b.credits,
     },
     {
-      title: '绱璐拱',
+      title: '累计购买',
       dataIndex: 'total_credits_purchased',
       key: 'total_credits_purchased',
       width: 120,
@@ -245,7 +245,7 @@ export default function UsersPage() {
       ),
     },
     {
-      title: '绱娑堣垂',
+      title: '累计消费',
       dataIndex: 'total_credits_consumed',
       key: 'total_credits_consumed',
       width: 120,
@@ -254,7 +254,7 @@ export default function UsersPage() {
       ),
     },
     {
-      title: '娉ㄥ唽鏃堕棿',
+      title: '注册时间',
       dataIndex: 'created_at',
       key: 'created_at',
       width: 180,
@@ -262,20 +262,20 @@ export default function UsersPage() {
       sorter: (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
     },
     {
-      title: '鏈€鍚庢椿璺?,
+      title: '最后活跃',
       dataIndex: 'last_active_at',
       key: 'last_active_at',
       width: 180,
       render: (date: string) => new Date(date).toLocaleString('zh-CN'),
     },
     {
-      title: '鎿嶄綔',
+      title: '操作',
       key: 'actions',
       width: 240,
       fixed: 'right',
       render: (_, record) => (
         <Space size="small">
-          <Tooltip title="鏌ョ湅璇︽儏">
+          <Tooltip title="查看详情">
             <Button
               type="text"
               size="small"
@@ -283,7 +283,7 @@ export default function UsersPage() {
               onClick={() => handleViewUser(record)}
             />
           </Tooltip>
-          <Tooltip title="璋冩暣绉垎">
+          <Tooltip title="调整积分">
             <Button
               type="text"
               size="small"
@@ -292,7 +292,7 @@ export default function UsersPage() {
             />
           </Tooltip>
           {(!record.email || !record.email_verified) && (
-            <Tooltip title="閭楠岃瘉">
+            <Tooltip title="邮箱验证">
               <Button
                 type="text"
                 size="small"
@@ -302,13 +302,13 @@ export default function UsersPage() {
             </Tooltip>
           )}
           <Popconfirm
-            title="纭畾鍒犻櫎姝ょ敤鎴峰悧锛?
-            description="鍒犻櫎鍚庡皢鏃犳硶鎭㈠锛屽寘鎷墍鏈夌浉鍏虫暟鎹?
+            title="确定删除此用户吗？"
+            description="删除后将无法恢复，包括所有相关数据"
             onConfirm={() => handleDeleteUser(record)}
-            okText="纭畾"
-            cancelText="鍙栨秷"
+            okText="确定"
+            cancelText="取消"
           >
-            <Tooltip title="鍒犻櫎鐢ㄦ埛">
+            <Tooltip title="删除用户">
               <Button
                 type="text"
                 size="small"
@@ -328,10 +328,10 @@ export default function UsersPage() {
         <Row justify="space-between" align="middle">
           <Col>
             <Title level={2} style={{ margin: 0 }}>
-              鐢ㄦ埛绠＄悊
+              用户管理
             </Title>
             <Text type="secondary">
-              绠＄悊鎵€鏈夋敞鍐岀敤鎴峰拰绉垎
+              管理所有注册用户和积分
             </Text>
           </Col>
           <Col>
@@ -340,7 +340,7 @@ export default function UsersPage() {
                 icon={<ExportOutlined />}
                 onClick={handleExport}
               >
-                瀵煎嚭鏁版嵁
+                导出数据
               </Button>
               <Button
                 type="primary"
@@ -348,19 +348,19 @@ export default function UsersPage() {
                 onClick={loadUsers}
                 loading={loading}
               >
-                鍒锋柊
+                刷新
               </Button>
             </Space>
           </Col>
         </Row>
       </div>
 
-      {/* 缁熻鍗＄墖 */}
+      {/* 统计卡片 */}
       <Row gutter={16} style={{ marginBottom: 24 }}>
         <Col xs={24} sm={6}>
           <Card>
             <Statistic
-              title="鎬荤敤鎴锋暟"
+              title="总用户数"
               value={total}
               prefix={<UserOutlined />}
             />
@@ -369,7 +369,7 @@ export default function UsersPage() {
         <Col xs={24} sm={6}>
           <Card>
             <Statistic
-              title="娲昏穬鐢ㄦ埛"
+              title="活跃用户"
               value={users.filter(u => new Date(u.last_active_at) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)).length}
               suffix={`/ ${total}`}
             />
@@ -378,7 +378,7 @@ export default function UsersPage() {
         <Col xs={24} sm={6}>
           <Card>
             <Statistic
-              title="宸查獙璇侀偖绠?
+              title="已验证邮箱"
               value={users.filter(u => u.email_verified).length}
               suffix={`/ ${users.filter(u => u.email).length}`}
             />
@@ -387,38 +387,38 @@ export default function UsersPage() {
         <Col xs={24} sm={6}>
           <Card>
             <Statistic
-              title="鎬荤Н鍒嗕綑棰?
+              title="总积分余额"
               value={users.reduce((sum, user) => sum + user.credits, 0)}
             />
           </Card>
         </Col>
       </Row>
 
-      {/* 绛涢€夊尯鍩?*/}
+      {/* 筛选区域 */}
       <Card style={{ marginBottom: 24 }}>
         <Row gutter={[16, 16]}>
           <Col xs={24} sm={8}>
             <Search
-              placeholder="鎼滅储鐢ㄦ埛ID"
+              placeholder="搜索用户ID"
               allowClear
               onSearch={(value) => setFilters(prev => ({ ...prev, installation_id: value }))}
             />
           </Col>
           <Col xs={24} sm={6}>
             <Select
-              placeholder="閭鐘舵€?
+              placeholder="邮箱状态"
               allowClear
               style={{ width: '100%' }}
               onChange={(value) => setFilters(prev => ({ ...prev, email_status: value }))}
             >
-              <Option value="verified">宸查獙璇?/Option>
-              <Option value="unverified">鏈獙璇?/Option>
-              <Option value="none">鏈粦瀹?/Option>
+              <Option value="verified">已验证</Option>
+              <Option value="unverified">未验证</Option>
+              <Option value="none">未绑定</Option>
             </Select>
           </Col>
           <Col xs={24} sm={6}>
             <InputNumber
-              placeholder="鏈€浣庣Н鍒?
+              placeholder="最低积分"
               style={{ width: '100%' }}
               min={0}
               onChange={(value) => setFilters(prev => ({ ...prev, min_credits: value || undefined }))}
@@ -426,20 +426,20 @@ export default function UsersPage() {
           </Col>
           <Col xs={24} sm={4}>
             <Select
-              placeholder="娉ㄥ唽鏃堕棿"
+              placeholder="注册时间"
               allowClear
               style={{ width: '100%' }}
               onChange={(value) => setFilters(prev => ({ ...prev, date_range: value }))}
             >
-              <Option value="today">浠婂ぉ</Option>
-              <Option value="week">鏈€杩戜竴鍛?/Option>
-              <Option value="month">鏈€杩戜竴鏈?/Option>
+              <Option value="today">今天</Option>
+              <Option value="week">最近一周</Option>
+              <Option value="month">最近一月</Option>
             </Select>
           </Col>
         </Row>
       </Card>
 
-      {/* 鐢ㄦ埛琛ㄦ牸 */}
+      {/* 用户表格 */}
       <Card>
         <Table
           columns={columns}
@@ -453,7 +453,7 @@ export default function UsersPage() {
             total: total,
             showSizeChanger: true,
             showQuickJumper: true,
-            showTotal: (total, range) => `绗?${range[0]}-${range[1]} 鏉★紝鍏?${total} 鏉,
+            showTotal: (total, range) => `第 ${range[0]}-${range[1]} 条，共 ${total} 条`,
             onChange: (page, size) => {
               setCurrentPage(page);
               setPageSize(size);
@@ -462,9 +462,9 @@ export default function UsersPage() {
         />
       </Card>
 
-      {/* 鐢ㄦ埛璇︽儏妯℃€佹 */}
+      {/* 用户详情模态框 */}
       <Modal
-        title="鐢ㄦ埛璇︽儏"
+        title="用户详情"
         open={userDetailVisible}
         onCancel={() => setUserDetailVisible(false)}
         footer={null}
@@ -472,7 +472,7 @@ export default function UsersPage() {
       >
         {selectedUser && (
           <Descriptions bordered column={2}>
-            <Descriptions.Item label="鐢ㄦ埛ID" span={2}>
+            <Descriptions.Item label="用户ID" span={2}>
               <Text code>{selectedUser.installation_id}</Text>
               <Button
                 type="text"
@@ -481,71 +481,71 @@ export default function UsersPage() {
                 onClick={() => handleCopyId(selectedUser.installation_id)}
               />
             </Descriptions.Item>
-            <Descriptions.Item label="閭鍦板潃">
-              {selectedUser.email || '鏈粦瀹?}
+            <Descriptions.Item label="邮箱地址">
+              {selectedUser.email || '未绑定'}
             </Descriptions.Item>
-            <Descriptions.Item label="閭鐘舵€?>
+            <Descriptions.Item label="邮箱状态">
               {selectedUser.email ? (
                 selectedUser.email_verified ? (
-                  <Tag color="green">宸查獙璇?/Tag>
+                  <Tag color="green">已验证</Tag>
                 ) : (
-                  <Tag color="orange">鏈獙璇?/Tag>
+                  <Tag color="orange">未验证</Tag>
                 )
               ) : (
-                <Tag color="gray">鏈粦瀹?/Tag>
+                <Tag color="gray">未绑定</Tag>
               )}
             </Descriptions.Item>
-            <Descriptions.Item label="褰撳墠绉垎">
+            <Descriptions.Item label="当前积分">
               <Text strong style={{ color: selectedUser.credits > 0 ? '#52c41a' : '#ff4d4f' }}>
                 {selectedUser.credits}
               </Text>
             </Descriptions.Item>
-            <Descriptions.Item label="绱璐拱">
+            <Descriptions.Item label="累计购买">
               <Text type="success">{selectedUser.total_credits_purchased}</Text>
             </Descriptions.Item>
-            <Descriptions.Item label="绱娑堣垂">
+            <Descriptions.Item label="累计消费">
               <Text type="warning">{selectedUser.total_credits_consumed}</Text>
             </Descriptions.Item>
-            <Descriptions.Item label="娉ㄥ唽鏃堕棿">
+            <Descriptions.Item label="注册时间">
               {new Date(selectedUser.created_at).toLocaleString('zh-CN')}
             </Descriptions.Item>
-            <Descriptions.Item label="鏈€鍚庢椿璺?>
+            <Descriptions.Item label="最后活跃">
               {new Date(selectedUser.last_active_at).toLocaleString('zh-CN')}
             </Descriptions.Item>
-            <Descriptions.Item label="楠岃瘉鏃堕棿">
+            <Descriptions.Item label="验证时间">
               {selectedUser.email_verified_at ?
                 new Date(selectedUser.email_verified_at).toLocaleString('zh-CN') :
-                '鏈獙璇?
+                '未验证'
               }
             </Descriptions.Item>
           </Descriptions>
         )}
 
-        {/* 鏈€杩戜氦鏄撹褰?*/}
+        {/* 最近交易记录 */}
         {selectedUser?.recent_transactions && selectedUser.recent_transactions.length > 0 && (
           <div style={{ marginTop: 24 }}>
-            <Title level={5}>鏈€杩戜氦鏄撹褰?/Title>
+            <Title level={5}>最近交易记录</Title>
             <Table
               size="small"
               dataSource={selectedUser.recent_transactions}
               columns={[
                 {
-                  title: '绫诲瀷',
+                  title: '类型',
                   dataIndex: 'type',
                   key: 'type',
                   render: (type: string) => {
                     const typeMap: Record<string, { label: string; color: string }> = {
-                      purchase: { label: '璐拱', color: 'green' },
-                      consume: { label: '娑堣垂', color: 'orange' },
-                      adjust: { label: '璋冩暣', color: 'blue' },
-                      redeem: { label: '鍏戞崲', color: 'purple' },
+                      purchase: { label: '购买', color: 'green' },
+                      consume: { label: '消费', color: 'orange' },
+                      adjust: { label: '调整', color: 'blue' },
+                      redeem: { label: '兑换', color: 'purple' },
                     };
                     const config = typeMap[type] || { label: type, color: 'default' };
                     return <Tag color={config.color}>{config.label}</Tag>;
                   },
                 },
                 {
-                  title: '绉垎鍙樺寲',
+                  title: '积分变化',
                   dataIndex: 'credits',
                   key: 'credits',
                   render: (credits: number) => (
@@ -555,17 +555,17 @@ export default function UsersPage() {
                   ),
                 },
                 {
-                  title: '浣欓',
+                  title: '余额',
                   dataIndex: 'balance_after',
                   key: 'balance_after',
                 },
                 {
-                  title: '璇存槑',
+                  title: '说明',
                   dataIndex: 'description',
                   key: 'description',
                 },
                 {
-                  title: '鏃堕棿',
+                  title: '时间',
                   dataIndex: 'created_at',
                   key: 'created_at',
                   render: (date: string) => new Date(date).toLocaleString('zh-CN'),
@@ -578,9 +578,9 @@ export default function UsersPage() {
         )}
       </Modal>
 
-      {/* 璋冩暣绉垎妯℃€佹 */}
+      {/* 调整积分模态框 */}
       <Modal
-        title="璋冩暣鐢ㄦ埛绉垎"
+        title="调整用户积分"
         open={adjustCreditsVisible}
         onCancel={() => setAdjustCreditsVisible(false)}
         footer={null}
@@ -590,12 +590,12 @@ export default function UsersPage() {
           layout="vertical"
           onFinish={handleAdjustSubmit}
         >
-          <Form.Item label="鐢ㄦ埛淇℃伅">
+          <Form.Item label="用户信息">
             <Card size="small" style={{ background: '#f5f5f5' }}>
-              <Text strong>鐢ㄦ埛ID锛?/Text>
+              <Text strong>用户ID：</Text>
               <Text code>{selectedUser?.installation_id}</Text>
               <br />
-              <Text strong>褰撳墠绉垎锛?/Text>
+              <Text strong>当前积分：</Text>
               <Text style={{ color: (selectedUser?.credits || 0) > 0 ? '#52c41a' : '#ff4d4f' }}>
                 {selectedUser?.credits || 0}
               </Text>
@@ -604,16 +604,16 @@ export default function UsersPage() {
 
           <Form.Item
             name="credits"
-            label="绉垎鍙樺寲"
+            label="积分变化"
             rules={[
-              { required: true, message: '璇疯緭鍏ョН鍒嗗彉鍖? },
-              { type: 'integer', message: '绉垎蹇呴』鏄暣鏁? },
+              { required: true, message: '请输入积分变化' },
+              { type: 'integer', message: '积分必须是整数' },
             ]}
-            extra="姝ｆ暟涓哄鍔犵Н鍒嗭紝璐熸暟涓烘墸鍑忕Н鍒?
+            extra="正数为增加积分，负数为扣减积分"
           >
             <InputNumber
               style={{ width: '100%' }}
-              placeholder="璇疯緭鍏ョН鍒嗗彉鍖?
+              placeholder="请输入积分变化"
               formatter={value => value ? (Number(value) > 0 ? `+${value}` : `${value}`) : ''}
               parser={value => value?.replace(/\+/, '') || ''}
             />
@@ -621,11 +621,11 @@ export default function UsersPage() {
 
           <Form.Item
             name="reason"
-            label="璋冩暣鍘熷洜"
-            rules={[{ required: true, message: '璇疯緭鍏ヨ皟鏁村師鍥? }]}
+            label="调整原因"
+            rules={[{ required: true, message: '请输入调整原因' }]}
           >
             <Input.TextArea
-              placeholder="璇疯缁嗚鏄庣Н鍒嗚皟鏁寸殑鍘熷洜"
+              placeholder="请详细说明积分调整的原因"
               rows={3}
               maxLength={200}
               showCount
@@ -635,19 +635,19 @@ export default function UsersPage() {
           <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
             <Space>
               <Button onClick={() => setAdjustCreditsVisible(false)}>
-                鍙栨秷
+                取消
               </Button>
               <Button type="primary" htmlType="submit">
-                纭璋冩暣
+                确认调整
               </Button>
             </Space>
           </Form.Item>
         </Form>
       </Modal>
 
-      {/* 閭楠岃瘉妯℃€佹 */}
+      {/* 邮箱验证模态框 */}
       <Modal
-        title="鍙戦€侀偖绠遍獙璇?
+        title="发送邮箱验证"
         open={emailVerificationVisible}
         onCancel={() => setEmailVerificationVisible(false)}
         footer={null}
@@ -657,35 +657,35 @@ export default function UsersPage() {
           layout="vertical"
           onFinish={handleEmailVerificationSubmit}
         >
-          <Form.Item label="鐢ㄦ埛淇℃伅">
+          <Form.Item label="用户信息">
             <Card size="small" style={{ background: '#f5f5f5' }}>
-              <Text strong>鐢ㄦ埛ID锛?/Text>
+              <Text strong>用户ID：</Text>
               <Text code>{selectedUser?.installation_id}</Text>
               <br />
-              <Text strong>褰撳墠閭鐘舵€侊細</Text>
+              <Text strong>当前邮箱状态：</Text>
               {selectedUser?.email ? (
                 selectedUser.email_verified ? (
-                  <Tag color="green" icon={<CheckCircleOutlined />}>宸查獙璇?/Tag>
+                  <Tag color="green" icon={<CheckCircleOutlined />}>已验证</Tag>
                 ) : (
-                  <Tag color="orange" icon={<CloseCircleOutlined />}>鏈獙璇?/Tag>
+                  <Tag color="orange" icon={<CloseCircleOutlined />}>未验证</Tag>
                 )
               ) : (
-                <Tag color="gray">鏈粦瀹?/Tag>
+                <Tag color="gray">未绑定</Tag>
               )}
             </Card>
           </Form.Item>
 
           <Form.Item
             name="email"
-            label="閭鍦板潃"
+            label="邮箱地址"
             rules={[
-              { required: true, message: '璇疯緭鍏ラ偖绠卞湴鍧€' },
-              { type: 'email', message: '璇疯緭鍏ユ湁鏁堢殑閭鍦板潃' },
+              { required: true, message: '请输入邮箱地址' },
+              { type: 'email', message: '请输入有效的邮箱地址' },
             ]}
             initialValue={selectedUser?.email || ''}
           >
             <Input
-              placeholder="璇疯緭鍏ヨ楠岃瘉鐨勯偖绠卞湴鍧€"
+              placeholder="请输入要验证的邮箱地址"
               prefix={<MailOutlined />}
             />
           </Form.Item>
@@ -693,10 +693,10 @@ export default function UsersPage() {
           <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
             <Space>
               <Button onClick={() => setEmailVerificationVisible(false)}>
-                鍙栨秷
+                取消
               </Button>
               <Button type="primary" htmlType="submit" icon={<MailOutlined />}>
-                鍙戦€侀獙璇侀偖浠?
+                发送验证邮件
               </Button>
             </Space>
           </Form.Item>

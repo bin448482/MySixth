@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { useState, useEffect } from 'react';
 import {
@@ -52,24 +52,24 @@ export default function RedeemCodesPage() {
   const [pageSize, setPageSize] = useState(20);
   const [stats, setStats] = useState<any>({});
 
-  // 缁涙盯鈧娼禒?
+  // 筛选条件
   const [filters, setFilters] = useState<RedeemCodeFilters>({
     page: 1,
     size: 20,
   });
 
-  // 濡剝鈧焦顢嬮悩鑸碘偓?
+  // 模态框状态
   const [generateVisible, setGenerateVisible] = useState(false);
   const [detailVisible, setDetailVisible] = useState(false);
   const [selectedCode, setSelectedCode] = useState<RedeemCode | null>(null);
 
-  // 鐞涖劌宕熺€圭偘绶?
+  // 表单实例
   const [generateForm] = Form.useForm();
 
-  // 閹佃顐奸崚妤勩€?
+  // 批次列表
   const [batches, setBatches] = useState<string[]>([]);
 
-  // 閸旂姾娴囬崗鎴炲床閻礁鍨悰?
+  // 加载兑换码列表
   const loadRedeemCodes = async () => {
     setLoading(true);
     try {
@@ -82,20 +82,20 @@ export default function RedeemCodesPage() {
       setTotal(response.total);
       setStats(response.stats);
     } catch (error) {
-      message.error('Operation failed');
+      message.error('加载失败');
       console.error(error);
     } finally {
       setLoading(false);
     }
   };
 
-  // 閸旂姾娴囬幍瑙勵偧閸掓銆?
+  // 加载批次列表
   const loadBatches = async () => {
     try {
       const response = await redeemCodesApi.getBatches();
       setBatches(response.batches);
     } catch (error) {
-      console.error('閸旂姾娴囬幍瑙勵偧閸掓銆冩径杈Е:', error);
+      console.error('加载批次列表失败:', error);
     }
   };
 
@@ -107,44 +107,44 @@ export default function RedeemCodesPage() {
     loadBatches();
   }, []);
 
-  // 閻㈢喐鍨氶崗鎴炲床閻?
+  // 生成兑换码
   const handleGenerate = async (values: GenerateRedeemCodesRequest) => {
     try {
       const response = await redeemCodesApi.generateRedeemCodes(values);
-      message.success(`閹存劕濮涢悽鐔稿灇 ${response.count} 娑擃亜鍘幑銏㈢垳`);
+      message.success(`成功生成 ${response.count} 个兑换码`);
       setGenerateVisible(false);
       generateForm.resetFields();
       loadRedeemCodes();
-      loadBatches(); // 闁插秵鏌婇崝鐘烘祰閹佃顐奸崚妤勩€?
+      loadBatches(); // 刷新批次列表
     } catch (error) {
-      message.error('Operation failed');
+      message.error('生成失败');
     }
   };
 
-  // 閺屻儳婀呯拠锔藉剰
+  // 查看详情
   const handleViewDetail = (code: RedeemCode) => {
     setSelectedCode(code);
     setDetailVisible(true);
   };
 
-  // 閺囧瓨鏌婇悩鑸碘偓?
+  // 更新状态
   const handleUpdateStatus = async (code: RedeemCode, status: string) => {
     try {
       await redeemCodesApi.updateRedeemCodeStatus(code.id, status);
-      message.success('Status updated');      message.success('Status updated');
+      message.success('状态已更新');
       loadRedeemCodes();
     } catch (error) {
-      message.error('Operation failed');
+      message.error('操作失败');
     }
   };
 
-  // 婢跺秴鍩楅崗鎴炲床閻?
+  // 复制兑换码
   const handleCopyCode = (code: string) => {
     navigator.clipboard.writeText(code);
-    message.success('Code copied');
+    message.success('兑换码已复制');
   };
 
-  // 鐎电厧鍤弫鐗堝祦
+  // 导出数据
   const handleExport = async () => {
     try {
       const blob = await redeemCodesApi.exportRedeemCodes(filters);
@@ -156,23 +156,28 @@ export default function RedeemCodesPage() {
       a.click();
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
-      message.success('鐎电厧鍤幋鎰');
+      message.success('导出成功');
     } catch (error) {
-      message.error('鐎电厧鍤径杈Е');
+      message.error('导出失败');
     }
   };
 
-  // 閻樿埖鈧焦瑕嗛弻鎾冲毐閺?
+  // 渲染状态标签
   const renderStatus = (status: string) => {
-    const statusMap = { active: { label: 'Active', color: 'green', icon: <CheckCircleOutlined /> }, used: { label: 'Used', color: 'blue', icon: <CheckCircleOutlined /> }, expired: { label: 'Expired', color: 'red', icon: <ClockCircleOutlined /> }, disabled: { label: 'Disabled', color: 'gray', icon: <StopOutlined /> }, };
+    const statusMap = {
+      active: { label: '可用', color: 'green', icon: <CheckCircleOutlined /> },
+      used: { label: '已使用', color: 'blue', icon: <CheckCircleOutlined /> },
+      expired: { label: '已过期', color: 'red', icon: <ClockCircleOutlined /> },
+      disabled: { label: '已禁用', color: 'gray', icon: <StopOutlined /> },
+    };
     const config = statusMap[status as keyof typeof statusMap] || { label: status, color: 'default', icon: null };
     return <Tag color={config.color} icon={config.icon}>{config.label}</Tag>;
   };
 
-  // 鐞涖劍鐗搁崚妤呭帳缂?
+  // 表格列配置
   const columns: ColumnsType<RedeemCode> = [
     {
-title: 'Redeem Code',
+      title: '兑换码',
       dataIndex: 'code',
       key: 'code',
       width: 200,
@@ -181,7 +186,7 @@ title: 'Redeem Code',
           <Text code style={{ fontSize: 12, fontWeight: 'bold' }}>
             {code}
           </Text>
-          <Tooltip title="Copy code">
+          <Tooltip title="复制兑换码">
             <Button
               type="text"
               size="small"
@@ -193,7 +198,7 @@ title: 'Redeem Code',
       ),
     },
     {
-title: 'Credits',
+      title: '积分值',
       dataIndex: 'credits',
       key: 'credits',
       width: 100,
@@ -203,26 +208,25 @@ title: 'Credits',
       sorter: (a, b) => a.credits - b.credits,
     },
     {
-title: 'Status',
+      title: '状态',
       dataIndex: 'status',
       key: 'status',
       width: 120,
       render: renderStatus,
-filters:
-  [
-    { text: 'Active', value: 'active' },
-    { text: 'Used', value: 'used' },
-    { text: 'Expired', value: 'expired' },
-    { text: 'Disabled', value: 'disabled' },
-  ],
-} ,
+      filters: [
+        { text: '可用', value: 'active' },
+        { text: '已使用', value: 'used' },
+        { text: '已过期', value: 'expired' },
+        { text: '已禁用', value: 'disabled' },
+      ],
+    },
     {
-title: 'Used By',
+      title: '使用者',
       dataIndex: 'used_by_user',
       key: 'used_by_user',
       width: 150,
       render: (user: any) => {
-        if (!user) return <Text type="secondary">Not used</Text>;
+        if (!user) return <Text type="secondary">未使用</Text>;
         return (
           <Text code style={{ fontSize: 12 }}>
             {user.installation_id.substring(0, 8)}...
@@ -231,36 +235,39 @@ title: 'Used By',
       },
     },
     {
-title: 'Used At',
+      title: '使用时间',
       dataIndex: 'used_at',
       key: 'used_at',
       width: 180,
       render: (date: string | null) => {
-        if (!date) return <Text type="secondary">Not used</Text>;
+        if (!date) return <Text type="secondary">未使用</Text>;
+        return new Date(date).toLocaleString('zh-CN');
       },
     },
     {
-title: 'Expires At',
+      title: '过期时间',
       dataIndex: 'expires_at',
       key: 'expires_at',
       width: 180,
       render: (date: string | null) => {
-        return <Text type="secondary">No expiry</Text>;
+        if (!date) return <Text type="secondary">永不过期</Text>;
+        const expireDate = new Date(date);
         const now = new Date();
         const isExpired = expireDate < now;
         return (
           <Text type={isExpired ? 'danger' : undefined}>
+            {expireDate.toLocaleString('zh-CN')}
           </Text>
         );
       },
     },
     {
-title: 'Batch ID',
+      title: '批次ID',
       dataIndex: 'batch_id',
       key: 'batch_id',
       width: 150,
       render: (batchId: string | null) => {
-        if (!batchId) return <Text type="secondary">N/A</Text>;
+        if (!batchId) return <Text type="secondary">无</Text>;
         return (
           <Text code style={{ fontSize: 11 }}>
             {batchId.length > 15 ? `${batchId.substring(0, 15)}...` : batchId}
@@ -269,7 +276,7 @@ title: 'Batch ID',
       },
     },
     {
-title: 'Created At',
+      title: '创建时间',
       dataIndex: 'created_at',
       key: 'created_at',
       width: 180,
@@ -277,13 +284,13 @@ title: 'Created At',
       sorter: (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
     },
     {
-      title: 'Actions',
+      title: '操作',
       key: 'actions',
       width: 200,
       fixed: 'right',
       render: (_, record) => (
         <Space size="small">
-          <Tooltip title="View Details">
+          <Tooltip title="查看详情">
             <Button
               type="text"
               size="small"
@@ -294,12 +301,12 @@ title: 'Created At',
 
           {record.status === 'active' && (
             <Popconfirm
-              title="Disable this code?"
+              title="确定禁用此兑换码吗？"
               onConfirm={() => handleUpdateStatus(record, 'disabled')}
-              okText="OK"
-              cancelText="Cancel"
+              okText="确定"
+              cancelText="取消"
             >
-              <Tooltip title="Disable">
+              <Tooltip title="禁用">
                 <Button
                   type="text"
                   size="small"
@@ -311,7 +318,7 @@ title: 'Created At',
           )}
 
           {record.status === 'disabled' && (
-            <Tooltip title="Enable">
+            <Tooltip title="启用">
               <Button
                 type="text"
                 size="small"
@@ -324,15 +331,17 @@ title: 'Created At',
       ),
     },
   ];
+
   return (
     <AdminLayout>
       <div style={{ marginBottom: 24 }}>
         <Row justify="space-between" align="middle">
           <Col>
             <Title level={2} style={{ margin: 0 }}>
-            Redeem Codes
+              兑换码管理
             </Title>
             <Text type="secondary">
+              管理所有兑换码和批次
             </Text>
           </Col>
           <Col>
@@ -341,14 +350,14 @@ title: 'Created At',
                 icon={<ExportOutlined />}
                 onClick={handleExport}
               >
-                鐎电厧鍤弫鐗堝祦
+                导出数据
               </Button>
               <Button
                 icon={<PlusOutlined />}
                 type="primary"
                 onClick={() => setGenerateVisible(true)}
               >
-                閻㈢喐鍨氶崗鎴炲床閻?
+                生成兑换码
               </Button>
               <Button
                 type="default"
@@ -356,19 +365,19 @@ title: 'Created At',
                 onClick={loadRedeemCodes}
                 loading={loading}
               >
-                閸掗攱鏌?
+                刷新
               </Button>
             </Space>
           </Col>
         </Row>
       </div>
 
-      {/* 缂佺喕顓搁崡锛勫 */}
+      {/* 统计卡片 */}
       <Row gutter={16} style={{ marginBottom: 24 }}>
         <Col xs={24} sm={6}>
           <Card>
             <Statistic
-              title="閹鍘幑銏㈢垳"
+              title="总兑换码"
               value={stats.total || 0}
               prefix={<GiftOutlined />}
             />
@@ -377,9 +386,9 @@ title: 'Created At',
         <Col xs={24} sm={6}>
           <Card>
             <Statistic
-              title="閺堝鏅ラ崗鎴炲床閻?
+              title="可用兑换码"
               value={stats.active || 0}
-              styles={{ content: { color: '#52c41a' } }}
+              valueStyle={{ color: '#52c41a' }}
             />
             <Progress
               percent={stats.total ? Math.round((stats.active / stats.total) * 100) : 0}
@@ -392,9 +401,9 @@ title: 'Created At',
         <Col xs={24} sm={6}>
           <Card>
             <Statistic
-              title="瀹歌弓濞囬悽?
+              title="已使用"
               value={stats.used || 0}
-              styles={{ content: { color: '#1890ff' } }}
+              valueStyle={{ color: '#1890ff' }}
             />
             <Progress
               percent={stats.total ? Math.round((stats.used / stats.total) * 100) : 0}
@@ -407,9 +416,9 @@ title: 'Created At',
         <Col xs={24} sm={6}>
           <Card>
             <Statistic
-              title="瀹歌尪绻冮張?缁備胶鏁?
+              title="过期/禁用"
               value={(stats.expired || 0) + (stats.disabled || 0)}
-              styles={{ content: { color: '#ff4d4f' } }}
+              valueStyle={{ color: '#ff4d4f' }}
             />
             <Progress
               percent={stats.total ? Math.round(((stats.expired + stats.disabled) / stats.total) * 100) : 0}
@@ -421,32 +430,32 @@ title: 'Created At',
         </Col>
       </Row>
 
-      {/* 缁涙盯鈧灏崺?*/}
+      {/* 筛选区域 */}
       <Card style={{ marginBottom: 24 }}>
         <Row gutter={[16, 16]}>
           <Col xs={24} sm={8}>
             <Search
-              placeholder="閹兼粎鍌ㄩ崗鎴炲床閻?
+              placeholder="搜索兑换码"
               allowClear
               onSearch={(value) => setFilters(prev => ({ ...prev, code: value }))}
             />
           </Col>
           <Col xs={24} sm={6}>
             <Select
-              placeholder="閻樿埖鈧胶鐡柅?
+              placeholder="选择状态"
               allowClear
               style={{ width: '100%' }}
               onChange={(value) => setFilters(prev => ({ ...prev, status: value }))}
             >
-              <Option value="active">閺堝鏅?/Option>
-              <Option value="used">瀹歌弓濞囬悽?/Option>
-              <Option value="expired">瀹歌尪绻冮張?/Option>
-              <Option value="disabled">瀹歌尙顩﹂悽?/Option>
+              <Option value="active">可用</Option>
+              <Option value="used">已使用</Option>
+              <Option value="expired">已过期</Option>
+              <Option value="disabled">已禁用</Option>
             </Select>
           </Col>
           <Col xs={24} sm={10}>
             <Select
-              placeholder="閹佃顐肩粵娑⑩偓?
+              placeholder="选择批次"
               allowClear
               style={{ width: '100%' }}
               onChange={(value) => setFilters(prev => ({ ...prev, batch_id: value }))}
@@ -464,7 +473,7 @@ title: 'Created At',
         </Row>
       </Card>
 
-      {/* 閸忔垶宕查惍浣姐€冮弽?*/}
+      {/* 兑换码表格 */}
       <Card>
         <Table
           columns={columns}
@@ -478,7 +487,7 @@ title: 'Created At',
             total: total,
             showSizeChanger: true,
             showQuickJumper: true,
-            showTotal: (total, range) => `缁?${range[0]}-${range[1]} 閺夆槄绱濋崗?${total} 閺夘摝,
+            showTotal: (total, range) => `第 ${range[0]}-${range[1]} 条，共 ${total} 条`,
             onChange: (page, size) => {
               setCurrentPage(page);
               setPageSize(size);
@@ -487,9 +496,9 @@ title: 'Created At',
         />
       </Card>
 
-      {/* 閻㈢喐鍨氶崗鎴炲床閻焦膩閹焦顢?*/}
+      {/* 生成兑换码弹窗 */}
       <Modal
-        title="閻㈢喐鍨氶崗鎴炲床閻?
+        title="生成兑换码"
         open={generateVisible}
         onCancel={() => setGenerateVisible(false)}
         footer={null}
@@ -507,10 +516,10 @@ title: 'Created At',
             <Col span={12}>
               <Form.Item
                 name="count"
-                label="閻㈢喐鍨氶弫浼村櫤"
+                label="生成数量"
                 rules={[
-                  { required: true, message: '鐠囩柉绶崗銉ф晸閹存劖鏆熼柌? },
-                  { type: 'integer', min: 1, max: 1000, message: '閺佷即鍣鸿箛鍛淬€忛崷?-1000娑斿妫? },
+                  { required: true, message: '请输入生成数量' },
+                  { type: 'integer', min: 1, max: 1000, message: '数量范围为1-1000个' },
                 ]}
               >
                 <InputNumber
@@ -524,15 +533,15 @@ title: 'Created At',
             <Col span={12}>
               <Form.Item
                 name="credits"
-                label="缁夘垰鍨庨崐?
+                label="积分值"
                 rules={[
-                  { required: true, message: '鐠囩柉绶崗銉濋崚鍡椻偓? },
-                  { type: 'integer', min: 1, message: '缁夘垰鍨庨崐鐓庣箑妞よ銇囨禍?' },
+                  { required: true, message: '请输入积分值' },
+                  { type: 'integer', min: 1, message: '积分值必须大于0' },
                 ]}
               >
                 <InputNumber
                   style={{ width: '100%' }}
-                  placeholder="濮ｅ繋閲滈崗鎴炲床閻胶娈戠粔顖氬瀻閸?
+                  placeholder="请输入每个兑换码的积分值"
                   min={1}
                 />
               </Form.Item>
@@ -541,15 +550,15 @@ title: 'Created At',
 
           <Form.Item
             name="expires_days"
-            label="閺堝鏅ラ張鐕傜礄婢垛晪绱?
+            label="有效期（天）"
             rules={[
-              { required: true, message: '鐠囩柉绶崗銉︽箒閺佸牊婀? },
-              { type: 'integer', min: 1, max: 3650, message: '閺堝鏅ラ張鐔风箑妞よ婀?-3650婢垛晙绠ｉ梻? },
+              { required: true, message: '请输入有效期' },
+              { type: 'integer', min: 1, max: 3650, message: '有效期范围为1-3650天' },
             ]}
           >
             <InputNumber
               style={{ width: '100%' }}
-              placeholder="1-3650婢?
+              placeholder="1-3650天"
               min={1}
               max={3650}
             />
@@ -557,11 +566,11 @@ title: 'Created At',
 
           <Form.Item
             name="batch_name"
-            label="閹佃顐奸崥宥囆?
-            extra="閸欘垶鈧绱濋悽銊ょ艾閺嶅洩鐦戞潻娆愬閸忔垶宕查惍?
+            label="批次名称"
+            extra="可选，用于标识这批兑换码的用途"
           >
             <Input
-              placeholder="娓氬顩ч敍?024閺勩儴濡ú璇插З"
+              placeholder="例如：2024春节活动"
               maxLength={50}
             />
           </Form.Item>
@@ -569,19 +578,19 @@ title: 'Created At',
           <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
             <Space>
               <Button onClick={() => setGenerateVisible(false)}>
-                閸欐牗绉?
+                取消
               </Button>
               <Button type="primary" htmlType="submit">
-                閻㈢喐鍨氶崗鎴炲床閻?
+                生成兑换码
               </Button>
             </Space>
           </Form.Item>
         </Form>
       </Modal>
 
-      {/* 閸忔垶宕查惍浣筋嚊閹懏膩閹焦顢?*/}
+      {/* 兑换码详情弹窗 */}
       <Modal
-        title="閸忔垶宕查惍浣筋嚊閹?
+        title="兑换码详情"
         open={detailVisible}
         onCancel={() => setDetailVisible(false)}
         footer={null}
@@ -589,7 +598,7 @@ title: 'Created At',
       >
         {selectedCode && (
           <Descriptions bordered column={2}>
-            <Descriptions.Item label="閸忔垶宕查惍? span={2}>
+            <Descriptions.Item label="兑换码" span={2}>
               <Space>
                 <Text code style={{ fontSize: 14, fontWeight: 'bold' }}>
                   {selectedCode.code}
@@ -602,38 +611,42 @@ title: 'Created At',
                 />
               </Space>
             </Descriptions.Item>
-            <Descriptions.Item label="缁夘垰鍨庨崐?>
+            <Descriptions.Item label="积分值">
               <Tag color="gold" style={{ fontSize: 14 }}>
                 {selectedCode.credits}
               </Tag>
             </Descriptions.Item>
-            <Descriptions.Item label="瑜版挸澧犻悩鑸碘偓?>
+            <Descriptions.Item label="状态">
               {renderStatus(selectedCode.status)}
             </Descriptions.Item>
-            <Descriptions.Item label="娴ｈ法鏁ら悽銊﹀煕">
+            <Descriptions.Item label="使用者">
               {selectedCode.used_by_user ? (
                 <Text code>{selectedCode.used_by_user.installation_id}</Text>
               ) : (
-                <Text type="secondary">閺堫亙濞囬悽?/Text>
+                <Text type="secondary">未使用</Text>
+              )}
             </Descriptions.Item>
-            <Descriptions.Item label="娴ｈ法鏁ら弮鍫曟？">
+            <Descriptions.Item label="使用时间">
               {selectedCode.used_at ?
                 new Date(selectedCode.used_at).toLocaleString('zh-CN') :
-                <Text type="secondary">閺堫亙濞囬悽?/Text>
+                <Text type="secondary">未使用</Text>
+              }
             </Descriptions.Item>
-            <Descriptions.Item label="鏉╁洦婀￠弮鍫曟？">
+            <Descriptions.Item label="过期时间">
               {selectedCode.expires_at ?
                 new Date(selectedCode.expires_at).toLocaleString('zh-CN') :
-                <Text type="secondary">濮橀晲绗夋潻鍥ㄦ埂</Text>
+                <Text type="secondary">永不过期</Text>
+              }
             </Descriptions.Item>
-            <Descriptions.Item label="閸掓稑缂撻弮鍫曟？">
+            <Descriptions.Item label="创建时间">
               {new Date(selectedCode.created_at).toLocaleString('zh-CN')}
             </Descriptions.Item>
-            <Descriptions.Item label="閹佃顐糏D" span={2}>
+            <Descriptions.Item label="批次ID" span={2}>
               {selectedCode.batch_id ? (
                 <Text code>{selectedCode.batch_id}</Text>
               ) : (
-                <Text type="secondary">閺冪姵澹掑▎?/Text>
+                <Text type="secondary">无</Text>
+              )}
             </Descriptions.Item>
           </Descriptions>
         )}
@@ -641,6 +654,3 @@ title: 'Created At',
     </AdminLayout>
   );
 }
-
-
-

@@ -1,4 +1,4 @@
-﻿import { apiClient } from './api-client';
+import { apiClient } from './api-client';
 import {
   AdminLoginRequest,
   AdminLoginResponse,
@@ -14,24 +14,24 @@ import {
   RecentActivity,
 } from '@/types';
 
-// 绠＄悊鍛樿璇丄PI
+// 管理员认证API
 export const authApi = {
-  // 绠＄悊鍛樼櫥褰?
+  // 管理员登录
   login: async (credentials: AdminLoginRequest): Promise<AdminLoginResponse> => {
     const response = await apiClient.post<AdminLoginResponse>('/api/v1/admin-api/login', credentials);
-    // 淇濆瓨 JWT token 鍒?localStorage
+    // 保存 JWT token 到 localStorage
     if (response.access_token) {
       localStorage.setItem('admin_token', response.access_token);
     }
     return response;
   },
 
-  // 鑾峰彇绠＄悊鍛樹俊鎭?
+  // 获取管理员信息
   getProfile: async (): Promise<AdminProfile> => {
     return apiClient.get<AdminProfile>('/api/v1/admin-api/profile');
   },
 
-  // 鍒锋柊token
+  // 刷新token
   refreshToken: async (): Promise<AdminLoginResponse> => {
     const response = await apiClient.post<AdminLoginResponse>('/api/v1/admin-api/refresh');
     if (response.access_token) {
@@ -40,19 +40,19 @@ export const authApi = {
     return response;
   },
 
-  // 鐧诲嚭
+  // 登出
   logout: async () => {
     try {
       await apiClient.post('/api/v1/admin-api/logout');
     } finally {
-      // 娓呴櫎鏈湴瀛樺偍鐨?JWT token
+      // 清除本地存储的 JWT token
       if (typeof localStorage !== 'undefined') {
         localStorage.removeItem('admin_token');
       }
     }
   },
 
-  // 鍙戦€侀偖绠遍獙璇侀偖浠?
+  // 发送邮箱验证邮件
   sendVerificationEmail: async (installationId: string, email: string) => {
     return apiClient.post('/api/v1/auth/email/send-verification', {
       user_id: installationId,
@@ -60,7 +60,7 @@ export const authApi = {
     });
   },
 
-  // 楠岃瘉閭token
+  // 验证邮箱token
   verifyEmailToken: async (token: string) => {
     return apiClient.post('/api/v1/auth/email/verify', {
       token: token
@@ -68,9 +68,9 @@ export const authApi = {
   },
 };
 
-// 鐢ㄦ埛绠＄悊API
+// 用户管理API
 export const usersApi = {
-  // 鑾峰彇鐢ㄦ埛鍒楄〃
+  // 获取用户列表
   getUsers: async (filters: UserFilters): Promise<UserListResponse> => {
     const params = new URLSearchParams();
     Object.entries(filters).forEach(([key, value]) => {
@@ -82,22 +82,22 @@ export const usersApi = {
     return apiClient.get<UserListResponse>(`/api/v1/admin/users?${params.toString()}`);
   },
 
-  // 鑾峰彇鐢ㄦ埛璇︽儏
+  // 获取用户详情
   getUserDetail: async (installationId: string): Promise<UserDetailResponse> => {
     return apiClient.get<UserDetailResponse>(`/api/v1/admin/users/${installationId}`);
   },
 
-  // 璋冩暣鐢ㄦ埛绉垎
+  // 调整用户积分
   adjustCredits: async (request: AdjustCreditsRequest) => {
     return apiClient.post('/api/v1/admin/users/adjust-credits', request);
   },
 
-  // 鍒犻櫎鐢ㄦ埛
+  // 删除用户
   deleteUser: async (installationId: string) => {
     return apiClient.delete(`/api/v1/admin/users/${installationId}`);
   },
 
-  // 瀵煎嚭鐢ㄦ埛鏁版嵁
+  // 导出用户数据
   exportUsers: async (filters: Partial<UserFilters>): Promise<Blob> => {
     const params = new URLSearchParams();
     Object.entries(filters).forEach(([key, value]) => {
@@ -113,9 +113,9 @@ export const usersApi = {
   },
 };
 
-// 鍏戞崲鐮佺鐞咥PI
+// 兑换码管理API
 export const redeemCodesApi = {
-  // 鑾峰彇鍏戞崲鐮佸垪琛?
+  // 获取兑换码列表
   getRedeemCodes: async (filters: RedeemCodeFilters): Promise<RedeemCodeListResponse> => {
     const params = new URLSearchParams();
     Object.entries(filters).forEach(([key, value]) => {
@@ -127,28 +127,30 @@ export const redeemCodesApi = {
     return apiClient.get<RedeemCodeListResponse>(`/api/v1/admin/redeem-codes?${params.toString()}`);
   },
 
-  // 鐢熸垚鍏戞崲鐮?
-    generateRedeemCodes: async (request: GenerateRedeemCodesRequest): Promise<{ count: number }> => {
+  // 生成兑换码
+  generateRedeemCodes: async (request: GenerateRedeemCodesRequest): Promise<{ count: number }> => {
     return apiClient.post<{ count: number }>(
       '/api/v1/admin/redeem-codes/generate',
       request
     );
   },
 
-  // 鏇存柊鍏戞崲鐮佺姸鎬?
+  // 更新兑换码状态
   updateRedeemCodeStatus: async (id: number, status: string, reason?: string) => {
     return apiClient.put(`/api/v1/admin/redeem-codes/${id}`, { status, reason });
   },
 
-  // 鑾峰彇鍏戞崲鐮佺粺璁?
+  // 获取兑换码统计
   getStats: async () => {
     return apiClient.get('/api/v1/admin/redeem-codes/stats');
   },
 
-  // 鑾峰彇鎵规鍒楄〃
-  getBatches: async (): Promise<{ batches: string[] }> => { return apiClient.get<{ batches: string[] }>('/api/v1/admin/redeem-codes/batches'); },
+  // 获取批次列表
+  getBatches: async (): Promise<{ batches: string[] }> => {
+    return apiClient.get<{ batches: string[] }>('/api/v1/admin/redeem-codes/batches');
+  },
 
-  // 瀵煎嚭鍏戞崲鐮佹暟鎹?
+  // 导出兑换码数据
   exportRedeemCodes: async (filters: Partial<RedeemCodeFilters>): Promise<Blob> => {
     const params = new URLSearchParams();
     Object.entries(filters).forEach(([key, value]) => {
@@ -164,19 +166,19 @@ export const redeemCodesApi = {
   },
 };
 
-// 浠〃鏉緼PI
+// 仪表板API
 export const dashboardApi = {
-  // 鑾峰彇浠〃鏉挎暟鎹?
+  // 获取仪表板数据
   getMetrics: async (): Promise<DashboardMetrics> => {
     try {
-      // 鑾峰彇鍩烘湰缁熻鏁版嵁 - 鍙幏鍙栫涓€椤垫潵鑾峰彇total璁℃暟鍜岄儴鍒嗘暟鎹?
+      // 获取基本统计数据 - 只获取第一页来获取total计数和部分数据
       const usersData = await usersApi.getUsers({ page: 1, size: 100 });
       const redeemCodesData = await redeemCodesApi.getRedeemCodes({ page: 1, size: 100 });
 
-      // 鍩烘湰鎸囨爣璁＄畻锛堝熀浜庡彲鐢ㄦ暟鎹殑杩戜技鍊硷級
+      // 基本指标计算（基于可用数据的近似值）
       const totalUsers = usersData.total || 0;
 
-      // 鍩轰簬绗竴椤垫暟鎹绠楁椿璺冪敤鎴锋瘮渚嬶紝鐒跺悗浼扮畻鎬绘暟
+      // 基于第一页数据计算活跃用户比例，然后估算总数
       const sampleActiveUsers = usersData.users?.filter(user =>
         user.last_active_at && new Date(user.last_active_at) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
       ).length || 0;
@@ -185,7 +187,7 @@ export const dashboardApi = {
       const activeRatio = sampleSize > 0 ? sampleActiveUsers / sampleSize : 0;
       const estimatedActiveUsers = Math.round(totalUsers * activeRatio);
 
-      // 鍩轰簬鏍锋湰浼扮畻鎬荤Н鍒?
+      // 基于样本估算总积分
       const sampleTotalCredits = usersData.users?.reduce((sum, user) => sum + (user.total_credits || 0), 0) || 0;
       const avgCreditsPerUser = sampleSize > 0 ? sampleTotalCredits / sampleSize : 0;
       const estimatedTotalCredits = Math.round(totalUsers * avgCreditsPerUser);
@@ -194,15 +196,15 @@ export const dashboardApi = {
         total_users: totalUsers,
         total_credits_sold: estimatedTotalCredits,
         active_users_30d: estimatedActiveUsers,
-        orders_today: 0, // 鏆傛椂娌℃湁璁㈠崟鏁版嵁
-        users_growth: 0, // 鏆傛椂鏃犳硶璁＄畻澧為暱鐜?
+        orders_today: 0, // 暂时没有订单数据
+        users_growth: 0, // 暂时无法计算增长率
         revenue_growth: 0,
         active_users_ratio: totalUsers > 0 ? (estimatedActiveUsers / totalUsers) * 100 : 0,
         orders_growth: 0,
       };
     } catch (error) {
       console.warn('Failed to fetch real metrics, using mock data:', error);
-      // 濡傛灉API璋冪敤澶辫触锛屼娇鐢ㄦā鎷熸暟鎹?
+      // 如果API调用失败，使用模拟数据
       return {
         total_users: 1250,
         total_credits_sold: 45680,
@@ -216,21 +218,23 @@ export const dashboardApi = {
     }
   },
 
-  // 鑾峰彇鍥捐〃鏁版嵁
-    getChartData: async (): Promise<Record<string, unknown>> => {
-    // Mock data; replace with real series when backend is ready
+  // 获取图表数据（临时使用模拟数据，等待后端接口准备好）
+  getChartData: async (): Promise<Record<string, unknown>> => {
+    // TODO: 替换为真实的后端API调用
     return {
-      revenue_labels: ['Jan','Feb','Mar','Apr','May','Jun'],
+      revenue_labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
       revenue_data: [4200, 5100, 4800, 6200, 5800, 6800],
-      user_growth_labels: ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'],
+      user_growth_labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
       user_growth_data: [12, 19, 15, 25, 22, 18, 28],
-      platform_labels: ['Google Play','Redeem','Other'],
+      platform_labels: ['Google Play', 'Redeem', 'Other'],
       platform_data: [65, 28, 7],
     };
   },
-getRecentActivities: async (): Promise<RecentActivity[]> => {
+
+  // 获取最近活动
+  getRecentActivities: async (): Promise<RecentActivity[]> => {
     try {
-      // 鑾峰彇鏈€杩戠殑鐢ㄦ埛鏁版嵁浣滀负娲诲姩绀轰緥
+      // 获取最近的用户数据作为活动示例
       const usersData = await usersApi.getUsers({ page: 1, size: 10 });
 
       return usersData.users?.slice(0, 5).map((user, index) => ({
@@ -242,7 +246,7 @@ getRecentActivities: async (): Promise<RecentActivity[]> => {
       })) || [];
     } catch (error) {
       console.warn('Failed to fetch real activities, using mock data:', error);
-      // 濡傛灉API璋冪敤澶辫触锛屼娇鐢ㄦā鎷熸暟鎹?
+      // 如果API调用失败，使用模拟数据
       return [
         {
           id: '1',
@@ -262,5 +266,3 @@ getRecentActivities: async (): Promise<RecentActivity[]> => {
     }
   },
 };
-
-
