@@ -218,3 +218,28 @@ MySixth/
 ---
 
 *此文档用于指导塔罗牌应用全栈开发工作，详细的前后端开发指南请参考各自目录下的 CLAUDE.md 文件。*
+## Docker Architecture (Backend/Admin/Nginx)
+
+- Services
+  - backend: FastAPI + Uvicorn on 8000; mounts `./tarot-backend/static` read-only to `/app/static`; persistent volume `backend_data:/data` for SQLite `backend_tarot.db`.
+  - admin: Next.js (production) on 3000; `NEXT_PUBLIC_BACKEND_URL=/` baked into build.
+  - nginx: listens on 80; routes `/api/*` to backend, all other paths `/` to admin.
+- Ports
+  - host 80 -> nginx 80; host 8000 -> backend 8000 (for direct API/health debug).
+- Env & Secrets
+  - `tarot-backend/.env` is loaded by the backend container. Change `ADMIN_PASSWORD`, `JWT_SECRET_KEY`, `WEBHOOK_SECRET_KEY` before production.
+- Health & Routing
+  - backend health: `GET /health` (direct on 8000). When via nginx, use real API under `/api/v1/*`; note `/api/health` is not defined.
+- Build & Run
+  - `docker compose build`
+  - `docker compose up -d`
+  - `docker compose ps` / `docker compose logs <service>`
+- DB Persistence & Manual Copy
+  - path inside container: `/data/backend_tarot.db` (volume `backend_data`).
+  - download: `docker cp backend:/data/backend_tarot.db ./backend_tarot.db`
+  - safe replace:
+    - `docker cp ./backend_tarot.db backend:/data/backend_tarot.new`
+    - `docker exec backend sh -lc "sqlite3 /data/backend_tarot.new 'PRAGMA integrity_check;' && mv /data/backend_tarot.db /data/backend_tarot.bak && mv /data/backend_tarot.new /data/backend_tarot.db'"`
+- Optional TLS
+  - Add 443 server block and certs to `deploy/nginx/nginx.conf` for production.
+

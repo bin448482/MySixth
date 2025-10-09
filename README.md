@@ -111,3 +111,43 @@ npx expo start -c
 - 若未来新增原生库或修改 Expo 插件配置，请执行 `npx expo prebuild --clean` 同步原生工程（在需要裸工程时）。
 - 每次升级 Expo SDK，优先运行 `npx expo-doctor` 与 `npx expo install --check` 对齐小版本。
 - 封版发布前，在真机上安装 APK 验证数据库初始化、图片加载与冷启动性能。
+
+## Docker Quickstart (Backend + Admin + Nginx)
+
+Prerequisites
+- Docker Desktop (Linux containers) and WSL enabled on Windows.
+
+Build & Run
+- In repo root:
+  - docker compose build
+  - docker compose up -d
+- Check status/logs:
+  - docker compose ps
+  - docker compose logs backend
+  - docker compose logs admin
+  - docker compose logs nginx
+
+Verify
+- Admin UI (via nginx): http://localhost/
+- Backend health (direct): http://localhost:8000/health
+  - Note: `/api/health` is not defined behind nginx; real APIs are under `/api/v1/*`.
+- Admin API smoke (via nginx):
+  - Login (default dev creds): POST http://localhost/api/v1/admin-api/login, body `{ "username":"admin", "password":"admin123" }`
+  - With returned `access_token`, call: GET http://localhost/api/v1/admin-api/profile with header `Authorization: Bearer <token>`
+
+Database (SQLite) Persistence
+- Persistent volume `backend_data` stores `/data/backend_tarot.db` in backend container.
+- Download backup:
+  - docker cp backend:/data/backend_tarot.db ./backend_tarot.db
+- Safe replace (with integrity check):
+  - docker cp ./backend_tarot.db backend:/data/backend_tarot.new
+  - docker exec backend sh -lc "sqlite3 /data/backend_tarot.new 'PRAGMA integrity_check;' && mv /data/backend_tarot.db /data/backend_tarot.bak && mv /data/backend_tarot.new /data/backend_tarot.db"
+
+Config & Security
+- Edit `tarot-backend/.env` before production: `ADMIN_PASSWORD`, `JWT_SECRET_KEY`, `WEBHOOK_SECRET_KEY`.
+- For TLS, extend `deploy/nginx/nginx.conf` with a 443 server block and certs.
+
+Stop & Clean
+- docker compose down
+- To rebuild after changes: docker compose build && docker compose up -d
+
