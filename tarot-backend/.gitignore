@@ -1,5 +1,4 @@
 # Docker相关文件
-Dockerfile
 docker-compose.yml
 .dockerignore
 
