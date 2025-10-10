@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, FlatList, Linking } from 'rea
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { UserTransaction } from '../../lib/services/UserService';
+import { apiConfig } from '../../lib/config/api';
 
 interface RechargeRecord {
   id: string;
@@ -88,17 +89,40 @@ const HistoryItem: React.FC<HistoryItemProps> = ({ record }) => {
   );
 };
 
+const resolveRedeemOrigin = (): string => {
+  try {
+    const parsed = new URL(apiConfig.baseUrl);
+    return `${parsed.protocol}//${parsed.hostname}`;
+  } catch {
+    const trimmed = apiConfig.baseUrl.trim();
+    const match = trimmed.match(/^(https?:\/\/[^/:]+)(?::\d+)?/i);
+    return match ? match[1] : trimmed;
+  }
+};
+
 export const RechargeSection: React.FC<RechargeSectionProps> = ({
   currentCredits = 0,
   userEmail,
   rechargeHistory = []
 }) => {
-  const handleRedeemCode = () => {
-    // 兑换码充值功能 - 打开Web页面
-    const redeemUrl = 'https://your-admin-web.com/redeem'; // 替换为实际的管理后台兑换页面URL
-    Linking.openURL(redeemUrl).catch(err => {
+  const handleRedeemCode = async () => {
+    try {
+      const origin = resolveRedeemOrigin();
+      const redeemUrl = new URL(
+        '/verify-email?installation_id=23049RAD8C',
+        origin
+      ).toString();
+
+      const canOpen = await Linking.canOpenURL(redeemUrl);
+      if (!canOpen) {
+        console.warn('Redeem URL cannot be opened:', redeemUrl);
+        return;
+      }
+
+      await Linking.openURL(redeemUrl);
+    } catch (err) {
       console.error('Failed to open redeem URL:', err);
-    });
+    }
   };
 
   const renderHistoryItem = ({ item }: { item: UserTransaction }) => (

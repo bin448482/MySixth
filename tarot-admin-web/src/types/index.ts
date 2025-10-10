@@ -159,3 +159,26 @@ export interface GenerateRedeemCodesRequest {
   expires_days: number;
   batch_name?: string;
 }
+
+// 匿名邮箱认证相关
+export interface EmailStatusResponse {
+  success: boolean;
+  installation_id: string;
+  email?: string;
+  email_verified: boolean;
+  email_verified_at?: string;
+  message?: string;
+}
+
+export interface AnonymousRedeemRequest {
+  installation_id: string;
+  code: string;
+}
+
+export interface AnonymousRedeemResponse {
+  success: boolean;
+  credits: number;
+  balance: number;
+  message?: string;
+  transaction_id?: number | null;
+}
