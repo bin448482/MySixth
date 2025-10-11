@@ -10,6 +10,9 @@ import { useEffect } from 'react';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AppProvider, useAppContext } from '@/lib/contexts/AppContext';
 import { initializeApiConfig } from '@/lib/config/api';
+import { setupLogging, logger } from '@/lib/utils/logger';
+
+setupLogging();
 
 function RootLayoutContent() {
   const colorScheme = useColorScheme();
@@ -18,19 +21,12 @@ function RootLayoutContent() {
   useEffect(() => {
     const initializeApp = async () => {
       try {
-        console.log('🚀 Starting app initialization...');
-
-        // 1. 初始化API配置
-        console.log('🌐 Initializing API configuration...');
+        logger.info('App initialization started');
         await initializeApiConfig();
-
-        // 2. 初始化应用状态（包括数据库、AI服务检查、认证）
-        console.log('🔐 Starting app context initialization...');
         await actions.initializeApp();
-
-        console.log('🎉 App initialization completed successfully');
+        logger.info('App initialization completed');
       } catch (error) {
-        console.error('❌ App initialization error:', error);
+        logger.error('App initialization error', error);
       }
     };
 

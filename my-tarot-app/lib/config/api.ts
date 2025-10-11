@@ -15,6 +15,23 @@ const FALLBACK_LOCAL_IP = '192.168.71.8'; // 确保始终使用局域网IP
 
 const disallowedHosts = new Set(['localhost', '127.0.0.1', '0.0.0.0']);
 
+type ExtraRecord = Record<string, unknown>;
+
+const getExtraValue = (key: string): string | undefined => {
+  const manifest2Extra =
+    ((Constants as unknown as { manifest2?: { extra?: ExtraRecord } }).manifest2?.extra ?? {}) as ExtraRecord;
+  const legacyManifestExtra =
+    ((Constants.manifest as { extra?: ExtraRecord } | undefined)?.extra ?? {}) as ExtraRecord;
+  const expoExtra = (Constants.expoConfig?.extra ?? {}) as ExtraRecord;
+  // Expo Go 在本地调试时可能通过 expoGoConfig 暴露额外信息
+  const expoGoExtra =
+    ((Constants as unknown as { expoGoConfig?: { extra?: ExtraRecord } }).expoGoConfig?.extra ?? {}) as ExtraRecord;
+
+  const value = manifest2Extra[key] ?? legacyManifestExtra[key] ?? expoExtra[key] ?? expoGoExtra[key];
+
+  return typeof value === 'string' ? value : undefined;
+};
+
 const normaliseUrl = (value: string): string | null => {
   if (!value) {
     return null;
@@ -67,7 +84,7 @@ const resolveDevelopmentBaseUrl = (): string => {
     process.env.EXPO_PUBLIC_API_BASE_URL ||
     process.env.API_BASE_URL ||
     // Expo extra config
-    (Constants.expoConfig?.extra?.API_BASE_URL as string | undefined);
+    getExtraValue('API_BASE_URL');
 
   const normalisedEnv = envUrl ? normaliseUrl(envUrl) : null;
   if (normalisedEnv) {
@@ -88,14 +105,19 @@ const resolveDevelopmentBaseUrl = (): string => {
 };
 
 const resolveProductionBaseUrl = (): string => {
-  const envUrl =
-    process.env.EXPO_PUBLIC_API_BASE_URL ||
-    process.env.API_BASE_URL ||
-    (Constants.expoConfig?.extra?.API_BASE_URL as string | undefined);
+  const candidates: Array<string | undefined> = [
+    process.env.EXPO_PUBLIC_API_BASE_URL,
+    process.env.PUBLIC_API_BASE_URL,
+    process.env.API_BASE_URL,
+    getExtraValue('PUBLIC_API_BASE_URL'),
+    getExtraValue('API_BASE_URL'),
+  ];
 
-  const normalised = envUrl ? normaliseUrl(envUrl) : null;
-  if (normalised) {
-    return normalised;
+  for (const candidate of candidates) {
+    const normalised = candidate ? normaliseUrl(candidate) : null;
+    if (normalised) {
+      return normalised;
+    }
   }
 
   // 默认生产地址占位，部署前需覆盖
