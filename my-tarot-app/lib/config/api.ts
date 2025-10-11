@@ -124,6 +124,80 @@ const resolveProductionBaseUrl = (): string => {
   return 'https://your-production-api.com';
 };
 
+let isFetchLoggingInjected = false;
+
+const isRequestLike = (value: unknown): value is Request => {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'url' in value &&
+    typeof (value as { url: unknown }).url === 'string' &&
+    'method' in value &&
+    typeof (value as { method: unknown }).method === 'string'
+  );
+};
+
+const resolveRequestUrl = (input: RequestInfo | URL): string => {
+  if (typeof input === 'string') {
+    return input;
+  }
+
+  if (input instanceof URL) {
+    return input.toString();
+  }
+
+  if (isRequestLike(input)) {
+    return input.url;
+  }
+
+  try {
+    return String(input);
+  } catch {
+    return '[unserializable-request]';
+  }
+};
+
+const resolveRequestMethod = (init?: RequestInit, input?: RequestInfo | URL): string => {
+  if (init?.method) {
+    return init.method.toUpperCase();
+  }
+
+  if (input && isRequestLike(input)) {
+    return input.method.toUpperCase();
+  }
+
+  return 'GET';
+};
+
+const injectFetchLogging = () => {
+  if (isFetchLoggingInjected) {
+    return;
+  }
+
+  if (typeof globalThis.fetch !== 'function') {
+    return;
+  }
+
+  const originalFetch: typeof fetch = globalThis.fetch.bind(globalThis);
+
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = resolveRequestUrl(input);
+    const method = resolveRequestMethod(init, input);
+    console.log(`[TarotApp][API] → ${method} ${url}`);
+
+    try {
+      const response = await originalFetch(input, init);
+      console.log(`[TarotApp][API] ← ${method} ${url} :: ${response.status}`);
+      return response;
+    } catch (error) {
+      console.warn(`[TarotApp][API] ✖ ${method} ${url}`, error);
+      throw error;
+    }
+  }) as typeof fetch;
+
+  isFetchLoggingInjected = true;
+};
+
 const createApiConfig = (): ApiConfig => {
   if (__DEV__) {
     return {
@@ -179,6 +253,7 @@ export const getRequestConfig = (options: RequestInit = {}): RequestInit => {
 
 // 初始化API配置（简化版本，不依赖额外的包）
 export const initializeApiConfig = async (): Promise<void> => {
+  injectFetchLogging();
   console.log('🌐 API配置初始化完成，使用地址:', apiConfig.baseUrl);
   console.log('💡 可通过 EXPO_PUBLIC_API_BASE_URL 或 app.json extra.API_BASE_URL 自定义后端地址');
 };
