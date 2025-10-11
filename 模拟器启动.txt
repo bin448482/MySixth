@@ -27,3 +27,11 @@ npm run start
 cd my-tarot-app && npm install --legacy-peer-deps
 
 
+DEBug
+
+  - $pkg = 'com.biiinnn.mytarotapp'                                  
+  - $appPid = adb shell pidof -s $pkg                                
+  - $appPid  确认能打印一个数字 
+  - adb logcat -v time --pid 18162 
+
+
