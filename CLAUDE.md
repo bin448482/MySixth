@@ -243,3 +243,9 @@ MySixth/
 - Optional TLS
   - Add 443 server block and certs to `deploy/nginx/nginx.conf` for production.
 
+## Release Packaging Notes
+
+- When creating deployment archives on Windows, use a Python `zipfile` script (or another tool that normalizes paths) so entries always contain POSIX `/` separators; otherwise Linux `unzip` may stop, waiting for overwrite confirmation because of `\` paths.
+- Before compressing, remove transient folders such as `.next`, `node_modules`, `venv`, logs, and `__pycache__` to keep the bundle minimal.
+- On the target server, clean any previous extraction (for example `rm -rf /srv/my-tarot/MySixth-docker-20251010`) before running `unzip -o MySixth-docker-20251010.zip -d /srv/my-tarot` to avoid the non-interactive overwrite issue.
+

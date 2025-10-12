@@ -89,3 +89,8 @@ cd "D:\0-development\projects\MySixth\my-tarot-app"
   # 3. 构建 APK
   cd android
   .\gradlew.bat assembleRelease
+
+
+$pkg = 'com.biiinnn.mytarotapp'
+adb shell pidof -s $pkg 
+adb logcat -v time --pid 23405 

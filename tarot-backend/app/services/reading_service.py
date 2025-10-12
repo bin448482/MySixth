@@ -242,7 +242,15 @@ class ReadingService:
             return all_interpretation_result
 
         except Exception as e:
-            api_logger.log_error("generate_reading", e, {"spread_type": request.spread_type})
+            api_logger.log_error(
+                "generate_reading",
+                e,
+                {
+                    "spread_type": spread_type,
+                    "card_count": len(cards),
+                    "dimension_count": len(dimensions),
+                },
+            )
             raise
 
     async def _resolve_card_info(self, card_info: Dict[str, Any], db: Session) -> Card:

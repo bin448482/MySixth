@@ -277,17 +277,28 @@ class AIReadingService {
    * 检查服务可用性
    */
   async checkServiceHealth(): Promise<boolean> {
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 3000); // 减少到3秒超时
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3000); // 减少到3秒超时
 
+    try {
       const response = await fetch(this.buildUrl(endpoints.health), {
         method: 'GET',
         signal: controller.signal,
       });
 
-      clearTimeout(timeoutId);
-      return response.ok;
+      if (response.ok) {
+        return true;
+      }
+
+      // 在某些生产环境中，/health 端点可能被反向代理拦截返回 404 或 401。
+      // 只要服务器可达且不是 5xx，我们就认为服务可用，具体错误在调用时再处理。
+      if (response.status === 404 || response.status === 401) {
+        console.log('⚠️ Health endpoint responded with', response.status, 'but server is reachable.');
+        return true;
+      }
+
+      console.warn('⚠️ Health check failed with status:', response.status);
+      return false;
     } catch (error) {
       // 在开发环境下，如果是网络错误，不要打印警告，这是正常的
       if (__DEV__) {
@@ -296,6 +307,8 @@ class AIReadingService {
         console.warn('AI服务健康检查失败:', error);
       }
       return false;
+    } finally {
+      clearTimeout(timeoutId);
     }
   }
 
