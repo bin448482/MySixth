@@ -31,8 +31,8 @@
 | 方法   | 路径                   | 说明                    | 状态 |
 | ---- | -------------------- | --------------------- | --- |
 | POST | `/api/v1/users/register`         | 生成匿名用户ID              | ✅ 已实现 |
-| POST | `/readings/analyze`  | 第一步：分析用户描述，返回推荐维度     | ✅ 已实现 + 积分系统 |
-| POST | `/readings/generate` | 第二步：基于选定维度生成多维度解读    | ✅ 已实现 + 积分系统 |
+| POST | `/readings/analyze`  | 第一步：分析用户描述，返回推荐维度（需 `locale`） | ✅ 已实现 + 积分系统 + 多语言 |
+| POST | `/readings/generate` | 第二步：基于选定维度生成多维度解读（需 `locale`） | ✅ 已实现 + 积分系统 + 多语言 |
 | GET  | `/api/v1/me/balance` | 查询用户余额                | 🔄 待实现 |
 | POST | `/api/v1/redeem`     | 兑换码验证兑换               | 🔄 待实现 |
 
@@ -40,12 +40,13 @@
 1. **分析阶段** (`/readings/analyze`)：用户输入描述 → 检查积分 → LLM分析 → 返回推荐维度 → 扣除1积分
 2. **生成阶段** (`/readings/generate`)：选择维度和卡牌 → 检查积分 → LLM生成 → 返回详细解读 → 扣除1积分
 
-**积分系统特性**：
+**积分系统与多语言特性**：
 - **事前验证**：调用LLM前检查积分余额（≥1积分）
 - **事后扣费**：LLM调用成功后立即扣除1积分
 - **失败保护**：LLM调用失败时不扣除积分
 - **并发安全**：使用乐观锁保证积分操作原子性
 - **审计跟踪**：完整记录每次积分消费的交易记录
+- **语言透传**：客户端通过 `Accept-Language` 或 body 字段传入 `locale`（如 `zh-CN`/`en`）；后端按区域选择合适的 LLM provider（智谱/OpenAI 等）并在返回结果中附带 `metadata.locale`
 
 ## 📊 数据库配置
 
@@ -62,6 +63,8 @@
 5. **users** - 匿名用户管理
 6. **purchases** - 订单记录
 7. **redeem_codes** - 兑换码管理
+8. **user_settings** - 用户偏好（现包含 `locale`，用于多端同步）
+9. **user_history.locale** - 新增列存储记录生成时的语言，便于过滤与重放
 
 ## 🚨 常见问题解决方案
 
@@ -270,6 +273,7 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 - 基于用户描述的LLM维度推荐
 - 参考 `generate_single_interpretation` 方法
 - 支持三牌阵和凯尔特十字两种牌阵
+- 多语言路由：`locale` 为 `zh-CN` 时优先使用智谱模型，其他地区自动切换至 OpenAI，可在 `app/services/llm_service.py` 中根据 `locale` 扩展更多提供方
 
 ### 积分消费系统
 - **事前验证**: 调用LLM前检查用户积分余额（≥1积分）

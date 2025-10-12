@@ -10,6 +10,7 @@ import { CardService } from './CardService';
 import { SpreadService } from './SpreadService';
 import type { UserHistory } from '../database/user-db';
 import type { ServiceResponse } from '../types/database';
+import { DEFAULT_LOCALE } from '../i18n';
 import type { Card, Spread } from '../types/database';
 
 export interface TestDataOptions {
@@ -220,7 +221,8 @@ export class TestDataService {
       metadata: {
         created_at: new Date().toISOString(),
         interpretation_mode: mode,
-        user_id: 'test_user_' + Date.now()
+        user_id: 'test_user_' + Date.now(),
+        locale: DEFAULT_LOCALE
       }
     };
   }

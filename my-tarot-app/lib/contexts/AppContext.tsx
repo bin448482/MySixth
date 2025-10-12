@@ -2,8 +2,15 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import AuthService from '../services/AuthService';
 import AIReadingService from '../services/AIReadingService';
 import { DatabaseConnectionManager } from '../database/connection';
+import { UserDatabaseService } from '../database/user-db';
+import { initializeI18n, changeLanguage, getAvailableLocales, DEFAULT_LOCALE, type AppLocale } from '../i18n';
 
 interface AppState {
+  locale: AppLocale;
+  availableLocales: readonly { code: AppLocale; label: string }[];
+  isLocaleLoading: boolean;
+  localeError: string | null;
+
   isDatabaseInitialized: boolean;
   isInitializingDatabase: boolean;
   databaseError: string | null;
@@ -28,10 +35,18 @@ interface AppContextType {
     initializeApp: () => Promise<void>;
     refreshAIServiceStatus: () => Promise<void>;
     refreshAuthStatus: () => Promise<void>;
+    setLocale: (locale: AppLocale) => Promise<void>;
   };
 }
 
+const AVAILABLE_LOCALE_OPTIONS = getAvailableLocales();
+
 const defaultState: AppState = {
+  locale: DEFAULT_LOCALE,
+  availableLocales: AVAILABLE_LOCALE_OPTIONS,
+  isLocaleLoading: true,
+  localeError: null,
+
   isDatabaseInitialized: false,
   isInitializingDatabase: true,
   databaseError: null,
@@ -52,6 +67,10 @@ const defaultState: AppState = {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
+void initializeI18n().catch(error => {
+  console.warn('[AppContext] Initial i18n bootstrap failed', error);
+});
+
 export const useAppContext = (): AppContextType => {
   const context = useContext(AppContext);
   if (!context) {
@@ -70,8 +89,13 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   const initializeApp = async () => {
     console.log('🚀 Starting app initialization...');
 
+    let resolvedLocale: AppLocale = state.locale ?? DEFAULT_LOCALE;
+    let localeError: string | null = null;
+
     setState(prev => ({
       ...prev,
+      isLocaleLoading: true,
+      localeError: null,
       isInitializingDatabase: true,
       databaseError: null,
       isCheckingAIService: true,
@@ -83,6 +107,15 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     }));
 
     try {
+      console.log('🌐 Initializing localization...');
+      try {
+        resolvedLocale = await initializeI18n();
+        console.log('✅ Localization initialized with locale:', resolvedLocale);
+      } catch (error) {
+        localeError = error instanceof Error ? error.message : 'Localization initialization failed';
+        console.error('❌ Localization initialization error:', error);
+      }
+
       // 1. 初始化数据库（必须最先完成）
       console.log('🗄️ Initializing database...');
       const connectionManager = DatabaseConnectionManager.getInstance();
@@ -93,6 +126,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       }
 
       console.log('✅ Database initialized successfully');
+      const userDbService = UserDatabaseService.getInstance();
 
       // 2. 检查AI服务健康状态
       console.log('🔍 Checking AI service health...');
@@ -138,7 +172,28 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
         console.error('❌ Anonymous user initialization error:', error);
       }
 
+      if (isAuthenticated && userId) {
+        try {
+          const storedLocale = await userDbService.getUserLocale(userId);
+          if (storedLocale && storedLocale !== resolvedLocale) {
+            await changeLanguage(storedLocale);
+            resolvedLocale = storedLocale;
+            console.log('🌐 Locale restored from user settings:', storedLocale);
+          } else if (!storedLocale) {
+            await userDbService.setUserLocale(userId, resolvedLocale);
+            console.log('💾 Locale preference seeded for user:', resolvedLocale);
+          }
+        } catch (error) {
+          const syncError = error instanceof Error ? error.message : 'Failed to sync locale preference';
+          console.error('❌ Failed to sync user locale preference:', error);
+          localeError = localeError ?? syncError;
+        }
+      }
+
       const initializationErrors: string[] = [];
+      if (localeError) {
+        initializationErrors.push(`Locale: ${localeError}`);
+      }
       if (aiServiceError) {
         initializationErrors.push(`AI service: ${aiServiceError}`);
       }
@@ -148,6 +203,9 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
 
       setState(prev => ({
         ...prev,
+        locale: resolvedLocale,
+        isLocaleLoading: false,
+        localeError,
         isDatabaseInitialized: true,
         isInitializingDatabase: false,
         databaseError: null,
@@ -174,6 +232,9 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
 
       setState(prev => ({
         ...prev,
+        locale: resolvedLocale,
+        isLocaleLoading: false,
+        localeError: localeError ?? errorMessage,
         isDatabaseInitialized: false,
         isInitializingDatabase: false,
         databaseError: errorMessage,
@@ -247,12 +308,54 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     }
   };
 
+  const setLocale = async (locale: AppLocale) => {
+    if (state.locale === locale) {
+      return;
+    }
+
+    console.log('🌐 Switching locale to:', locale);
+    setState(prev => ({
+      ...prev,
+      isLocaleLoading: true,
+      localeError: null,
+    }));
+
+  try {
+      await changeLanguage(locale);
+      const currentUserId = state.userId;
+      if (currentUserId) {
+        try {
+          const userDb = UserDatabaseService.getInstance();
+          await userDb.setUserLocale(currentUserId, locale);
+        } catch (dbError) {
+          console.error('⚠️ Failed to persist locale preference:', dbError);
+        }
+      }
+      setState(prev => ({
+        ...prev,
+        locale,
+        isLocaleLoading: false,
+        localeError: null,
+      }));
+      console.log('✅ Locale switched to:', locale);
+    } catch (error) {
+      console.error('❌ Failed to change locale:', error);
+      const message = error instanceof Error ? error.message : 'Failed to change language';
+      setState(prev => ({
+        ...prev,
+        isLocaleLoading: false,
+        localeError: message,
+      }));
+    }
+  };
+
   const contextValue: AppContextType = {
     state,
     actions: {
       initializeApp,
       refreshAIServiceStatus,
       refreshAuthStatus,
+      setLocale,
     },
   };
 

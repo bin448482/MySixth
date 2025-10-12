@@ -236,13 +236,25 @@ export class DatabaseConnectionManager {
           spread_id INTEGER NOT NULL,
           card_ids TEXT NOT NULL,
           interpretation_mode TEXT NOT NULL CHECK (interpretation_mode IN ('default', 'ai')),
+          locale TEXT NOT NULL DEFAULT 'zh-CN',
           result TEXT NOT NULL,
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
         );
       `;
 
+      const userSettingsSQL = `
+        CREATE TABLE IF NOT EXISTS user_settings (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL UNIQUE,
+          locale TEXT NOT NULL DEFAULT 'zh-CN',
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          synced_at DATETIME
+        );
+      `;
+
       this.userDb.execSync(userHistorySQL);
+      this.userDb.execSync(userSettingsSQL);
 
       // 验证表结构
       const tableInfo = this.userDb.getAllSync<{name: string, type: string}>(
@@ -255,6 +267,8 @@ export class DatabaseConnectionManager {
         CREATE INDEX IF NOT EXISTS idx_user_history_user_id ON user_history(user_id);
         CREATE INDEX IF NOT EXISTS idx_user_history_timestamp ON user_history(timestamp);
         CREATE INDEX IF NOT EXISTS idx_user_history_user_timestamp ON user_history(user_id, timestamp);
+        CREATE INDEX IF NOT EXISTS idx_user_history_locale ON user_history(locale);
+        CREATE INDEX IF NOT EXISTS idx_user_settings_user_id ON user_settings(user_id);
       `;
 
       this.userDb.execSync(indexSQL);
@@ -279,6 +293,7 @@ export class DatabaseConnectionManager {
 
       // 删除现有表
       this.userDb.execSync('DROP TABLE IF EXISTS user_history');
+      this.userDb.execSync('DROP TABLE IF EXISTS user_settings');
 
       // 重新创建表
       await this.createUserTables();

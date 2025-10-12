@@ -10,10 +10,11 @@ import Animated, {
 } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
 import { useRouter } from 'expo-router';
+import { useTranslation } from '@/lib/hooks/useTranslation';
 
 interface NavigationItem {
   id: string;
-  title: string;
+  titleKey: string;
   icon: string;
   route: string;
   color: string;
@@ -22,28 +23,28 @@ interface NavigationItem {
 const navigationItems: NavigationItem[] = [
   {
     id: 'reading',
-    title: '开始占卜',
+    titleKey: 'actions.startReading',
     icon: '🔮',
     route: '/(reading)/type',
     color: '#9b59b6',
   },
   {
     id: 'history',
-    title: '占卜历史',
+    titleKey: 'actions.viewHistory',
     icon: '📜',
     route: '/(history)',
     color: '#3498db',
   },
   {
     id: 'cards',
-    title: '卡牌说明',
+    titleKey: 'actions.cardLibrary',
     icon: '🎴',
     route: '/cards',
     color: '#e74c3c',
   },
   {
     id: 'settings',
-    title: '系统说明',
+    titleKey: 'actions.settings',
     icon: '⚙️',
     route: '/settings',
     color: '#f39c12',
@@ -55,6 +56,7 @@ const itemWidth = (width - 60) / 2; // 20px margin * 2 + 20px gap
 
 export const NavigationGrid: React.FC = () => {
   const router = useRouter();
+  const { t } = useTranslation('home');
 
   const NavigationButton: React.FC<{ item: NavigationItem; index: number }> = ({ item, index }) => {
     const scale = useSharedValue(1);
@@ -100,7 +102,7 @@ export const NavigationGrid: React.FC = () => {
             <BlurView intensity={15} style={styles.itemBlur}>
               <View style={[styles.itemContent, { backgroundColor: `${item.color}20` }]}>
                 <Text style={styles.itemIcon}>{item.icon}</Text>
-                <Text style={styles.itemTitle}>{item.title}</Text>
+                <Text style={styles.itemTitle}>{t(item.titleKey)}</Text>
                 <View style={[styles.itemAccent, { backgroundColor: item.color }]} />
               </View>
             </BlurView>

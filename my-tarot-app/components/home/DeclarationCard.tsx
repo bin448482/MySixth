@@ -8,16 +8,15 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
-
-const declarationTexts = [
-  '这里是一个神秘的塔罗牌占卜应用',
-  '我们相信每张牌都蕴含着宇宙的智慧',
-  '通过塔罗牌，探索你的内心世界',
-  '愿星光指引你前行的道路'
-];
+import { useTranslation } from '@/lib/hooks/useTranslation';
 
 export const DeclarationCard: React.FC = () => {
+  const { t } = useTranslation('home');
   const glowOpacity = useSharedValue(0.5);
+  const declarationTexts = React.useMemo(() => {
+    const lines = t('declaration.lines', { returnObjects: true });
+    return Array.isArray(lines) ? (lines as string[]) : [];
+  }, [t]);
 
   React.useEffect(() => {
     glowOpacity.value = withRepeat(

@@ -12,6 +12,7 @@ import type {
   HistoryPaginationQuery,
   IHistoryService
 } from '../types/user';
+import type { AppLocale } from '../i18n';
 
 // UUID 生成函数
 function generateUUID(): string {
@@ -89,12 +90,13 @@ export class UserDatabaseService implements IHistoryService {
         spread_id: history.spread_id,
         card_ids: history.card_ids,
         interpretation_mode: history.interpretation_mode,
+        locale: history.locale,
         timestamp: history.timestamp
       });
 
       const sql = `
-        INSERT INTO user_history (id, user_id, spread_id, card_ids, interpretation_mode, result, timestamp, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO user_history (id, user_id, spread_id, card_ids, interpretation_mode, locale, result, timestamp, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `;
 
       const params = [
@@ -103,6 +105,7 @@ export class UserDatabaseService implements IHistoryService {
         history.spread_id,
         history.card_ids,
         history.interpretation_mode,
+        history.locale,
         history.result,
         history.timestamp,
         now,
@@ -122,6 +125,63 @@ export class UserDatabaseService implements IHistoryService {
       }
     } catch (error) {
       console.error('Error saving user history:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 获取用户语言偏好
+   */
+  async getUserLocale(userId: string): Promise<AppLocale | null> {
+    try {
+      const result = await this.connectionManager.queryUserFirst<{ locale: string }>(
+        'SELECT locale FROM user_settings WHERE user_id = ?',
+        [userId]
+      );
+
+      if (result.success && result.data?.locale) {
+        return result.data.locale as AppLocale;
+      }
+      return null;
+    } catch (error) {
+      console.error('Error getting user locale:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * 保存或更新用户语言偏好
+   */
+  async setUserLocale(userId: string, locale: AppLocale): Promise<boolean> {
+    try {
+      const existing = await this.connectionManager.queryUserFirst<{ locale: string }>(
+        'SELECT locale FROM user_settings WHERE user_id = ?',
+        [userId]
+      );
+
+      if (existing.success && existing.data) {
+        const updateResult = await this.connectionManager.executeUser(
+          `UPDATE user_settings SET locale = ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ?`,
+          [locale, userId]
+        );
+
+        if (!updateResult.success) {
+          throw new Error(updateResult.error || 'Failed to update user locale');
+        }
+      } else {
+        const insertResult = await this.connectionManager.executeUser(
+          `INSERT INTO user_settings (id, user_id, locale, updated_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)`,
+          [generateUUID(), userId, locale]
+        );
+
+        if (!insertResult.success) {
+          throw new Error(insertResult.error || 'Failed to insert user locale');
+        }
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Error setting user locale:', error);
       throw error;
     }
   }

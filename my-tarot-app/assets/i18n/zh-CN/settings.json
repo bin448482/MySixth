@@ -1,0 +1,20 @@
+{
+  "header": {
+    "title": "系统说明"
+  },
+  "language": {
+    "title": "界面语言",
+    "description": "选择你习惯的语言，应用会立即切换显示内容。",
+    "current": "当前使用",
+    "updating": "正在切换语言…",
+    "options": {
+      "zh-CN": "简体中文",
+      "en": "English"
+    }
+  },
+  "status": {
+    "loading": "正在加载用户信息…",
+    "error": "加载用户信息失败",
+    "retry": "重试"
+  }
+}

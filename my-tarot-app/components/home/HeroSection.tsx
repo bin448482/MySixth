@@ -12,9 +12,11 @@ import Animated, {
 import { LinearGradient } from 'expo-linear-gradient';
 import { FontStyles, FontColors } from '@/constants/Fonts';
 import { useCustomFonts } from '@/hooks/useCustomFonts';
+import { useTranslation } from '@/lib/hooks/useTranslation';
 
 export const HeroSection: React.FC = () => {
   const { fontsLoaded } = useCustomFonts();
+  const { t } = useTranslation('home');
   const shimmerOpacity = useSharedValue(0.3);
 
   // 确保 useAnimatedStyle 总是被调用，不管字体是否加载
@@ -44,7 +46,7 @@ export const HeroSection: React.FC = () => {
         entering={FadeInUp.delay(200).duration(800)}
         style={styles.titleContainer}
       >
-        <Text style={[styles.mainTitle, !fontsLoaded && styles.fallbackFont]}>神秘塔罗牌</Text>
+        <Text style={[styles.mainTitle, !fontsLoaded && styles.fallbackFont]}>{t('hero.title')}</Text>
         {fontsLoaded && <Animated.View style={[styles.shimmer, shimmerStyle]} />}
       </Animated.View>
 
@@ -52,8 +54,8 @@ export const HeroSection: React.FC = () => {
         entering={FadeInDown.delay(400).duration(600)}
         style={styles.subtitleContainer}
       >
-        <Text style={[styles.subtitle, !fontsLoaded && styles.fallbackFont]}>探索命运的奥秘</Text>
-        <Text style={[styles.description, !fontsLoaded && styles.fallbackFont]}>聆听内心的声音</Text>
+        <Text style={[styles.subtitle, !fontsLoaded && styles.fallbackFont]}>{t('hero.subtitle')}</Text>
+        <Text style={[styles.description, !fontsLoaded && styles.fallbackFont]}>{t('hero.tagline')}</Text>
       </Animated.View>
     </View>
   );
