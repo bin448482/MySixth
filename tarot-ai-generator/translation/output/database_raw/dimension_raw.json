@@ -1,0 +1,105 @@
+{
+  "table_name": "dimension",
+  "source_locale": "zh-CN",
+  "total_count": 12,
+  "exported_at": "2025-10-13T17:43:30Z",
+  "description": "解读维度定义，包括情感、事业、精神等占卜维度",
+  "data": [
+    {
+      "id": 55,
+      "name": "时间之流牌阵-过去",
+      "category": "情感",
+      "description": "了解爱情​​关系的来龙去脉和发展趋势",
+      "aspect": "过去",
+      "aspect_type": 1
+    },
+    {
+      "id": 56,
+      "name": "时间之流牌阵-现在",
+      "category": "情感",
+      "description": "了解爱情​​关系的来龙去脉和发展趋势",
+      "aspect": "现在",
+      "aspect_type": 2
+    },
+    {
+      "id": 57,
+      "name": "时间之流牌阵-将来",
+      "category": "情感",
+      "description": "了解爱情​​关系的来龙去脉和发展趋势",
+      "aspect": "将来",
+      "aspect_type": 3
+    },
+    {
+      "id": 58,
+      "name": "恋人金字塔牌阵-自己",
+      "category": "情感",
+      "description": "深入了解双方各自的心态、想法以及彼此的互动模式",
+      "aspect": "自己",
+      "aspect_type": 1
+    },
+    {
+      "id": 59,
+      "name": "恋人金字塔牌阵-对方",
+      "category": "情感",
+      "description": "深入了解双方各自的心态、想法以及彼此的互动模式",
+      "aspect": "对方",
+      "aspect_type": 2
+    },
+    {
+      "id": 60,
+      "name": "恋人金字塔牌阵-关系",
+      "category": "情感",
+      "description": "深入了解双方各自的心态、想法以及彼此的互动模式",
+      "aspect": "关系",
+      "aspect_type": 3
+    },
+    {
+      "id": 61,
+      "name": "情感决策牌阵-现状",
+      "category": "决策",
+      "description": "面临情感抉择时的利弊分析",
+      "aspect": "现状",
+      "aspect_type": 1
+    },
+    {
+      "id": 62,
+      "name": "情感决策牌阵-选择是",
+      "category": "决策",
+      "description": "面临情感抉择时的利弊分析",
+      "aspect": "选择是",
+      "aspect_type": 2
+    },
+    {
+      "id": 63,
+      "name": "情感决策牌阵-选择非",
+      "category": "决策",
+      "description": "面临情感抉择时的利弊分析",
+      "aspect": "选择非",
+      "aspect_type": 3
+    },
+    {
+      "id": 64,
+      "name": "月的运程-上玄月",
+      "category": "财富",
+      "description": "未来的一个月的运程",
+      "aspect": "上玄月",
+      "aspect_type": 1
+    },
+    {
+      "id": 65,
+      "name": "月的运程-下玄月",
+      "category": "财富",
+      "description": "未来的一个月的运程",
+      "aspect": "下玄月",
+      "aspect_type": 2
+    },
+    {
+      "id": 66,
+      "name": "月的运程-总体趋势",
+      "category": "财富",
+      "description": "未来的一个月的运程",
+      "aspect": "总体趋势",
+      "aspect_type": 3
+    }
+  ]
+}
