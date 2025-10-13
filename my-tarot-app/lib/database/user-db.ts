@@ -42,40 +42,6 @@ export class UserDatabaseService implements IHistoryService {
   }
 
   /**
-   * 初始化用户数据库
-   */
-  async initialize(): Promise<ServiceResponse<boolean>> {
-    try {
-      const result = await this.connectionManager.initialize();
-
-      // 如果初始化成功，尝试重新创建用户表以确保正确的表结构
-      if (result.success) {
-        try {
-          const recreateResult = await this.connectionManager.recreateUserTables();
-          if (!recreateResult.success) {
-            console.warn('[UserDB] Failed to recreate user tables:', recreateResult.error);
-          } else {
-            console.log('[UserDB] User tables recreated successfully');
-          }
-        } catch (error) {
-          console.warn('[UserDB] Error during table recreation:', error);
-        }
-      }
-
-      return {
-        success: result.success,
-        data: result.success,
-        error: result.error
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'User database initialization failed'
-      };
-    }
-  }
-
-  /**
    * 保存用户占卜历史（支持无限制保存）
    */
   async saveUserHistory(history: Omit<UserHistory, 'created_at' | 'updated_at'>): Promise<string> {
