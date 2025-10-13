@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Modal,
   ScrollView,
@@ -13,6 +13,7 @@ import Animated, {
   withSpring
 } from 'react-native-reanimated';
 import type { HistoryFilter } from '../../lib/types/user';
+import { useTranslation } from '@/lib/hooks/useTranslation';
 
 interface HistoryFilterBarProps {
   filter: HistoryFilter;
@@ -23,6 +24,7 @@ export const HistoryFilterBar: React.FC<HistoryFilterBarProps> = ({
   filter,
   onFilterChange,
 }) => {
+  const { t } = useTranslation('history');
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showModeSelector, setShowModeSelector] = useState(false);
 
@@ -30,32 +32,34 @@ export const HistoryFilterBar: React.FC<HistoryFilterBarProps> = ({
   const dateScale = useSharedValue(1);
 
   // 模式选项
-  const modeOptions = [
-    { value: 'all', label: '全部', icon: '🔮' },
-    { value: 'default', label: '基础解读', icon: '📜' },
-    { value: 'ai', label: 'AI解读', icon: '✨' },
-  ];
+  const modeOptions = useMemo(() => ([
+    { value: 'all', label: t('filter.mode.all'), icon: '🔮' },
+    { value: 'default', label: t('filter.mode.default'), icon: '📜' },
+    { value: 'ai', label: t('filter.mode.ai'), icon: '✨' },
+  ]), [t]);
 
   // 日期范围选项
-  const dateOptions = [
-    { value: 'all', label: '全部时间', icon: '📅' },
-    { value: 'today', label: '今天', icon: '📍' },
-    { value: 'week', label: '本周', icon: '📊' },
-    { value: 'month', label: '本月', icon: '📈' },
-  ];
+  const dateOptions = useMemo(() => ([
+    { value: 'all', label: t('filter.date.all'), icon: '📅' },
+    { value: 'today', label: t('filter.date.today'), icon: '📍' },
+    { value: 'week', label: t('filter.date.week'), icon: '📊' },
+    { value: 'month', label: t('filter.date.month'), icon: '📈' },
+  ]), [t]);
 
   // 获取当前模式显示文本
   const getCurrentModeText = () => {
     const option = modeOptions.find(opt => opt.value === filter.mode);
-    return option ? `${option.icon} ${option.label}` : '🔮 全部';
+    const icon = option?.icon ?? '🔮';
+    const label = option?.label ?? t('filter.mode.all');
+    return t('filter.modeDisplay', { icon, label });
   };
 
   // 获取当前日期范围显示文本
   const getCurrentDateText = () => {
     if (filter.dateRange) {
-      return '📅 自定义范围';
+      return t('filter.dateDisplay', { label: t('filter.date.custom') });
     }
-    return '📅 全部时间';
+    return t('filter.dateDisplay', { label: t('filter.date.all') });
   };
 
   // 处理模式选择
@@ -158,7 +162,7 @@ export const HistoryFilterBar: React.FC<HistoryFilterBarProps> = ({
             ))}
           </ScrollView>
           <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
-            <Text style={styles.cancelButtonText}>取消</Text>
+            <Text style={styles.cancelButtonText}>{t('filter.cancel')}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -192,7 +196,7 @@ export const HistoryFilterBar: React.FC<HistoryFilterBarProps> = ({
             onPress={() => onFilterChange({ mode: 'all' })}
             style={styles.clearButton}
           >
-            <Text style={styles.clearButtonText}>✕ 清除</Text>
+            <Text style={styles.clearButtonText}>✕ {t('filter.clear')}</Text>
           </TouchableOpacity>
         )}
       </ScrollView>
@@ -203,7 +207,7 @@ export const HistoryFilterBar: React.FC<HistoryFilterBarProps> = ({
         () => setShowModeSelector(false),
         modeOptions,
         handleModeSelect,
-        '选择解读模式'
+        t('filter.labels.mode')
       )}
 
       {/* 日期选择器 */}
@@ -212,7 +216,7 @@ export const HistoryFilterBar: React.FC<HistoryFilterBarProps> = ({
         () => setShowDatePicker(false),
         dateOptions,
         handleDateSelect,
-        '选择时间范围'
+        t('filter.labels.date')
       )}
     </View>
   );

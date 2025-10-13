@@ -47,7 +47,7 @@
     },
     "extra": {
       "tabsConfig": {
-        "tabBarEnabled": false,
+        // "tabBarEnabled": true,
         "tabs": {
           "home": {
             "enabled": true,

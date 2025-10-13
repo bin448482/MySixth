@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -15,15 +15,13 @@ import Animated, {
   withTiming,
   withSpring,
   FadeInDown,
-  SlideInRight,
 } from 'react-native-reanimated';
-import { Ionicons } from '@expo/vector-icons';
 import { UserDatabaseService } from '../../lib/database/user-db';
 import { ConfigDatabaseService } from '../../lib/database/config-db';
 import { CardImageLoader } from '../reading/CardImageLoader';
-import { getCardImage } from '../../lib/utils/cardImages';
 import type { ParsedUserHistory } from '../../lib/types/user';
 import type { Card } from '../../lib/types/config';
+import { useTranslation } from '@/lib/hooks/useTranslation';
 
 interface HistoryDetailProps {
   historyId: string;
@@ -36,10 +34,11 @@ export const HistoryDetail: React.FC<HistoryDetailProps> = ({
   onBack,
   style,
 }) => {
+  const { t, i18n } = useTranslation('history');
+  const locale = i18n.resolvedLanguage ?? i18n.language ?? 'zh-CN';
   const [history, setHistory] = useState<ParsedUserHistory | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [expandedCard, setExpandedCard] = useState<number | null>(null);
   const [cardsData, setCardsData] = useState<Card[]>([]);
 
   const userDbService = UserDatabaseService.getInstance();
@@ -51,9 +50,9 @@ export const HistoryDetail: React.FC<HistoryDetailProps> = ({
   useEffect(() => {
     loadHistoryDetail();
     loadCardsData();
-  }, [historyId]);
+  }, [loadHistoryDetail, loadCardsData]);
 
-  const loadCardsData = async () => {
+  const loadCardsData = useCallback(async () => {
     try {
       const response = await configDbService.getAllCards();
       if (response.success && response.data) {
@@ -64,9 +63,9 @@ export const HistoryDetail: React.FC<HistoryDetailProps> = ({
     } catch (error) {
       console.error('Error loading cards data:', error);
     }
-  };
+  }, [configDbService]);
 
-  const loadHistoryDetail = async () => {
+  const loadHistoryDetail = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -83,27 +82,31 @@ export const HistoryDetail: React.FC<HistoryDetailProps> = ({
         opacity.value = withTiming(1, { duration: 500 });
         headerScale.value = withSpring(1, { damping: 15 });
       } else {
-        setError('历史记录不存在');
+        setError(t('detail.notFound'));
       }
     } catch (err) {
       console.error('Error loading history detail:', err);
-      setError(err instanceof Error ? err.message : '加载失败');
+      setError(t('detail.loadFailed'));
     } finally {
       setLoading(false);
     }
-  };
+  }, [historyId, opacity, headerScale, t, userDbService]);
 
   // 格式化时间 - 显示完整的日期时间
   const formatDateTime = (timestamp: string) => {
-    const date = new Date(timestamp);
-    return date.toLocaleString('zh-CN', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit'
-    });
+    try {
+      const date = new Date(timestamp);
+      return date.toLocaleString(locale, {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+      } as Intl.DateTimeFormatOptions);
+    } catch {
+      return timestamp;
+    }
   };
 
   // 分享历史记录
@@ -111,45 +114,47 @@ export const HistoryDetail: React.FC<HistoryDetailProps> = ({
     if (!history) return;
 
     try {
-      const shareContent = `塔罗占卜记录\n时间：${formatDateTime(history.timestamp)}\n模式：${
-        history.interpretation_mode === 'ai' ? 'AI解读' : '基础解读'
-      }\n\n${history.result?.interpretation?.overall || '查看完整解读...'}\n\n来自神秘塔罗牌应用`;
+      const modeLabel =
+        history.interpretation_mode === 'ai'
+          ? t('detail.mode.aiLabel')
+          : t('detail.mode.basicLabel');
+      const shareContent = t('detail.share.message', {
+        time: formatDateTime(history.timestamp),
+        mode: modeLabel,
+        summary: history.result?.interpretation?.overall || t('detail.shareSummaryFallback'),
+      });
 
       await Share.share({
         message: shareContent,
-        title: '塔罗占卜记录',
+        title: t('detail.share.title'),
       });
     } catch (error) {
-      console.error('分享失败:', error);
+      console.error('Failed to share history record:', error);
     }
   };
 
   // 删除历史记录
   const handleDelete = () => {
     Alert.alert(
-      '删除确认',
-      '确定要删除这条历史记录吗？此操作不可恢复。',
+      t('detail.delete.confirmTitle'),
+      t('detail.delete.confirmMessage'),
       [
-        { text: '取消', style: 'cancel' },
+        { text: t('detail.delete.cancel'), style: 'cancel' },
         {
-          text: '删除',
+          text: t('detail.delete.confirmAction'),
           style: 'destructive',
           onPress: async () => {
             try {
               await userDbService.deleteUserHistory(historyId);
               onBack();
-            } catch (error) {
-              Alert.alert('删除失败', '请稍后重试');
+            } catch (err) {
+              console.error('Failed to delete history record:', err);
+              Alert.alert(t('detail.delete.failed'), t('detail.delete.retryLater'));
             }
           },
         },
       ]
     );
-  };
-
-  // 切换卡牌展开状态
-  const toggleCardExpansion = (cardIndex: number) => {
-    setExpandedCard(expandedCard === cardIndex ? null : cardIndex);
   };
 
   // 根据卡牌名称获取图片路径
@@ -178,6 +183,24 @@ export const HistoryDetail: React.FC<HistoryDetailProps> = ({
     }
   };
 
+  const formatDirectionLabel = (direction?: string) => {
+    if (!direction) return '';
+    const normalized = direction.toLowerCase();
+    if (normalized.includes('upright') || normalized.includes('正')) {
+      return t('detail.direction.upright');
+    }
+    if (normalized.includes('reverse') || normalized.includes('逆')) {
+      return t('detail.direction.reversed');
+    }
+    return direction;
+  };
+
+  const isReversedDirection = (direction?: string) => {
+    if (!direction) return false;
+    const normalized = direction.toLowerCase();
+    return normalized.includes('reverse') || normalized.includes('逆');
+  };
+
   // 渲染AI占卜的卡牌解读（样式与ai-result.tsx一致）
   const renderAICardInterpretation = (cardInterpretation: any, index: number) => {
     const cardImageUrl = getCardImageByName(cardInterpretation.card_name);
@@ -191,7 +214,7 @@ export const HistoryDetail: React.FC<HistoryDetailProps> = ({
           <View style={styles.aiCardInfoSection}>
             <Text style={styles.aiCardName}>{cardInterpretation.card_name}</Text>
             <Text style={styles.aiCardDirection}>
-              {cardInterpretation.direction}
+              {formatDirectionLabel(cardInterpretation.direction)}
             </Text>
           </View>
         </View>
@@ -205,7 +228,7 @@ export const HistoryDetail: React.FC<HistoryDetailProps> = ({
               height={200}
               style={[
                 styles.aiCardImageLarge,
-                cardInterpretation.direction === '逆位' && styles.aiCardImageReversed
+                isReversedDirection(cardInterpretation.direction) && styles.aiCardImageReversed
               ]}
               resizeMode="contain"
             />
@@ -214,13 +237,14 @@ export const HistoryDetail: React.FC<HistoryDetailProps> = ({
           {/* 维度信息 */}
           <View style={styles.aiDimensionInfo}>
             <Text style={styles.aiDimensionName}>
-              {cardInterpretation.dimension_aspect?.dimension_name || `维度${index + 1}`}
+              {cardInterpretation.dimension_aspect?.dimension_name ||
+                t('detail.dimensionFallback', { index: index + 1 })}
             </Text>
           </View>
 
           {/* 基础牌意 */}
           <View style={styles.aiBasicInterpretationContainer}>
-            <Text style={styles.aiInterpretationLabel}>基础牌意：</Text>
+            <Text style={styles.aiInterpretationLabel}>{t('detail.section.basicSummary')}</Text>
             <Text style={styles.aiBasicInterpretation}>
               {cardInterpretation.basic_summary}
             </Text>
@@ -228,7 +252,7 @@ export const HistoryDetail: React.FC<HistoryDetailProps> = ({
 
           {/* AI详细解读 */}
           <View style={styles.aiDetailedInterpretationContainer}>
-            <Text style={styles.aiInterpretationLabel}>AI详细解读：</Text>
+            <Text style={styles.aiInterpretationLabel}>{t('detail.section.aiDetailed')}</Text>
             <Text style={styles.aiDetailedInterpretation}>
               {cardInterpretation.ai_interpretation}
             </Text>
@@ -249,9 +273,11 @@ export const HistoryDetail: React.FC<HistoryDetailProps> = ({
             <Text style={styles.aiPositionText}>{index + 1}</Text>
           </View>
           <View style={styles.aiCardInfoSection}>
-            <Text style={styles.aiCardName}>{cardData.cardName || `第${index + 1}张牌`}</Text>
+            <Text style={styles.aiCardName}>
+              {cardData.cardName || t('detail.cardFallback', { index: index + 1 })}
+            </Text>
             <Text style={styles.aiCardDirection}>
-              {cardData.direction === 'upright' ? '正位' : '逆位'}
+              {formatDirectionLabel(cardData.direction)}
             </Text>
           </View>
         </View>
@@ -265,7 +291,7 @@ export const HistoryDetail: React.FC<HistoryDetailProps> = ({
               height={200}
               style={[
                 styles.aiCardImageLarge,
-                cardData.direction === 'reversed' && styles.aiCardImageReversed
+                isReversedDirection(cardData.direction) && styles.aiCardImageReversed
               ]}
               resizeMode="contain"
             />
@@ -275,7 +301,8 @@ export const HistoryDetail: React.FC<HistoryDetailProps> = ({
           {cardData.dimensionInterpretations && cardData.dimensionInterpretations.length > 0 && (
             <View style={styles.aiDimensionInfo}>
               <Text style={styles.aiDimensionName}>
-                {cardData.dimensionInterpretations[0]?.dimensionName || `维度${index + 1}`}
+                {cardData.dimensionInterpretations[0]?.dimensionName ||
+                  t('detail.dimensionFallback', { index: index + 1 })}
               </Text>
             </View>
           )}
@@ -283,7 +310,7 @@ export const HistoryDetail: React.FC<HistoryDetailProps> = ({
           {/* 基础牌意 */}
           {cardData.summary && (
             <View style={styles.aiBasicInterpretationContainer}>
-              <Text style={styles.aiInterpretationLabel}>基础牌意：</Text>
+              <Text style={styles.aiInterpretationLabel}>{t('detail.section.basicSummary')}</Text>
               <Text style={styles.aiBasicInterpretation}>
                 {cardData.summary}
               </Text>
@@ -293,7 +320,7 @@ export const HistoryDetail: React.FC<HistoryDetailProps> = ({
           {/* 详细解读 */}
           {cardData.detail && (
             <View style={styles.aiDetailedInterpretationContainer}>
-              <Text style={styles.aiInterpretationLabel}>详细解读：</Text>
+              <Text style={styles.aiInterpretationLabel}>{t('detail.section.detailed')}</Text>
               <Text style={styles.aiDetailedInterpretation}>
                 {cardData.detail}
               </Text>
@@ -303,26 +330,18 @@ export const HistoryDetail: React.FC<HistoryDetailProps> = ({
           {/* 维度解读 */}
           {cardData.dimensionInterpretations?.map((dim: any, dimIndex: number) => (
             <View key={dimIndex} style={styles.aiDetailedInterpretationContainer}>
-              <Text style={styles.aiInterpretationLabel}>{dim.dimensionName}：</Text>
+              <Text style={styles.aiInterpretationLabel}>
+                {t('detail.section.dimension', {
+                  name: dim.dimensionName ||
+                    t('detail.dimensionFallback', { index: dimIndex + 1 }),
+                })}
+              </Text>
               <Text style={styles.aiDetailedInterpretation}>{dim.content}</Text>
             </View>
           ))}
         </View>
       </View>
     );
-  };
-
-  // 渲染卡牌解读（根据类型选择不同的渲染方法）
-  const renderCardInterpretation = (cardData: any, index: number) => {
-    const isAI = history?.interpretation_mode === 'ai';
-
-    if (isAI && history?.result?.interpretation?.card_interpretations) {
-      // AI占卜：使用AI解读格式
-      return renderAICardInterpretation(cardData, index);
-    } else {
-      // 基础占卜：使用原有格式
-      return renderBasicCardInterpretation(cardData, index);
-    }
   };
 
   // 动画样式
@@ -338,7 +357,7 @@ export const HistoryDetail: React.FC<HistoryDetailProps> = ({
     return (
       <View style={[styles.container, styles.centerContent]}>
         <ActivityIndicator size="large" color="#FFD700" />
-        <Text style={styles.loadingText}>加载中...</Text>
+        <Text style={styles.loadingText}>{t('detail.loading')}</Text>
       </View>
     );
   }
@@ -347,9 +366,9 @@ export const HistoryDetail: React.FC<HistoryDetailProps> = ({
     return (
       <View style={[styles.container, styles.centerContent]}>
         <Text style={styles.errorIcon}>⚠️</Text>
-        <Text style={styles.errorText}>{error || '记录不存在'}</Text>
+        <Text style={styles.errorText}>{error || t('detail.recordMissing')}</Text>
         <TouchableOpacity style={styles.backButton} onPress={onBack}>
-          <Text style={styles.backButtonText}>返回</Text>
+          <Text style={styles.backButtonText}>{t('detail.back')}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -373,7 +392,7 @@ export const HistoryDetail: React.FC<HistoryDetailProps> = ({
               { backgroundColor: isAI ? '#00ced1' : '#ffd700' }
             ]}>
               <Text style={styles.typeBadgeText}>
-                {isAI ? '✨ AI解读' : '📖 基础解读'}
+                {isAI ? t('detail.mode.ai') : t('detail.mode.basic')}
               </Text>
             </View>
 
@@ -392,7 +411,7 @@ export const HistoryDetail: React.FC<HistoryDetailProps> = ({
         {isAI && interpretation?.card_interpretations && (
           <View style={styles.aiDimensionsContainer}>
             <Text style={styles.aiSectionTitle}>
-              {interpretation?.user_description || '您的塔罗牌与解读'}
+              {interpretation?.user_description || t('detail.userDescriptionFallback')}
             </Text>
             {interpretation.card_interpretations.map((cardInterpretation: any, index: number) =>
               renderAICardInterpretation(cardInterpretation, index)
@@ -404,7 +423,7 @@ export const HistoryDetail: React.FC<HistoryDetailProps> = ({
         {interpretation?.overall && (
           <Animated.View entering={FadeInDown.delay(200)} style={isAI ? styles.aiOverallContainer : styles.overallSection}>
             <Text style={isAI ? styles.aiSectionTitle : styles.sectionTitle}>
-              {isAI ? '综合分析' : '🔮 整体解读'}
+              {isAI ? t('detail.overall.titleAI') : t('detail.overall.titleBasic')}
             </Text>
             <View style={isAI ? styles.aiOverallContentContainer : styles.overallContainer}>
               <Text style={isAI ? styles.aiOverallSummary : styles.overallText}>
@@ -417,10 +436,10 @@ export const HistoryDetail: React.FC<HistoryDetailProps> = ({
         {/* AI占卜的关键洞察 */}
         {isAI && interpretation?.insights && interpretation.insights.length > 0 && (
           <View style={styles.aiInsightsContainer}>
-            <Text style={styles.aiSectionTitle}>关键洞察</Text>
+            <Text style={styles.aiSectionTitle}>{t('detail.insightsTitle')}</Text>
             {interpretation.insights.map((insight: string, index: number) => (
               <View key={index} style={styles.aiInsightItem}>
-                <Text style={styles.aiInsightBullet}>•</Text>
+                <Text style={styles.aiInsightBullet}>{t('detail.insightBullet')}</Text>
                 <Text style={styles.aiInsightText}>{insight}</Text>
               </View>
             ))}
@@ -431,13 +450,11 @@ export const HistoryDetail: React.FC<HistoryDetailProps> = ({
         {!isAI && interpretation?.cards && (
           <View style={styles.aiDimensionsContainer}>
             <Text style={styles.aiSectionTitle}>
-              {history.result?.metadata?.theme || '卡牌解读'}
+              {history.result?.metadata?.theme || t('detail.cardsTitle')}
             </Text>
-            {console.log('基础占卜 interpretation.cards:', interpretation.cards)}
-            {interpretation.cards.map((cardData: any, index: number) => {
-              console.log(`基础占卜 cardData ${index}:`, cardData);
-              return renderBasicCardInterpretation(cardData, index);
-            })}
+            {interpretation.cards.map((cardData: any, index: number) =>
+              renderBasicCardInterpretation(cardData, index)
+            )}
           </View>
         )}
 
@@ -465,7 +482,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(212, 175, 55, 0.3)',
   },
-  backButton: {
+  headerBackButton: {
     padding: 8,
     borderRadius: 20,
     backgroundColor: 'rgba(212, 175, 55, 0.1)',

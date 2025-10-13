@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Linking, Alert } from 'react-native';
 import Constants from 'expo-constants';
 import { CollapsibleSection } from '../common/CollapsibleSection';
@@ -110,6 +110,7 @@ export const SupportSection: React.FC = () => {
         );
       }
     } catch (error) {
+      console.warn('Failed to open support email link', error);
       Alert.alert(
         t('support.alerts.email.errorTitle'),
         t('support.alerts.email.errorMessage', { email }),

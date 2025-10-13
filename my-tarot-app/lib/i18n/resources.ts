@@ -3,12 +3,14 @@ import type { Resource } from 'i18next';
 import commonZH from '@/assets/i18n/zh-CN/common.json';
 import homeZH from '@/assets/i18n/zh-CN/home.json';
 import settingsZH from '@/assets/i18n/zh-CN/settings.json';
+import historyZH from '@/assets/i18n/zh-CN/history.json';
 
 import commonEN from '@/assets/i18n/en/common.json';
 import homeEN from '@/assets/i18n/en/home.json';
 import settingsEN from '@/assets/i18n/en/settings.json';
+import historyEN from '@/assets/i18n/en/history.json';
 
-export const NAMESPACES = ['common', 'home', 'settings'] as const;
+export const NAMESPACES = ['common', 'home', 'settings', 'history'] as const;
 
 export type Namespace = (typeof NAMESPACES)[number];
 
@@ -17,11 +19,13 @@ export const resources: Resource = {
     common: commonZH,
     home: homeZH,
     settings: settingsZH,
+    history: historyZH,
   },
   en: {
     common: commonEN,
     home: homeEN,
     settings: settingsEN,
+    history: historyEN,
   },
 };
 
