@@ -74,7 +74,6 @@ export default function SettingsScreen() {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          <LanguageSection />
           <RechargeSection
             currentCredits={userBalance?.credits || 0}
             userEmail={userProfile?.email}
@@ -84,6 +83,7 @@ export default function SettingsScreen() {
           <DisclaimerSection />
           <PrivacySection />
           <SupportSection />
+          <LanguageSection />
 
           {/* 加载状态和错误提示 */}
           {loading && (

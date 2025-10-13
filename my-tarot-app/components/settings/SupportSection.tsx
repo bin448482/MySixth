@@ -1,13 +1,40 @@
-import React from 'react';
+﻿import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Linking, Alert } from 'react-native';
 import Constants from 'expo-constants';
 import { CollapsibleSection } from '../common/CollapsibleSection';
+import { useTranslation } from '@/lib/hooks/useTranslation';
 
 interface SupportButtonProps {
   icon: string;
   title: string;
   subtitle: string;
   onPress: () => void;
+}
+
+interface SupportActionButton {
+  id: string;
+  icon: string;
+  title: string;
+  subtitle: string;
+  action: string;
+}
+
+interface SupportGroup {
+  id: string;
+  title: string;
+  buttons: SupportActionButton[];
+}
+
+interface VersionInfoLabels {
+  appVersion: string;
+  buildNumber: string;
+  updatedAt: string;
+}
+
+interface VersionInfoTranslation {
+  title?: string;
+  labels?: VersionInfoLabels;
+  updatedAt?: string;
 }
 
 const SupportButton: React.FC<SupportButtonProps> = ({ icon, title, subtitle, onPress }) => {
@@ -26,6 +53,20 @@ const SupportButton: React.FC<SupportButtonProps> = ({ icon, title, subtitle, on
 };
 
 export const SupportSection: React.FC = () => {
+  const { t } = useTranslation('settings');
+  const supportGroups = (t('support.groups', { returnObjects: true }) as SupportGroup[]) ?? [];
+  const versionInfo = (t('support.version', { returnObjects: true }) as VersionInfoTranslation) ?? {};
+  const versionLabels: VersionInfoLabels = versionInfo.labels ?? {
+    appVersion: '',
+    buildNumber: '',
+    updatedAt: '',
+  };
+  const emailAddress = t('support.contact.email');
+  const feedbackEmail = t('support.contact.feedbackEmail');
+  const okText = t('support.common.ok');
+  const cancelText = t('support.common.cancel');
+  const sendEmailText = t('support.common.sendEmail');
+
   const handleContact = (type: string) => {
     switch (type) {
       case 'email':
@@ -49,15 +90,11 @@ export const SupportSection: React.FC = () => {
   };
 
   const handleEmailContact = async () => {
-    const email = 'support@tarotapp.com';
-    const subject = '塔罗牌应用 - 用户咨询';
-    const body = `
-应用版本: ${Constants.expoConfig?.version || '1.0.0'}
-设备信息: ${Constants.deviceName || 'Unknown'}
-问题描述:
-
-[请在此处描述您遇到的问题或需要咨询的内容]
-    `.trim();
+    const email = emailAddress;
+    const version = Constants.expoConfig?.version || '1.0.0';
+    const device = Constants.deviceName || 'Unknown';
+    const subject = t('support.alerts.email.subject');
+    const body = t('support.alerts.email.body', { version, device });
 
     const url = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 
@@ -67,122 +104,94 @@ export const SupportSection: React.FC = () => {
         await Linking.openURL(url);
       } else {
         Alert.alert(
-          '无法打开邮箱',
-          `请手动发送邮件至: ${email}`,
-          [{ text: '确定' }]
+          t('support.alerts.email.errorTitle'),
+          t('support.alerts.email.errorMessage', { email }),
+          [{ text: okText }]
         );
       }
     } catch (error) {
       Alert.alert(
-        '邮箱打开失败',
-        `请手动发送邮件至: ${email}`,
-        [{ text: '确定' }]
+        t('support.alerts.email.errorTitle'),
+        t('support.alerts.email.errorMessage', { email }),
+        [{ text: okText }]
       );
     }
   };
 
   const handleFeedback = () => {
     Alert.alert(
-      '用户反馈',
-      '感谢您的反馈！您可以通过以下方式向我们提供建议：\n\n1. 发送邮件至 feedback@tarotapp.com\n2. 在应用商店留下评价\n3. 加入我们的用户群交流',
+      t('support.alerts.feedback.title'),
+      t('support.alerts.feedback.message', { email: feedbackEmail }),
       [
-        { text: '发送邮件', onPress: () => handleContact('email') },
-        { text: '取消', style: 'cancel' }
+        { text: sendEmailText, onPress: () => handleContact('email') },
+        { text: cancelText, style: 'cancel' }
       ]
     );
   };
 
   const handleCheckUpdate = () => {
-    // 模拟检查更新
+    const version = Constants.expoConfig?.version || '1.0.0';
     Alert.alert(
-      '检查更新',
-      `当前版本: ${Constants.expoConfig?.version || '1.0.0'}\n\n您已经使用的是最新版本！`,
-      [{ text: '确定' }]
+      t('support.alerts.update.title'),
+      t('support.alerts.update.message', { version }),
+      [{ text: okText }]
     );
   };
 
   const handleHelp = () => {
     Alert.alert(
-      '使用帮助',
-      '以下是一些常用功能的快速指南：\n\n• 占卜流程：选择类型 → 输入问题 → 抽牌 → 查看解读\n• 历史记录：可查看所有占卜历史和详细解读\n• 卡牌说明：了解78张塔罗牌的含义和背景\n• AI解读：获得更个性化的深度解读',
-      [{ text: '确定' }]
+      t('support.alerts.help.title'),
+      t('support.alerts.help.message'),
+      [{ text: okText }]
     );
   };
 
   const handleFAQ = () => {
     Alert.alert(
-      '常见问题',
-      '以下是一些常见问题的解答：\n\nQ: 塔罗牌准确吗？\nA: 塔罗牌是心理投射工具，重在启发思考。\n\nQ: AI解读如何收费？\nA: 按积分消费，1积分=1元。\n\nQ: 数据会丢失吗？\nA: 数据本地存储并可云端同步。\n\nQ: 如何删除历史记录？\nA: 在历史页面长按记录即可删除。',
-      [{ text: '确定' }]
+      t('support.alerts.faq.title'),
+      t('support.alerts.faq.message'),
+      [{ text: okText }]
     );
   };
 
   return (
     <CollapsibleSection
-      title="帮助与支持"
+      title={t('support.title')}
       icon="🆘"
       defaultExpanded={false}
     >
-      {/* 联系支持 */}
-      <View style={styles.supportGroup}>
-        <Text style={styles.groupTitle}>联系我们</Text>
-
-        <SupportButton
-          icon="✉️"
-          title="邮件客服"
-          subtitle="发送邮件获取专业帮助"
-          onPress={() => handleContact('email')}
-        />
-
-        <SupportButton
-          icon="💬"
-          title="用户反馈"
-          subtitle="分享您的建议和意见"
-          onPress={() => handleContact('feedback')}
-        />
-      </View>
-
-      {/* 应用相关 */}
-      <View style={styles.supportGroup}>
-        <Text style={styles.groupTitle}>应用信息</Text>
-
-        <SupportButton
-          icon="🔄"
-          title="检查更新"
-          subtitle="获取最新版本和功能"
-          onPress={() => handleContact('update')}
-        />
-
-        <SupportButton
-          icon="❓"
-          title="使用帮助"
-          subtitle="了解应用功能和操作指南"
-          onPress={() => handleContact('help')}
-        />
-
-        <SupportButton
-          icon="📋"
-          title="常见问题"
-          subtitle="查看常见问题解答"
-          onPress={() => handleContact('faq')}
-        />
-      </View>
+      {supportGroups.map(group => (
+        <View key={group.id} style={styles.supportGroup}>
+          {!!group.title && <Text style={styles.groupTitle}>{group.title}</Text>}
+          {group.buttons?.map(button => (
+            <SupportButton
+              key={`${group.id}-${button.id}`}
+              icon={button.icon}
+              title={button.title}
+              subtitle={button.subtitle}
+              onPress={() => handleContact(button.action)}
+            />
+          ))}
+        </View>
+      ))}
 
       {/* 版本信息 */}
       <View style={styles.versionInfo}>
-        <Text style={styles.versionTitle}>版本信息</Text>
+        {!!versionInfo.title && <Text style={styles.versionTitle}>{versionInfo.title}</Text>}
         <View style={styles.versionDetails}>
           <View style={styles.versionRow}>
-            <Text style={styles.versionLabel}>应用版本</Text>
+            <Text style={styles.versionLabel}>{versionLabels.appVersion}</Text>
             <Text style={styles.versionValue}>{Constants.expoConfig?.version || '1.0.0'}</Text>
           </View>
           <View style={styles.versionRow}>
-            <Text style={styles.versionLabel}>构建版本</Text>
-            <Text style={styles.versionValue}>1</Text>
+            <Text style={styles.versionLabel}>{versionLabels.buildNumber}</Text>
+            <Text style={styles.versionValue}>
+              {Constants.expoConfig?.android?.versionCode ?? Constants.expoConfig?.ios?.buildNumber ?? '1'}
+            </Text>
           </View>
           <View style={styles.versionRow}>
-            <Text style={styles.versionLabel}>更新时间</Text>
-            <Text style={styles.versionValue}>2024-01-01</Text>
+            <Text style={styles.versionLabel}>{versionLabels.updatedAt}</Text>
+            <Text style={styles.versionValue}>{versionInfo.updatedAt ?? ''}</Text>
           </View>
         </View>
       </View>

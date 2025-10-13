@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Constants from 'expo-constants';
 import { CollapsibleSection } from '../common/CollapsibleSection';
+import { useTranslation } from '@/lib/hooks/useTranslation';
 
 interface AppInfoSectionProps {
   version?: string;
@@ -30,31 +31,45 @@ export const AppInfoSection: React.FC<AppInfoSectionProps> = ({
   version = Constants.expoConfig?.version || "1.0.0",
   buildNumber = "1"
 }) => {
+  const { t } = useTranslation('settings');
+  const infoCards: InfoCardProps[] = [
+    {
+      icon: '✨',
+      title: t('appInfo.vision.title'),
+      content: t('appInfo.vision.description'),
+    },
+    {
+      icon: '🎯',
+      title: t('appInfo.mission.title'),
+      content: t('appInfo.mission.description'),
+    },
+  ];
+
   return (
     <CollapsibleSection
-      title="应用信息"
+      title={t('appInfo.title')}
       icon="📱"
       defaultExpanded={false}
     >
       {/* Logo区域 */}
       <View style={styles.logoContainer}>
         <Text style={styles.appLogo}>🔮</Text>
-        <Text style={styles.appName}>神秘塔罗牌</Text>
-        <Text style={styles.versionText}>v{version} ({buildNumber})</Text>
+        <Text style={styles.appName}>{t('appInfo.appName')}</Text>
+        <Text style={styles.versionText}>
+          {t('appInfo.versionFormat', { version, buildNumber })}
+        </Text>
       </View>
 
       {/* 愿景使命 */}
       <View style={styles.missionContainer}>
-        <InfoCard
-          icon="✨"
-          title="我们的愿景"
-          content="为用户提供深入、个性化的塔罗牌洞察"
-        />
-        <InfoCard
-          icon="🎯"
-          title="我们的使命"
-          content="结合传统塔罗智慧与现代AI技术，帮助用户探索内心世界"
-        />
+        {infoCards.map(card => (
+          <InfoCard
+            key={card.title}
+            icon={card.icon}
+            title={card.title}
+            content={card.content}
+          />
+        ))}
       </View>
     </CollapsibleSection>
   );
