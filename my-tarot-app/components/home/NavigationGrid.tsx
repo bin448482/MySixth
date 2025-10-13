@@ -56,7 +56,9 @@ const itemWidth = (width - 60) / 2; // 20px margin * 2 + 20px gap
 
 export const NavigationGrid: React.FC = () => {
   const router = useRouter();
-  const { t } = useTranslation('home');
+  const { t, i18n } = useTranslation('home');
+  const resolvedLocale = i18n.resolvedLanguage ?? i18n.language;
+  const isEnglish = resolvedLocale?.toLowerCase().startsWith('en');
 
   const NavigationButton: React.FC<{ item: NavigationItem; index: number }> = ({ item, index }) => {
     const scale = useSharedValue(1);
@@ -102,7 +104,7 @@ export const NavigationGrid: React.FC = () => {
             <BlurView intensity={15} style={styles.itemBlur}>
               <View style={[styles.itemContent, { backgroundColor: `${item.color}20` }]}>
                 <Text style={styles.itemIcon}>{item.icon}</Text>
-                <Text style={styles.itemTitle}>{t(item.titleKey)}</Text>
+                <Text style={[styles.itemTitle, isEnglish && styles.itemTitleEn]}>{t(item.titleKey)}</Text>
                 <View style={[styles.itemAccent, { backgroundColor: item.color }]} />
               </View>
             </BlurView>
@@ -162,6 +164,10 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#ffffff',
     textAlign: 'center',
+  },
+  itemTitleEn: {
+    fontSize: 15,
+    lineHeight: 20,
   },
   itemAccent: {
     position: 'absolute',

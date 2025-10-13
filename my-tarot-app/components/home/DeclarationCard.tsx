@@ -11,7 +11,9 @@ import { BlurView } from 'expo-blur';
 import { useTranslation } from '@/lib/hooks/useTranslation';
 
 export const DeclarationCard: React.FC = () => {
-  const { t } = useTranslation('home');
+  const { t, i18n } = useTranslation('home');
+  const resolvedLocale = i18n.resolvedLanguage ?? i18n.language;
+  const isEnglish = resolvedLocale?.toLowerCase().startsWith('en');
   const glowOpacity = useSharedValue(0.5);
   const declarationTexts = React.useMemo(() => {
     const lines = t('declaration.lines', { returnObjects: true });
@@ -33,17 +35,17 @@ export const DeclarationCard: React.FC = () => {
   return (
     <Animated.View
       entering={FadeInDown.delay(600).duration(800)}
-      style={styles.container}
+      style={[styles.container, isEnglish && styles.containerEn]}
     >
       <BlurView intensity={20} style={styles.blurContainer}>
         <Animated.View style={[styles.glowBorder, glowStyle]} />
-        <View style={styles.content}>
+        <View style={[styles.content, isEnglish && styles.contentEn]}>
           {declarationTexts.map((text, index) => (
             <Animated.View
               key={index}
               entering={FadeInDown.delay(800 + index * 100).duration(600)}
             >
-              <Text style={styles.declarationText}>
+              <Text style={[styles.declarationText, isEnglish && styles.declarationTextEn]}>
                 ✨ {text}
               </Text>
             </Animated.View>
@@ -58,6 +60,9 @@ const styles = StyleSheet.create({
   container: {
     marginHorizontal: 20,
     marginVertical: 24,
+  },
+  containerEn: {
+    marginHorizontal: 16,
   },
   blurContainer: {
     borderRadius: 16,
@@ -85,11 +90,18 @@ const styles = StyleSheet.create({
     padding: 20,
     gap: 12,
   },
+  contentEn: {
+    paddingHorizontal: 24,
+  },
   declarationText: {
     fontSize: 15,
     color: '#e6e6fa',
     textAlign: 'center',
     lineHeight: 22,
     fontWeight: '400',
+  },
+  declarationTextEn: {
+    fontSize: 14,
+    lineHeight: 20,
   },
 });
