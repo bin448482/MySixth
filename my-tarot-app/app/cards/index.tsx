@@ -26,8 +26,21 @@ import { CardInfoService } from '@/lib/services/card-info';
 import type { CardSummary, CardDetail, TarotHistory, CardFilters, CardSide } from '@/lib/types/cards';
 import { Colors } from '@/constants/theme';
 import { useAppContext } from '@/lib/contexts/AppContext';
+import { useTranslation } from '@/lib/hooks/useTranslation';
 
 const { width: screenWidth } = Dimensions.get('window');
+
+const SUIT_KEY_MAP = {
+  wands: 'filters.suit.wands',
+  cups: 'filters.suit.cups',
+  swords: 'filters.suit.swords',
+  pentacles: 'filters.suit.pentacles',
+  权杖: 'filters.suit.wands',
+  圣杯: 'filters.suit.cups',
+  宝剑: 'filters.suit.swords',
+  星币: 'filters.suit.pentacles',
+  钱币: 'filters.suit.pentacles',
+} as const;
 
 interface FilterButtonProps {
   title: string;
@@ -52,71 +65,91 @@ interface TarotHistoryPanelProps {
   onToggle: () => void;
 }
 
-const TarotHistoryPanel: React.FC<TarotHistoryPanelProps> = ({ history, expanded, onToggle }) => (
-  <View style={styles.historyPanel}>
-    <TouchableOpacity style={styles.historyHeader} onPress={onToggle}>
-      <Text style={styles.historyTitle}>塔罗牌历史文化</Text>
-      <Ionicons
-        name={expanded ? "chevron-up" : "chevron-down"}
-        size={20}
-        color={Colors.light.tint}
-      />
-    </TouchableOpacity>
+const TarotHistoryPanel: React.FC<TarotHistoryPanelProps> = ({ history, expanded, onToggle }) => {
+  const { t } = useTranslation('cards');
 
-    {expanded && (
-      <View style={styles.historyContent}>
-        <View style={styles.historySection}>
-          <Text style={styles.historySectionTitle}>概述</Text>
-          <Text style={styles.historySectionText}>{history.overview}</Text>
-        </View>
+  return (
+    <View style={styles.historyPanel}>
+      <TouchableOpacity style={styles.historyHeader} onPress={onToggle}>
+        <Text style={styles.historyTitle}>{t('history.title')}</Text>
+        <Ionicons
+          name={expanded ? "chevron-up" : "chevron-down"}
+          size={20}
+          color={Colors.light.tint}
+        />
+      </TouchableOpacity>
 
-        <View style={styles.historySection}>
-          <Text style={styles.historySectionTitle}>历史起源</Text>
-          <Text style={styles.historySectionText}>{history.origins}</Text>
-        </View>
+      {expanded && (
+        <View style={styles.historyContent}>
+          <View style={styles.historySection}>
+            <Text style={styles.historySectionTitle}>{t('history.sections.overview')}</Text>
+            <Text style={styles.historySectionText}>{history.overview}</Text>
+          </View>
 
-        <View style={styles.historySection}>
-          <Text style={styles.historySectionTitle}>大小阿卡纳</Text>
-          <Text style={styles.historySectionText}>{history.major_minor}</Text>
-        </View>
+          <View style={styles.historySection}>
+            <Text style={styles.historySectionTitle}>{t('history.sections.origins')}</Text>
+            <Text style={styles.historySectionText}>{history.origins}</Text>
+          </View>
 
-        <View style={styles.historySection}>
-          <Text style={styles.historySectionTitle}>使用指导</Text>
-          <Text style={styles.historySectionText}>{history.usage_notes}</Text>
+          <View style={styles.historySection}>
+            <Text style={styles.historySectionTitle}>{t('history.sections.majorMinor')}</Text>
+            <Text style={styles.historySectionText}>{history.major_minor}</Text>
+          </View>
+
+          <View style={styles.historySection}>
+            <Text style={styles.historySectionTitle}>{t('history.sections.usage')}</Text>
+            <Text style={styles.historySectionText}>{history.usage_notes}</Text>
+          </View>
         </View>
-      </View>
-    )}
-  </View>
-);
+      )}
+    </View>
+  );
+};
 
 interface CardItemProps {
   card: CardSummary;
   onPress: (cardId: number) => void;
 }
 
-const CardItem: React.FC<CardItemProps> = ({ card, onPress }) => (
-  <TouchableOpacity
-    style={styles.cardItem}
-    onPress={() => onPress(card.id)}
-    activeOpacity={0.7}
-  >
-    <View style={styles.cardImageContainer}>
-      <Image
-        source={card.image}
-        style={styles.cardImage}
-        resizeMode="cover"
-      />
-      <View style={styles.cardOverlay}>
-        <Text style={styles.cardName}>{card.name}</Text>
-        <Text style={styles.cardInfo}>
-          {card.arcana === 'major' ? '大阿卡纳' : '小阿卡纳'}
-          {card.suit && ` • ${card.suit}`}
-          {card.number !== undefined && ` • ${card.number}`}
-        </Text>
+const CardItem: React.FC<CardItemProps> = ({ card, onPress }) => {
+  const { t } = useTranslation('cards');
+
+  const arcanaLabel = card.arcana === 'major' ? t('arcana.major') : t('arcana.minor');
+  const normalizedSuit = card.suit ? card.suit.toLowerCase() : undefined;
+  const suitKey = card.suit
+    ? SUIT_KEY_MAP[card.suit as keyof typeof SUIT_KEY_MAP] ??
+      (normalizedSuit ? SUIT_KEY_MAP[normalizedSuit as keyof typeof SUIT_KEY_MAP] : undefined)
+    : undefined;
+  const suitLabel = suitKey ? t(suitKey) : card.suit;
+
+  const metaParts = [arcanaLabel];
+  if (suitLabel) {
+    metaParts.push(suitLabel);
+  }
+  if (card.number !== undefined) {
+    metaParts.push(String(card.number));
+  }
+
+  return (
+    <TouchableOpacity
+      style={styles.cardItem}
+      onPress={() => onPress(card.id)}
+      activeOpacity={0.7}
+    >
+      <View style={styles.cardImageContainer}>
+        <Image
+          source={card.image}
+          style={styles.cardImage}
+          resizeMode="cover"
+        />
+        <View style={styles.cardOverlay}>
+          <Text style={styles.cardName}>{card.name}</Text>
+          <Text style={styles.cardInfo}>{metaParts.join(' • ')}</Text>
+        </View>
       </View>
-    </View>
-  </TouchableOpacity>
-);
+    </TouchableOpacity>
+  );
+};
 
 interface SideToggleProps {
   side: CardSide;
@@ -124,6 +157,7 @@ interface SideToggleProps {
 }
 
 const SideToggle: React.FC<SideToggleProps> = ({ side, onSideChange }) => {
+  const { t } = useTranslation('cards');
   const animatedValue = useSharedValue(side === 'upright' ? 0 : 1);
 
   useEffect(() => {
@@ -156,7 +190,7 @@ const SideToggle: React.FC<SideToggleProps> = ({ side, onSideChange }) => {
 
   return (
     <View style={styles.sideToggleContainer}>
-      <Text style={styles.sideToggleLabel}>解读方向</Text>
+      <Text style={styles.sideToggleLabel}>{t('sideToggle.label')}</Text>
       <Animated.View style={[styles.toggleContainer, containerStyle]}>
         <TouchableOpacity
           style={styles.toggleOption}
@@ -167,7 +201,7 @@ const SideToggle: React.FC<SideToggleProps> = ({ side, onSideChange }) => {
             styles.toggleText,
             side === 'upright' && styles.toggleTextActive
           ]}>
-            正位
+            {t('sideToggle.upright')}
           </Text>
         </TouchableOpacity>
 
@@ -180,7 +214,7 @@ const SideToggle: React.FC<SideToggleProps> = ({ side, onSideChange }) => {
             styles.toggleText,
             side === 'reversed' && styles.toggleTextActive
           ]}>
-            逆位
+            {t('sideToggle.reversed')}
           </Text>
         </TouchableOpacity>
 
@@ -196,31 +230,31 @@ interface InterpretationContentProps {
 }
 
 const InterpretationContent: React.FC<InterpretationContentProps> = ({ card, side }) => {
+  const { t } = useTranslation('cards');
   const interpretation = card.interpretations[side];
+
+  const title = side === 'upright' ? t('sideToggle.uprightTitle') : t('sideToggle.reversedTitle');
+  const directionLabel = side === 'upright' ? t('sideToggle.upright') : t('sideToggle.reversed');
 
   return (
     <View style={styles.interpretationContainer}>
       <View style={styles.interpretationHeader}>
-        <Text style={styles.interpretationTitle}>
-          {side === 'upright' ? '正位解读' : '逆位解读'}
-        </Text>
+        <Text style={styles.interpretationTitle}>{title}</Text>
         <View style={[
           styles.directionBadge,
           side === 'upright' ? styles.uprightBadge : styles.reversedBadge
         ]}>
-          <Text style={styles.directionBadgeText}>
-            {side === 'upright' ? '正位' : '逆位'}
-          </Text>
+          <Text style={styles.directionBadgeText}>{directionLabel}</Text>
         </View>
       </View>
 
       <View style={styles.summaryContainer}>
-        <Text style={styles.summaryLabel}>核心牌意</Text>
+        <Text style={styles.summaryLabel}>{t('interpretation.summary')}</Text>
         <Text style={styles.summaryText}>{interpretation.summary}</Text>
       </View>
 
       <View style={styles.detailContainer}>
-        <Text style={styles.detailLabel}>详细解读</Text>
+        <Text style={styles.detailLabel}>{t('interpretation.detail')}</Text>
         <Text style={styles.detailText}>{interpretation.detail}</Text>
       </View>
     </View>
@@ -229,6 +263,7 @@ const InterpretationContent: React.FC<InterpretationContentProps> = ({ card, sid
 
 export default function CardsIndexScreen() {
   const { state: appState } = useAppContext();
+  const { t } = useTranslation('cards');
   const [cards, setCards] = useState<CardSummary[]>([]);
   const [history, setHistory] = useState<TarotHistory | null>(null);
   const [loading, setLoading] = useState(true);
@@ -272,7 +307,7 @@ export default function CardsIndexScreen() {
       if (cardsResponse.success && cardsResponse.data) {
         setCards(cardsResponse.data);
       } else {
-        Alert.alert('错误', cardsResponse.error || '无法加载卡牌数据');
+        Alert.alert(t('alerts.errorTitle'), cardsResponse.error || t('alerts.loadCardsFailed'));
       }
 
       if (historyResponse.success && historyResponse.data) {
@@ -283,7 +318,7 @@ export default function CardsIndexScreen() {
 
     } catch (error) {
       console.error('Error loading cards data:', error);
-      Alert.alert('错误', '加载数据时发生错误');
+      Alert.alert(t('alerts.errorTitle'), t('alerts.loadDataFailed'));
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -314,12 +349,12 @@ export default function CardsIndexScreen() {
         setSelectedCard(cardResponse.data);
         setCardSide('upright'); // 重置为正位
       } else {
-        Alert.alert('错误', cardResponse.error || '无法加载卡牌详情');
+        Alert.alert(t('alerts.errorTitle'), cardResponse.error || t('alerts.loadCardDetailFailed'));
         setSelectedCardId(null);
       }
     } catch (error) {
       console.error('Error loading card detail:', error);
-      Alert.alert('错误', '加载卡牌详情时发生错误');
+      Alert.alert(t('alerts.errorTitle'), t('alerts.loadCardDetailError'));
       setSelectedCardId(null);
     } finally {
       setCardDetailLoading(false);
@@ -359,23 +394,23 @@ export default function CardsIndexScreen() {
 
       {/* 筛选器 */}
       <View style={styles.filtersContainer}>
-        <Text style={styles.filtersTitle}>筛选卡牌</Text>
+        <Text style={styles.filtersTitle}>{t('filters.title')}</Text>
 
         <View style={styles.filterRow}>
-          <Text style={styles.filterLabel}>阿卡纳:</Text>
+          <Text style={styles.filterLabel}>{t('filters.arcanaLabel')}</Text>
           <View style={styles.filterButtons}>
             <FilterButton
-              title="全部"
+              title={t('filters.arcana.all')}
               active={filters.arcana === 'all'}
               onPress={() => handleFilterChange({ arcana: 'all' })}
             />
             <FilterButton
-              title="大阿卡纳"
+              title={t('filters.arcana.major')}
               active={filters.arcana === 'major'}
               onPress={() => handleFilterChange({ arcana: 'major' })}
             />
             <FilterButton
-              title="小阿卡纳"
+              title={t('filters.arcana.minor')}
               active={filters.arcana === 'minor'}
               onPress={() => handleFilterChange({ arcana: 'minor' })}
             />
@@ -384,30 +419,30 @@ export default function CardsIndexScreen() {
 
         {filters.arcana === 'minor' && (
           <View style={styles.filterRow}>
-            <Text style={styles.filterLabel}>花色:</Text>
+            <Text style={styles.filterLabel}>{t('filters.suitLabel')}</Text>
             <View style={styles.filterButtons}>
               <FilterButton
-                title="全部"
+                title={t('filters.suit.all')}
                 active={filters.suit === 'all'}
                 onPress={() => handleFilterChange({ suit: 'all' })}
               />
               <FilterButton
-                title="权杖"
+                title={t('filters.suit.wands')}
                 active={filters.suit === 'wands'}
                 onPress={() => handleFilterChange({ suit: 'wands' })}
               />
               <FilterButton
-                title="圣杯"
+                title={t('filters.suit.cups')}
                 active={filters.suit === 'cups'}
                 onPress={() => handleFilterChange({ suit: 'cups' })}
               />
               <FilterButton
-                title="宝剑"
+                title={t('filters.suit.swords')}
                 active={filters.suit === 'swords'}
                 onPress={() => handleFilterChange({ suit: 'swords' })}
               />
               <FilterButton
-                title="钱币"
+                title={t('filters.suit.pentacles')}
                 active={filters.suit === 'pentacles'}
                 onPress={() => handleFilterChange({ suit: 'pentacles' })}
               />
@@ -418,7 +453,7 @@ export default function CardsIndexScreen() {
 
       <View style={styles.cardsHeader}>
         <Text style={styles.cardsTitle}>
-          塔罗牌库 ({cards.length} 张)
+          {t('list.title', { count: cards.length })}
         </Text>
       </View>
     </View>
@@ -431,10 +466,10 @@ export default function CardsIndexScreen() {
           <ActivityIndicator size="large" color={Colors.light.tint} />
           <Text style={styles.loadingText}>
             {appState.databaseError
-              ? '数据库初始化失败'
+              ? t('status.dbInitFailed')
               : appState.isInitializingDatabase
-                ? '正在初始化数据库...'
-                : '加载卡牌数据...'}
+                ? t('status.dbInitializing')
+                : t('status.loadingCards')}
           </Text>
           {appState.databaseError && (
             <Text style={styles.errorText}>{appState.databaseError}</Text>
@@ -446,6 +481,17 @@ export default function CardsIndexScreen() {
 
   // 显示卡牌详情
   if (selectedCardId && selectedCard) {
+    const arcanaLabel = selectedCard.arcana === 'major' ? t('arcana.major') : t('arcana.minor');
+    const normalizedSuit = selectedCard.suit ? selectedCard.suit.toLowerCase() : undefined;
+    const suitKey = selectedCard.suit
+      ? SUIT_KEY_MAP[selectedCard.suit as keyof typeof SUIT_KEY_MAP] ??
+        (normalizedSuit ? SUIT_KEY_MAP[normalizedSuit as keyof typeof SUIT_KEY_MAP] : undefined)
+      : undefined;
+    const suitLabel = suitKey ? t(suitKey) : selectedCard.suit;
+    const numberLabel = selectedCard.number !== undefined ? t('detail.number', { number: selectedCard.number }) : null;
+    const metaText = [arcanaLabel, suitLabel, numberLabel].filter(Boolean).join(' • ');
+    const deckText = selectedCard.deck ? t('detail.deck', { deck: selectedCard.deck }) : null;
+
     return (
       <SafeAreaView style={styles.container}>
         {/* 卡牌详情页面的自定义标题栏 */}
@@ -474,18 +520,10 @@ export default function CardsIndexScreen() {
             <View style={styles.cardDetailInfo}>
               <Text style={styles.cardDetailName}>{selectedCard.name}</Text>
               <View style={styles.cardMeta}>
-                <Text style={styles.cardMetaText}>
-                  {selectedCard.arcana === 'major' ? '大阿卡纳' : '小阿卡纳'}
-                </Text>
-                {selectedCard.suit && (
-                  <Text style={styles.cardMetaText}> • {selectedCard.suit}</Text>
-                )}
-                {selectedCard.number !== undefined && (
-                  <Text style={styles.cardMetaText}> • 第{selectedCard.number}号</Text>
-                )}
+                <Text style={styles.cardMetaText}>{metaText}</Text>
               </View>
-              {selectedCard.deck && (
-                <Text style={styles.deckInfo}>来自: {selectedCard.deck}</Text>
+              {deckText && (
+                <Text style={styles.deckInfo}>{deckText}</Text>
               )}
             </View>
           </View>
@@ -514,12 +552,12 @@ export default function CardsIndexScreen() {
           >
             <Ionicons name="arrow-back" size={24} color="#d4af37" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>卡牌详情</Text>
+          <Text style={styles.headerTitle}>{t('detail.detailHeader')}</Text>
           <View style={styles.headerSpacer} />
         </View>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={Colors.light.tint} />
-          <Text style={styles.loadingText}>加载卡牌详情...</Text>
+          <Text style={styles.loadingText}>{t('status.loadingDetail')}</Text>
         </View>
       </SafeAreaView>
     );
@@ -535,7 +573,7 @@ export default function CardsIndexScreen() {
         >
           <Ionicons name="arrow-back" size={24} color="#d4af37" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>卡牌说明</Text>
+        <Text style={styles.headerTitle}>{t('detail.header')}</Text>
         <View style={styles.headerSpacer} />
       </View>
 
