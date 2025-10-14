@@ -7,6 +7,7 @@ import {
 } from 'react-native';
 import { CardSlot } from './CardSlot';
 import { DraggableCard } from './DraggableCard';
+import { useTranslation } from 'react-i18next';
 
 interface DimensionData {
   id: number;
@@ -60,6 +61,7 @@ export function DragDropContainer({
   const [highlightedSlot, setHighlightedSlot] = useState<number | null>(null);
   const [cardPlacements, setCardPlacements] = useState<{ [cardId: number]: number }>({});
   const [slotPositions, setSlotPositions] = useState<SlotPosition[]>([]);
+  const { t } = useTranslation('reading');
 
   const containerRef = useRef<View>(null);
   const slotRefs = useRef<(View | null)[]>([]);
@@ -134,7 +136,10 @@ export function DragDropContainer({
         }
       } else {
         // 卡槽已被占用
-        Alert.alert('提示', '这个位置已经有卡牌了，请选择其他位置');
+        Alert.alert(
+          t('shared.components.dragDrop.slotOccupiedTitle'),
+          t('shared.components.dragDrop.slotOccupiedMessage')
+        );
       }
     }
 

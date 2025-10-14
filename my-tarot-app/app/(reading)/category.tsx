@@ -11,6 +11,7 @@ import { useRouter } from 'expo-router';
 import { useReadingFlow } from '@/lib/contexts/ReadingContext';
 import { DimensionService } from '@/lib/services/DimensionService';
 // import { DatabaseInitializer } from '@/lib/database/initializer';
+import { useTranslation } from 'react-i18next';
 
 interface GroupItem {
   id: string;
@@ -28,6 +29,7 @@ export default function CategorySelectionScreen() {
   const [groups, setGroups] = useState<GroupItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
+  const { t } = useTranslation('reading');
 
   const dimensionService = DimensionService.getInstance();
 
@@ -128,7 +130,7 @@ export default function CategorySelectionScreen() {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#FFD700" />
-        <Text style={styles.loadingText}>正在加载主题...</Text>
+        <Text style={styles.loadingText}>{t('category.loading')}</Text>
       </View>
     );
   }
@@ -139,8 +141,8 @@ export default function CategorySelectionScreen() {
       showsVerticalScrollIndicator={false}
     >
       <View style={styles.header}>
-        <Text style={styles.title}>选择占卜主题</Text>
-        <Text style={styles.subtitle}>请选择您希望占卜的主题（按主题分组）</Text>
+        <Text style={styles.title}>{t('category.title')}</Text>
+        <Text style={styles.subtitle}>{t('category.subtitle')}</Text>
         
       </View>
 
@@ -185,13 +187,15 @@ export default function CategorySelectionScreen() {
             onPress={handleConfirm}
             activeOpacity={0.8}
           >
-            <Text style={styles.confirmButtonText}>确认选择并继续</Text>
+            <Text style={styles.confirmButtonText}>{t('category.confirm')}</Text>
           </TouchableOpacity>
         </View>
       )}
 
       <View style={styles.footer}>
-        <Text style={styles.footerText}>步骤 2 / 4</Text>
+        <Text style={styles.footerText}>
+          {t('shared.stepIndicator', { current: 2, total: 4 })}
+        </Text>
       </View>
     </ScrollView>
   );

@@ -18,6 +18,7 @@ import { CardInterpretationService } from '@/lib/services/CardInterpretationServ
 import { CardFlipAnimation } from '@/components/reading/CardFlipAnimation';
 import { DragDropContainer } from '@/components/reading/DragDropContainer';
 import { SimpleTestCard } from '@/components/reading/SimpleTestCard';
+import { useTranslation } from 'react-i18next';
 
 interface DrawnCard {
   cardId: number;
@@ -33,6 +34,8 @@ interface DrawnCard {
 export default function DrawCardsScreen() {
   const router = useRouter();
   const { state, updateStep, updateCards, resetFlow } = useReadingFlow();
+  const { t } = useTranslation('reading');
+  const { t: tCommon } = useTranslation('common');
   const [drawnCards, setDrawnCards] = useState<DrawnCard[]>([]);
   const [dimensions, setDimensions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,21 +62,21 @@ export default function DrawCardsScreen() {
         const isAIReading = state.type === 'ai';
         const hasConsumedCredits = isAIReading && state.userDescription && state.aiDimensions;
 
-        const title = '确认返回';
+        const title = t('shared.alerts.confirmExit.title');
         const message = hasConsumedCredits
-          ? '您已完成AI分析，返回将损失已消耗的积分。确定要返回吗？'
-          : '返回将取消当前占卜流程。确定要返回吗？';
+          ? t('shared.alerts.confirmExit.afterAnalysis')
+          : t('shared.alerts.confirmExit.default');
 
         Alert.alert(
           title,
           message,
           [
             {
-              text: '取消',
+              text: tCommon('app.cancel'),
               style: 'cancel',
             },
             {
-              text: '确定返回',
+              text: t('shared.buttons.confirmReturn'),
               onPress: () => {
                 // 清除状态并直接跳转到选择占卜类型页面
                 resetFlow();
@@ -109,11 +112,11 @@ export default function DrawCardsScreen() {
           dimensions: state.dimensions
         });
         // 如果没有维度数据，设置错误状态
-        setError('缺少占卜维度数据，请返回上一步重新选择');
+        setError(t('shared.errors.missingDimensions'));
       }
     } catch (error) {
       console.error('Error loading dimensions:', error);
-      setError('加载维度数据失败，请重试');
+      setError(t('shared.errors.dimensionLoadFailed'));
     } finally {
       setLoading(false);
     }
@@ -126,7 +129,7 @@ export default function DrawCardsScreen() {
 
       // 检查维度数据
       if (!dimensions || dimensions.length < 3) {
-        throw new Error('维度数据不完整，请返回上一步重新选择');
+        throw new Error(t('shared.errors.missingDimensions'));
       }
 
       // 点击抽牌按钮时开始3秒计时
@@ -137,11 +140,11 @@ export default function DrawCardsScreen() {
       // 1. 获取所有卡牌并随机抽取3张
       const cardsResult = await cardService.getAllCards();
       if (!cardsResult.success || !cardsResult.data) {
-        throw new Error('加载卡牌数据失败，请检查网络连接');
+        throw new Error(t('shared.errors.cardDataFailed'));
       }
 
       if (cardsResult.data.length < 3) {
-        throw new Error('可用卡牌数量不足，请联系技术支持');
+        throw new Error(t('shared.errors.insufficientCards'));
       }
 
       const shuffled = [...cardsResult.data].sort(() => Math.random() - 0.5);
@@ -160,7 +163,9 @@ export default function DrawCardsScreen() {
             cardId: card.id,
             name: card.name,
             imageUrl: card.image_url,
-            position: dimensions[index]?.aspect || `位置${index + 1}`,
+        position:
+          dimensions[index]?.aspect ||
+          t('draw.positionFallback', { index: index + 1 }),
             dimension: dimensions[index],
             direction,
             revealed: false, // 初始状态显示牌背，只有放入卡槽才翻牌
@@ -174,7 +179,7 @@ export default function DrawCardsScreen() {
       console.error('Error drawing cards:', error);
       const errorMessage = error instanceof Error
         ? error.message
-        : '抽牌失败，请重试';
+        : t('shared.errors.drawFailed');
       setError(errorMessage);
     } finally {
       setIsDrawing(false);
@@ -245,7 +250,9 @@ export default function DrawCardsScreen() {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#FFD700" />
-        <Text style={styles.loadingText}>正在加载占卜维度...</Text>
+    <Text style={styles.loadingText}>
+      {t('shared.status.loadingDimensions')}
+    </Text>
       </View>
     );
   }
@@ -256,12 +263,11 @@ export default function DrawCardsScreen() {
       showsVerticalScrollIndicator={false}
     >
       <View style={styles.header}>
-        <Text style={styles.title}>抽取塔罗牌</Text>
+        <Text style={styles.title}>{t('draw.title')}</Text>
         <Text style={styles.subtitle}>
           {state.type === 'ai'
-            ? '点击抽牌后，通过冥想与牌建立精神连线，会可能召唤出牌灵。将卡牌拖拽到对应位置，AI将为您生成个性化解读'
-            : '点击抽牌后，通过冥想与牌建立精神连线，会可能召唤出牌灵。将卡牌拖拽到对应位置，然后生成牌意个性化解读'
-          }
+            ? t('draw.subtitle.ai')
+            : t('draw.subtitle.offline')}
         </Text>
       </View>
 
@@ -271,7 +277,7 @@ export default function DrawCardsScreen() {
         {/* 暂时注释测试卡片 */}
         {/*
         <View style={styles.testCardContainer}>
-          <Text style={styles.testLabel}>测试拖拽 (如果这个能拖动，说明手势系统正常):</Text>
+          <Text style={styles.testLabel}>{t('draw.debug.dragTest')}</Text>
           <SimpleTestCard onDrag={(id, x, y) => console.log('Test drag:', x, y)} />
         </View>
         */}
@@ -298,7 +304,9 @@ export default function DrawCardsScreen() {
             {isDrawing ? (
               <ActivityIndicator size="small" color="#0F0F1A" />
             ) : (
-              <Text style={styles.drawButtonText}>抽牌</Text>
+            <Text style={styles.drawButtonText}>
+              {t('draw.buttons.draw')}
+            </Text>
             )}
           </TouchableOpacity>
         ) : allCardsPlaced ? (
@@ -308,18 +316,22 @@ export default function DrawCardsScreen() {
             activeOpacity={0.8}
           >
             <Text style={styles.continueButtonText}>
-              {state.type === 'ai' ? '生成AI解读' : '查看解读'}
+              {state.type === 'ai'
+                ? t('draw.buttons.generateAI')
+                : t('draw.buttons.viewInterpretation')}
             </Text>
           </TouchableOpacity>
         ) : (
           <View style={styles.dragHintContainer}>
-            <Text style={styles.dragHintText}>请将卡牌拖拽到对应的位置</Text>
+            <Text style={styles.dragHintText}>{t('draw.dragHint')}</Text>
           </View>
         )}
       </View>
 
       <View style={styles.footer}>
-        <Text style={styles.footerText}>步骤 3 / 4</Text>
+        <Text style={styles.footerText}>
+          {t('shared.stepIndicator', { current: 3, total: 4 })}
+        </Text>
       </View>
     </ScrollView>
   );

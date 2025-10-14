@@ -3,7 +3,8 @@ Reading service for tarot card interpretation business logic.
 """
 import json
 import re
-from typing import Dict, List, Optional, Any, Set
+from datetime import datetime
+from typing import Dict, List, Optional, Any
 from sqlalchemy.orm import Session
 
 from ..database import get_db
@@ -31,13 +32,22 @@ class ReadingService:
             "aspect_type": dimension.aspect_type
         }
 
-    async def analyze_user_description(self, description: str, spread_type: str, db: Session) -> List[Dict[str, Any]]:
+    async def analyze_user_description(
+        self,
+        description: str,
+        spread_type: str,
+        locale: str,
+        db: Session
+    ) -> List[Dict[str, Any]]:
         """
         第一步：分析用户描述，返回推荐的维度信息。
+
         Args:
             description: 用户描述（200字以内）
             spread_type: 牌阵类型（three-card 或 celtic-cross）
+            locale: 客户端期望的语言
             db: 数据库会话
+
         Returns:
             推荐的维度信息列表
         """
@@ -45,88 +55,158 @@ class ReadingService:
 
         try:
             # 调用 LLM 分析，获取推荐的维度名称和统一描述
-            recommended_names, unified_description = await self.llm_service.analyze_user_description(description, spread_type)
+            recommended_names, unified_description = await self.llm_service.analyze_user_description(
+                description=description,
+                spread_type=spread_type,
+                locale=locale
+            )
 
-            # if spread_type == "three-card":
-            #     return await self._process_three_card_dimensions(recommended_names, db, limit)
-            # elif spread_type == "celtic-cross":
-            #     return self._process_celtic_cross_dimensions(recommended_names, db, limit)
-            # else:
-            #     # 默认处理
-            #     return await self._process_three_card_dimensions(recommended_names, db, limit)
-            return await self._process_three_card_dimensions(recommended_names, unified_description, db, limit)
+            if spread_type == "three-card":
+                return await self._process_three_card_dimensions(
+                    recommended_names=recommended_names,
+                    unified_description=unified_description,
+                    db=db,
+                    limit=limit,
+                    locale=locale
+                )
+
+            return self._process_celtic_cross_dimensions(
+                recommended_names=recommended_names,
+                db=db,
+                limit=limit,
+                locale=locale,
+                default_description=unified_description
+            )
 
         except Exception as e:
-            api_logger.log_error("analyze_question", e, {"question": question[:100]})
-            # 返回默认维度
+            api_logger.log_error("analyze_user_description", e, {"description": description[:100]})
             if spread_type == "three-card":
-                # 为三牌阵返回默认的时间维度
-                default_names = ["整体-过去", "整体-现在", "整体-将来"]
-                default_description = "三牌阵综合分析，探索问题的时间发展脉络"
-                return await self._process_three_card_dimensions(default_names, default_description, db, limit)
-            else:
-                return self._get_default_celtic_cross_dimensions(db)
+                default_names, default_description = self._get_default_three_card_dimensions_with_description(locale)
+                return await self._process_three_card_dimensions(
+                    recommended_names=default_names,
+                    unified_description=default_description,
+                    db=db,
+                    limit=limit,
+                    locale=locale
+                )
 
-    async def _process_three_card_dimensions(self, recommended_names: List[str], unified_description: str, db: Session, limit: int) -> List[Dict[str, Any]]:
+            return self._process_celtic_cross_dimensions(
+                recommended_names=self._get_celtic_dimension_names(locale),
+                db=db,
+                limit=limit,
+                locale=locale,
+                default_description=self._default_celtic_description(locale)
+            )
+
+    async def _process_three_card_dimensions(
+        self,
+        recommended_names: List[str],
+        unified_description: str,
+        db: Session,
+        limit: int,
+        locale: str
+    ) -> List[Dict[str, Any]]:
         """
         处理三牌阵维度：支持动态创建和 aspect_type 分配
         """
         dimensions: List[Dict[str, Any]] = []
+        fallback_names, fallback_description = self._get_default_three_card_dimensions_with_description(locale)
+        description_text = unified_description or fallback_description
 
-        # 直接使用传入的统一description（来自LLM的单次调用）
+        processed_names = [name for name in (recommended_names or []) if name]
 
-        for i, name in enumerate(recommended_names[:limit]):
-            if not name:
-                continue
-
-            # 首先尝试从现有维度中查找
+        for i, name in enumerate(processed_names[:limit]):
             dimension = self._find_existing_dimension(name, db)
 
             if dimension:
-                # 确保 aspect_type 正确设置为递进顺序
                 dimension_dict = self._serialize_dimension(dimension)
                 dimension_dict["aspect_type"] = i + 1  # 1, 2, 3
-                # 更新description为统一的概要
-                dimension_dict["description"] = unified_description
+                if description_text:
+                    dimension_dict["description"] = description_text
                 dimensions.append(dimension_dict)
             else:
-                # 动态创建新维度
-                new_dimension = self._create_dynamic_dimension(name, i + 1, unified_description, db)
+                new_dimension = self._create_dynamic_dimension(
+                    name=name,
+                    aspect_type=i + 1,
+                    description=description_text,
+                    db=db
+                )
                 if new_dimension:
                     dimensions.append(self._serialize_dimension(new_dimension))
 
-        # 确保返回3个维度
-        while len(dimensions) < limit:
-            fallback_name = f"整体-维度{len(dimensions) + 1}"
-            fallback_dimension = self._create_dynamic_dimension(fallback_name, len(dimensions) + 1, unified_description, db)
-            if fallback_dimension:
-                dimensions.append(self._serialize_dimension(fallback_dimension))
+        existing_names = {dim["name"] for dim in dimensions}
 
-        return dimensions[:limit]
+        for fallback_index, fallback_name in enumerate(fallback_names, start=1):
+            if len(dimensions) >= limit:
+                break
+            if fallback_name in existing_names:
+                continue
+            new_dimension = self._create_dynamic_dimension(
+                name=fallback_name,
+                aspect_type=len(dimensions) + 1,
+                description=description_text,
+                db=db
+            )
+            if new_dimension:
+                dimensions.append(self._serialize_dimension(new_dimension))
+                existing_names.add(fallback_name)
 
-    def _process_celtic_cross_dimensions(self, recommended_names: List[str], db: Session, limit: int) -> List[Dict[str, Any]]:
+        # 确保按照 aspect_type 排序返回
+        return sorted(dimensions[:limit], key=lambda item: item.get("aspect_type") or 0)
+
+    def _process_celtic_cross_dimensions(
+        self,
+        recommended_names: List[str],
+        db: Session,
+        limit: int,
+        locale: str,
+        default_description: Optional[str]
+    ) -> List[Dict[str, Any]]:
         """
-        处理凯尔特十字维度：使用固定的十个维度
+        处理凯尔特十字维度：优先使用推荐的名称，其次使用默认列表
         """
-        celtic_names = [
-            "凯尔特十字-现状", "凯尔特十字-挑战", "凯尔特十字-潜意识", "凯尔特十字-显意识", "凯尔特十字-过去",
-            "凯尔特十字-未来", "凯尔特十字-自我态度", "凯尔特十字-外部影响", "凯尔特十字-希望恐惧", "凯尔特十字-结果"
-        ]
+        names_to_use = [name for name in (recommended_names or []) if name] or self._get_celtic_dimension_names(locale)
+        description_text = default_description or self._default_celtic_description(locale)
 
         dimensions: List[Dict[str, Any]] = []
-        for i, name in enumerate(celtic_names[:limit]):
+        existing_names: set[str] = set()
+
+        for i, name in enumerate(names_to_use[:limit]):
             dimension = self._find_existing_dimension(name, db)
             if dimension:
                 dimension_dict = self._serialize_dimension(dimension)
-                dimension_dict["aspect_type"] = i + 1  # 确保正确的 aspect_type
+                dimension_dict["aspect_type"] = i + 1
+                if description_text:
+                    dimension_dict["description"] = description_text
                 dimensions.append(dimension_dict)
             else:
-                # 如果维度不存在，创建它
-                new_dimension = self._create_dynamic_dimension(name, i + 1, db)
+                new_dimension = self._create_dynamic_dimension(
+                    name=name,
+                    aspect_type=i + 1,
+                    description=description_text,
+                    db=db
+                )
                 if new_dimension:
                     dimensions.append(self._serialize_dimension(new_dimension))
+            existing_names.add(name)
 
-        return dimensions
+        # 如果仍不足，使用默认名称补全
+        for fallback_name in self._get_celtic_dimension_names(locale):
+            if len(dimensions) >= limit:
+                break
+            if fallback_name in existing_names:
+                continue
+            new_dimension = self._create_dynamic_dimension(
+                name=fallback_name,
+                aspect_type=len(dimensions) + 1,
+                description=description_text,
+                db=db
+            )
+            if new_dimension:
+                dimensions.append(self._serialize_dimension(new_dimension))
+                existing_names.add(fallback_name)
+
+        return sorted(dimensions[:limit], key=lambda item: item.get("aspect_type") or 0)
 
     def _find_existing_dimension(self, name: str, db: Session) -> Optional[Dimension]:
         """查找现有维度"""
@@ -162,7 +242,7 @@ class ReadingService:
                 return f"关于{category}方面的发展分析，探索当前状况与未来走向"
 
         except Exception as e:
-            api_logger.log_error("generate_unified_description", e, {"description_count": len(descriptions)})
+            api_logger.log_error("generate_unified_description", e, {"recommendation_count": len(recommended_names or [])})
             # 返回基于第一个维度的默认描述
             if recommended_names:
                 category = recommended_names[0].split('-')[0] if '-' in recommended_names[0] else "整体"
@@ -200,13 +280,64 @@ class ReadingService:
             api_logger.log_error("create_dynamic_dimension", e, {"name": name})
             return None
 
-    def _get_default_celtic_cross_dimensions(self, db: Session) -> List[Dict[str, Any]]:
-        """获取默认凯尔特十字维度"""
-        celtic_names = [
+    @staticmethod
+    def _is_english_locale(locale: Optional[str]) -> bool:
+        """判断是否为英文语系"""
+        return bool(locale and locale.lower().startswith("en"))
+
+    def _get_default_three_card_dimensions_with_description(self, locale: str) -> tuple[List[str], str]:
+        """根据语言返回默认的三牌阵维度及统一描述"""
+        if self._is_english_locale(locale):
+            return (
+                ["General-Past", "General-Present", "General-Future"],
+                "A holistic three-card spread that follows the situation from its origins to the likely outcome."
+            )
+        return (
+            ["整体-过去", "整体-现在", "整体-将来"],
+            "三牌阵综合分析，探索问题的时间发展脉络"
+        )
+
+    def _get_celtic_dimension_names(self, locale: str) -> List[str]:
+        """根据语言返回凯尔特十字的默认维度名称"""
+        if self._is_english_locale(locale):
+            return [
+                "Celtic Cross-Current Situation",
+                "Celtic Cross-Challenge",
+                "Celtic Cross-Subconscious",
+                "Celtic Cross-Conscious Mind",
+                "Celtic Cross-Past",
+                "Celtic Cross-Future",
+                "Celtic Cross-Self",
+                "Celtic Cross-External Influence",
+                "Celtic Cross-Hopes and Fears",
+                "Celtic Cross-Outcome",
+            ]
+        return [
             "凯尔特十字-现状", "凯尔特十字-挑战", "凯尔特十字-潜意识", "凯尔特十字-显意识", "凯尔特十字-过去",
             "凯尔特十字-未来", "凯尔特十字-自我态度", "凯尔特十字-外部影响", "凯尔特十字-希望恐惧", "凯尔特十字-结果"
         ]
-        return self._process_celtic_cross_dimensions(celtic_names, db, 10)
+
+    def _default_celtic_description(self, locale: str) -> str:
+        """凯尔特十字默认描述"""
+        if self._is_english_locale(locale):
+            return "A comprehensive Celtic Cross reading that explores ten pivotal facets shaping the situation."
+        return "利用凯尔特十字牌阵，从十个关键角度解析问题的发展脉络。"
+
+    def _direction_to_locale(self, direction: str, locale: str) -> str:
+        """根据语言返回牌位方向描述"""
+        if self._is_english_locale(locale):
+            normalized = direction.strip().lower()
+            if normalized in {"正位", "upright"}:
+                return "Upright"
+            if normalized in {"逆位", "reversed"}:
+                return "Reversed"
+        return direction
+
+    def _format_position_label(self, position: int, locale: str) -> str:
+        """构建位置描述"""
+        if self._is_english_locale(locale):
+            return f"Position {position}"
+        return f"位置{position}"
 
     async def generate_interpretation(
         self,
@@ -214,6 +345,7 @@ class ReadingService:
         dimensions: List[Dict[str, Any]],
         user_description: str,
         spread_type: str,
+        locale: str,
         db: Session
     ) -> Dict[str, Any]:
         """
@@ -236,7 +368,12 @@ class ReadingService:
 
             # 2. 一次性生成所有维度和卡牌的完整解读
             all_interpretation_result = await self._generate_complete_interpretation(
-                resolved_cards, dimensions, user_description, db
+                resolved_cards=resolved_cards,
+                dimensions=dimensions,
+                user_description=user_description,
+                spread_type=spread_type,
+                locale=locale,
+                db=db
             )
 
             return all_interpretation_result
@@ -270,6 +407,8 @@ class ReadingService:
         resolved_cards: List[tuple],
         dimensions: List[Dict[str, Any]],
         user_description: str,
+        spread_type: str,
+        locale: str,
         db: Session
     ) -> Dict[str, Any]:
         """一次性生成所有维度和卡牌的完整解读"""
@@ -286,6 +425,7 @@ class ReadingService:
                 card_data = {
                     "name": db_card.name,
                     "direction": card_info["direction"],
+                    "direction_localized": self._direction_to_locale(card_info["direction"], locale),
                     "position": card_info["position"],
                     "summary": basic_interpretation.summary if basic_interpretation else "",
                     "detail": basic_interpretation.detail if basic_interpretation else ""
@@ -294,52 +434,142 @@ class ReadingService:
 
             # 构建一次性解读提示词
             complete_prompt = self._build_complete_interpretation_prompt(
-                cards_info, dimensions, user_description
+                cards_info=cards_info,
+                dimensions=dimensions,
+                user_description=user_description,
+                spread_type=spread_type,
+                locale=locale
             )
 
             # 调用LLM一次性生成所有解读
-            result = await self.llm_service.call_ai_api(complete_prompt)
+            result = await self.llm_service.call_ai_api(
+                prompt=complete_prompt,
+                locale=locale
+            )
 
             if not result:
                 raise ValueError("LLM调用失败，无法生成解读内容")
 
             # 解析LLM返回的完整结果
             return self._parse_complete_interpretation_result(
-                result, cards_info, dimensions, user_description, db
+                llm_result=result,
+                cards_info=cards_info,
+                dimensions=dimensions,
+                user_description=user_description,
+                spread_type=spread_type,
+                locale=locale,
+                db=db
             )
 
         except Exception as e:
-            api_logger.log_error("generate_complete_reading", e, {"card_count": len(cards), "dimension_count": len(dimensions)})
+            api_logger.log_error(
+                "generate_complete_reading",
+                e,
+                {"card_count": len(resolved_cards), "dimension_count": len(dimensions)}
+            )
             raise
 
     def _build_complete_interpretation_prompt(
         self,
         cards_info: List[Dict[str, Any]],
         dimensions: List[Dict[str, Any]],
-        user_description: str
+        user_description: str,
+        spread_type: str,
+        locale: str
     ) -> str:
         """构建一次性完整解读的提示词"""
 
-        # 卡牌信息部分
-        cards_section = "\n".join([
-            f"位置{card['position']}: {card['name']}({card['direction']}) - {card['summary']}"
-            for card in cards_info
-        ])
-
-        # 维度信息部分 - 按 aspect_type 排序
+        is_english = self._is_english_locale(locale)
         sorted_dimensions = sorted(dimensions, key=lambda x: x.get('aspect_type', 0))
-        dimensions_section = "\n".join([
-            f"维度{dim.get('aspect_type', i+1)}: {dim['name']} - {dim['description']}"
-            for i, dim in enumerate(sorted_dimensions)
-        ])
 
-        # 位置-维度对应关系
-        position_mapping = "\n".join([
-            f"位置{i+1}的卡牌对应维度{dim.get('aspect_type', i+1)}({dim['name']})"
-            for i, dim in enumerate(sorted_dimensions)
-        ])
+        cards_lines: List[str] = []
+        for card in cards_info:
+            position_label = self._format_position_label(card["position"], locale)
+            direction_label = card.get("direction_localized") or card.get("direction")
+            summary = card.get("summary") or ""
+            if is_english:
+                line = f"{position_label}: {card['name']} ({direction_label}) - Traditional summary (Chinese): {summary}"
+            else:
+                line = f"{position_label}: {card['name']}({direction_label}) - {summary}"
+            cards_lines.append(line.strip())
 
-        prompt = f"""你是一位专业的塔罗牌解读师。请为以下塔罗牌抽卡结果生成完整的解读。
+        cards_section = "\n".join(cards_lines) if cards_lines else ""
+
+        dimensions_lines: List[str] = []
+        for i, dim in enumerate(sorted_dimensions):
+            idx = dim.get('aspect_type', i + 1)
+            description = dim.get("description") or ""
+            if is_english:
+                line = f"Dimension {idx}: {dim['name']} - {description}"
+            else:
+                line = f"维度{idx}: {dim['name']} - {description}"
+            dimensions_lines.append(line.strip())
+        dimensions_section = "\n".join(dimensions_lines)
+
+        mapping_lines: List[str] = []
+        for i, dim in enumerate(sorted_dimensions):
+            idx = dim.get('aspect_type', i + 1)
+            position_label = self._format_position_label(i + 1, locale)
+            if is_english:
+                line = f"{position_label} corresponds to Dimension {idx} ({dim['name']})"
+            else:
+                line = f"{position_label}的卡牌对应维度{idx}({dim['name']})"
+            mapping_lines.append(line)
+        position_mapping = "\n".join(mapping_lines)
+
+        if spread_type == "celtic-cross":
+            spread_label_en = "Celtic Cross"
+            spread_label_zh = "凯尔特十字"
+        else:
+            spread_label_en = "three-card"
+            spread_label_zh = "三牌阵"
+
+        if is_english:
+            prompt = f"""You are a professional tarot reader. Craft a complete interpretation for the following {spread_label_en} spread.
+
+## Client Question
+{user_description}
+
+## Drawn Cards
+{cards_section}
+
+## Interpretation Dimensions
+{dimensions_section}
+
+## Card-to-Dimension Mapping
+{position_mapping}
+
+## Output Requirements
+Return a JSON document that matches this structure:
+
+```json
+{{
+    "card_interpretations": [
+        {{
+            "card_id": 1,
+            "card_name": "Card Name (Upright/Reversed)",
+            "direction": "Upright or Reversed",
+            "position": 1,
+            "basic_summary": "Short traditional meaning translated into English",
+            "ai_interpretation": "150-300 word detailed guidance in English for the assigned dimension",
+            "dimension_aspect": {{
+                "dimension_name": "Dimension label",
+                "interpretation": "150-300 word explanation in English describing how this card expresses the dimension"
+            }}
+        }}
+    ],
+    "overall_summary": "200-300 word overall synthesis in English",
+    "insights": ["Actionable insight 1", "Actionable insight 2", "Actionable insight 3"]
+}}
+```
+
+Guidelines:
+1. Each card must map to exactly one dimension.
+2. Keep the narrative coherent across the three cards and their dimensions.
+3. Insights must be specific and actionable, not vague platitudes.
+Always respond in English."""
+        else:
+            prompt = f"""你是一位专业的塔罗牌解读师，请为以下{spread_label_zh}抽牌结果生成完整的解读。
 
 ## 用户问题
 {user_description}
@@ -353,8 +583,8 @@ class ReadingService:
 ## 位置-维度对应关系
 {position_mapping}
 
-## 要求
-请按照以下JSON格式返回完整的解读结果：
+## 输出要求
+请按照以下 JSON 结构返回结果：
 
 ```json
 {{
@@ -362,28 +592,27 @@ class ReadingService:
         {{
             "card_id": 1,
             "card_name": "卡牌名称(正位/逆位)",
-            "direction": "正位/逆位",
+            "direction": "正位或逆位",
             "position": 1,
-            "basic_summary": "基础牌意",
-            "ai_interpretation": "在对应维度下的详细解读(150-300字)",
+            "basic_summary": "基础牌意概述（简体中文）",
+            "ai_interpretation": "150-300字的详细解读（简体中文），说明该卡牌在对应维度下的含义与指导",
             "dimension_aspect": {{
-                "dimension_name": "对应维度名称",
-                "interpretation": "该卡牌在此维度下的具体含义和指导(150-300字)"
+                "dimension_name": "维度名称",
+                "interpretation": "150-300字的详细说明（简体中文），描述该卡牌如何体现该维度"
             }}
         }}
     ],
-    "overall_summary": "跨维度的整体分析和建议(200-300字)",
+    "overall_summary": "200-300字的整体总结（简体中文）",
     "insights": ["关键洞察1", "关键洞察2", "关键洞察3"]
 }}
 ```
 
-注意：
-1. 每张卡牌只对应一个维度：位置1对应维度1，位置2对应维度2，位置3对应维度3
-2. ai_interpretation 要针对该卡牌在对应维度下的含义进行详细解读(150-300字)
-3. dimension_aspect 中的 interpretation 要具体说明该卡牌如何体现该维度的含义
-4. 整体分析要体现三个维度的关联性和发展脉络
-5. 洞察要具体可行，避免过于抽象
-"""
+注意事项：
+1. 每张卡牌只能对应一个维度。
+2. 解读要体现维度之间的关联与发展脉络。
+3. 洞察要具体可执行，避免空泛表达。
+请使用简体中文输出。"""
+
         return prompt
 
     def _parse_complete_interpretation_result(
@@ -392,6 +621,8 @@ class ReadingService:
         cards_info: List[Dict[str, Any]],
         dimensions: List[Dict[str, Any]],
         user_description: str,
+        spread_type: str,
+        locale: str,
         db: Session
     ) -> Dict[str, Any]:
         """解析LLM返回的完整解读结果"""
@@ -409,26 +640,48 @@ class ReadingService:
             # 从数据库重新获取完整的维度信息（包含aspect和aspect_type）
             complete_dimensions = []
             for dim in dimensions:
-                db_dimension = db.query(Dimension).filter(Dimension.id == dim["id"]).first()
-                if db_dimension:
-                    complete_dimensions.append(self._serialize_dimension(db_dimension))
-                else:
-                    # 如果数据库中找不到，使用传入的数据
-                    complete_dimensions.append(dim)
+                dimension_dict: Dict[str, Any] = {}
+                dimension_id = dim.get("id")
+                if dimension_id:
+                    db_dimension = db.query(Dimension).filter(Dimension.id == dimension_id).first()
+                    if db_dimension:
+                        dimension_dict = self._serialize_dimension(db_dimension)
+                if not dimension_dict:
+                    dimension_dict = {**dim}
+
+                if dim.get("description"):
+                    dimension_dict["description"] = dim["description"]
+                if dim.get("aspect_type"):
+                    dimension_dict["aspect_type"] = dim["aspect_type"]
+                if dim.get("aspect"):
+                    dimension_dict["aspect"] = dim["aspect"]
+
+                complete_dimensions.append(dimension_dict)
 
             # 验证和补全数据结构
+            card_interpretations = parsed_data.get("card_interpretations", [])
+            if not isinstance(card_interpretations, list):
+                card_interpretations = []
+
+            insights = parsed_data.get("insights", [])
+            if isinstance(insights, str):
+                insights = [insights]
+            elif not isinstance(insights, list):
+                insights = []
+
             return {
                 "dimensions": complete_dimensions,
                 "user_description": user_description,
-                "spread_type": "three-card",  # 根据实际情况设置
-                "card_interpretations": parsed_data.get("card_interpretations", []),
+                "spread_type": spread_type,
+                "card_interpretations": card_interpretations,
                 "overall_summary": parsed_data.get("overall_summary", ""),
-                "insights": parsed_data.get("insights", []),
-                "generated_at": "now"
+                "insights": insights,
+                "generated_at": datetime.utcnow().isoformat() + "Z",
+                "metadata": {"locale": locale}
             }
 
         except Exception as e:
-            api_logger.log_error("parse_complete_interpretation_result", e, {"result_length": len(str(result))})
+            api_logger.log_error("parse_complete_interpretation_result", e, {"result_length": len(llm_result)})
             raise ValueError(f"解析LLM返回结果失败: {e}")
 
     def get_basic_interpretation(

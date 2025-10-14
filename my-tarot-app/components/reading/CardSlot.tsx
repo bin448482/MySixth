@@ -7,6 +7,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { CardFlipAnimation } from './CardFlipAnimation';
+import { useTranslation } from 'react-i18next';
 
 interface DimensionData {
   id: number;
@@ -50,6 +51,7 @@ export function CardSlot({
   onCardPress,
   canTriggerStars = false, // 新增：默认值为false
 }: CardSlotProps) {
+  const { t } = useTranslation('reading');
 
   const renderEmptySlot = () => (
     <LinearGradient
@@ -68,7 +70,9 @@ export function CardSlot({
           {dimension.aspect}
         </Text>
         <Text style={[styles.dragHint, isHighlighted && styles.highlightedHint]}>
-          {isHighlighted ? '松开放置卡牌' : '拖拽卡牌到此处'}
+          {isHighlighted
+            ? t('shared.components.cardSlot.dropHintActive')
+            : t('shared.components.cardSlot.dropHint')}
         </Text>
       </View>
     </LinearGradient>

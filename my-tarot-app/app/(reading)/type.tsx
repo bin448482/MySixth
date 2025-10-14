@@ -14,11 +14,14 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useReadingFlow } from '@/lib/contexts/ReadingContext';
 import { useAppContext } from '@/lib/contexts/AppContext';
 import UserService from '@/lib/services/UserService';
+import { useTranslation } from 'react-i18next';
 
 export default function TypeSelectionScreen() {
   const router = useRouter();
   const { updateStep, updateType } = useReadingFlow();
   const { state } = useAppContext();
+  const { t } = useTranslation('reading');
+  const { t: tCommon } = useTranslation('common');
 
   const [userCredits, setUserCredits] = useState<number | null>(null);
   const [isLoadingCredits, setIsLoadingCredits] = useState(false);
@@ -70,15 +73,18 @@ export default function TypeSelectionScreen() {
 
       if (!hasEnoughCredits) {
         Alert.alert(
-          '积分不足',
-          `AI占卜需要消耗2积分，您当前积分：${userCredits || 0}。请前往充值页面获取积分。`,
+          t('type.alerts.insufficientCredits.title'),
+          t('type.alerts.insufficientCredits.message', {
+            cost: 2,
+            balance: userCredits ?? 0,
+          }),
           [
             {
-              text: '去充值',
+              text: t('type.actions.topUp'),
               onPress: () => router.push('/settings'),
             },
             {
-              text: '取消',
+              text: tCommon('app.cancel'),
               style: 'cancel',
             },
           ]
@@ -103,10 +109,8 @@ export default function TypeSelectionScreen() {
       showsVerticalScrollIndicator={false}
     >
       <View style={styles.header}>
-        <Text style={styles.title}>选择占卜方式</Text>
-        <Text style={styles.subtitle}>
-          请选择您希望的占卜方式,手势左滑返回首页
-        </Text>
+        <Text style={styles.title}>{t('type.title')}</Text>
+        <Text style={styles.subtitle}>{t('type.subtitle')}</Text>
       </View>
 
       <View style={styles.optionsContainer}>
@@ -119,13 +123,13 @@ export default function TypeSelectionScreen() {
             <Text style={[styles.icon, styles.availableIcon]}>📖</Text>
           </View>
           <Text style={[styles.optionTitle, styles.availableTitle]}>
-            离线占卜
+            {t('type.offline.title')}
           </Text>
           <Text style={[styles.optionDescription, styles.availableDescription]}>
-            使用内置解读，无需网络连接
+            {t('type.offline.description')}
           </Text>
           <Text style={[styles.optionStatus, styles.availableStatus]}>
-            [可用]
+            {t('type.offline.status.available')}
           </Text>
         </TouchableOpacity>
 
@@ -144,41 +148,52 @@ export default function TypeSelectionScreen() {
               isAIButtonDisabled ? styles.disabledIcon : styles.availableIcon
             ]}>🤖</Text>
           </View>
-          <Text style={[
-            styles.optionTitle,
-            isAIButtonDisabled ? styles.disabledTitle : styles.availableTitle
-          ]}>
-            AI占卜 {userCredits !== null && `(需要2积分)`}
+          <Text
+            style={[
+              styles.optionTitle,
+              isAIButtonDisabled ? styles.disabledTitle : styles.availableTitle,
+            ]}
+          >
+            {t('type.ai.title')}
+            {userCredits !== null ? t('type.ai.costLabel', { cost: 2 }) : ''}
           </Text>
-          <Text style={[
-            styles.optionDescription,
-            isAIButtonDisabled ? styles.disabledDescription : styles.availableDescription
-          ]}>
+          <Text
+            style={[
+              styles.optionDescription,
+              isAIButtonDisabled
+                ? styles.disabledDescription
+                : styles.availableDescription,
+            ]}
+          >
             {isCheckingService
-              ? '正在检查服务状态...'
+              ? t('type.ai.description.checkingService')
               : isLoadingCredits
-                ? '正在加载积分信息...'
+                ? t('type.ai.description.loadingCredits')
                 : !isAIServiceAvailable
-                  ? 'AI服务暂时不可用，请稍后重试'
+                  ? t('type.ai.description.serviceUnavailable')
                   : !hasEnoughCredits
-                    ? `当前积分：${userCredits || 0}，积分不足`
-                    : `智能解读服务，个性化分析 (当前积分：${userCredits})`
-            }
+                    ? t('type.ai.description.insufficientCredits', {
+                        credits: userCredits ?? 0,
+                      })
+                    : t('type.ai.description.available', {
+                        credits: userCredits ?? 0,
+                      })}
           </Text>
-          <Text style={[
-            styles.optionStatus,
-            isAIButtonDisabled ? styles.disabledStatus : styles.availableStatus
-          ]}>
+          <Text
+            style={[
+              styles.optionStatus,
+              isAIButtonDisabled ? styles.disabledStatus : styles.availableStatus,
+            ]}
+          >
             {isCheckingService
-              ? '[检查中...]'
+              ? t('type.ai.status.checking')
               : isLoadingCredits
-                ? '[加载中...]'
+                ? t('type.ai.status.loading')
                 : !isAIServiceAvailable
-                  ? '[不可用]'
+                  ? t('type.ai.status.unavailable')
                   : !hasEnoughCredits
-                    ? '[积分不足]'
-                    : '[可用]'
-            }
+                    ? t('type.ai.status.insufficient')
+                    : t('type.ai.status.available')}
           </Text>
           {(isCheckingService || isLoadingCredits) && (
             <ActivityIndicator
@@ -192,7 +207,7 @@ export default function TypeSelectionScreen() {
 
       <View style={styles.footer}>
         <Text style={styles.footerText}>
-          步骤 1 / 4
+          {t('shared.stepIndicator', { current: 1, total: 4 })}
         </Text>
       </View>
     </ScrollView>

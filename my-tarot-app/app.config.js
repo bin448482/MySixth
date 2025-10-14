@@ -3,7 +3,7 @@ const { withAndroidManifest } = require('@expo/config-plugins');
 // 标签页配置
 const tabsConfig = {
   // 控制标签栏的显示/隐藏
-  tabBarEnabled: true,
+  tabBarEnabled: false,
 
   // 可选：如果需要保留单个标签页的配置
   tabs: {

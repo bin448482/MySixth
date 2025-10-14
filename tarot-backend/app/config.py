@@ -19,6 +19,8 @@ class Settings(BaseSettings):
     APP_VERSION: str = "1.0.0"
     APP_BASE_URL: str = "http://localhost:8000"  # 生产环境需要修改
     DEBUG: bool = False
+    DEFAULT_LOCALE: str = "zh-CN"
+    SUPPORTED_LOCALES: list[str] = ["zh-CN", "en"]
 
     # Database configuration
     DATABASE_URL: str = "sqlite:///./backend_tarot.db"
@@ -29,6 +31,8 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: Optional[str] = None
     OPENAI_BASE_URL: Optional[str] = None
     MODEL_NAME: str = "glm-4-flash"
+    ZHIPU_MODEL_NAME: str = "glm-4-flash"
+    OPENAI_MODEL_NAME: str = "gpt-4o-mini"
     TEMPERATURE: float = 0.7
     MAX_TOKENS: int = 1000
 

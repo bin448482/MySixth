@@ -2,9 +2,9 @@
 Reading API endpoints for tarot card interpretation.
 """
 import logging
-from fastapi import APIRouter, HTTPException, status, Depends
+from fastapi import APIRouter, HTTPException, status, Depends, Header
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 
 from ..database import get_db
 from ..schemas.reading import (
@@ -17,16 +17,53 @@ from ..services.reading_service import get_reading_service
 from ..api.auth import get_current_user_id
 from ..services.user_service import UserService
 from ..models.user import User
+from ..config import settings
 
 router = APIRouter(prefix="/readings", tags=["Readings"])
 
 logger = logging.getLogger(__name__)
 
+_SUPPORTED_LOCALE_PREFIXES = {
+    "en": "en",
+    "zh": "zh-CN"
+}
+
+
+def _normalize_locale_value(raw: Optional[str]) -> Optional[str]:
+    """Normalize locale strings from body or Accept-Language header."""
+    if not raw:
+        return None
+    value = raw.strip()
+    if not value:
+        return None
+    # Accept-Language header may contain multiple locales and weights.
+    if ',' in value:
+        value = value.split(',', 1)[0]
+    if ';' in value:
+        value = value.split(';', 1)[0]
+    value = value.replace('_', '-').strip()
+    if not value:
+        return None
+    lower = value.lower()
+    for prefix, mapped in _SUPPORTED_LOCALE_PREFIXES.items():
+        if lower.startswith(prefix):
+            return mapped
+    return value
+
+
+def _resolve_locale(request_locale: Optional[str], accept_language: Optional[str]) -> str:
+    """Resolve the effective locale using request body and Accept-Language header."""
+    for candidate in (request_locale, accept_language):
+        normalized = _normalize_locale_value(candidate)
+        if normalized:
+            return normalized
+    return settings.DEFAULT_LOCALE
 
 
 @router.post("/analyze", response_model=AnalyzeResponse)
 async def analyze_user_description(
     request: AnalyzeRequest,
+    accept_language: Optional[str] = Header(default=None, alias="Accept-Language"),
     db: Session = Depends(get_db),
     user_id: str = Depends(get_current_user_id)
 ):
@@ -50,6 +87,8 @@ async def analyze_user_description(
         404 Not Found: 用户不存在
         500 Internal Server Error: LLM调用失败
     """
+    locale = _resolve_locale(request.locale, accept_language)
+
     # 获取用户信息
     user = db.query(User).filter(User.installation_id == user_id).first()
     if not user:
@@ -69,11 +108,12 @@ async def analyze_user_description(
 
     # 调试断点 - 在这里设置断点
     logger.debug(
-        "Received analyze request: description_prefix=%s spread_type=%s user_id=%s credits=%d",
+        "Received analyze request: description_prefix=%s spread_type=%s user_id=%s credits=%d locale=%s",
         request.description[:50],
         request.spread_type,
         user_id,
-        balance.credits
+        balance.credits,
+        locale
     )
 
     try:
@@ -89,7 +129,10 @@ async def analyze_user_description(
         # 分析用户描述 - 在这里也可以设置断点
         logger.debug("Starting LLM analysis for spread_type=%s", request.spread_type)
         recommended_dimensions = await reading_service.analyze_user_description(
-            request.description, request.spread_type, db
+            description=request.description,
+            spread_type=request.spread_type,
+            locale=locale,
+            db=db
         )
         logger.debug(
             "LLM analysis completed with %d dimensions",
@@ -123,7 +166,8 @@ async def analyze_user_description(
 
         return AnalyzeResponse(
             recommended_dimensions=recommended_dimensions,
-            user_description=request.description
+            user_description=request.description,
+            metadata={"locale": locale}
         )
 
     except HTTPException:
@@ -139,6 +183,7 @@ async def analyze_user_description(
 @router.post("/generate", response_model=GenerateResponse)
 async def generate_reading(
     request: GenerateRequest,
+    accept_language: Optional[str] = Header(default=None, alias="Accept-Language"),
     db: Session = Depends(get_db),
     user_id: str = Depends(get_current_user_id)
 ):
@@ -160,6 +205,8 @@ async def generate_reading(
         400 Bad Request: 请求参数验证失败
         500 Internal Server Error: LLM调用失败
     """
+    locale = _resolve_locale(request.locale, accept_language)
+
     # 获取用户信息
     user = db.query(User).filter(User.installation_id == user_id).first()
     if not user:
@@ -178,8 +225,8 @@ async def generate_reading(
         )
 
     logger.info(
-        "Generating reading for spread_type=%s cards=%d dimensions=%d user_id=%s credits=%d",
-        request.spread_type, len(request.cards), len(request.dimensions), user_id, balance.credits
+        "Generating reading for spread_type=%s cards=%d dimensions=%d user_id=%s credits=%d locale=%s",
+        request.spread_type, len(request.cards), len(request.dimensions), user_id, balance.credits, locale
     )
 
     try:
@@ -236,6 +283,7 @@ async def generate_reading(
             dimensions=dimensions_data,
             user_description=request.description,
             spread_type=request.spread_type,
+            locale=locale,
             db=db
         )
 
@@ -258,7 +306,15 @@ async def generate_reading(
             # 积分扣除失败，但不影响返回结果（因为LLM调用已成功）
             # 可以考虑记录到异常日志中进行后续处理
 
-        return GenerateResponse(**interpretation_result)
+        result_payload = {
+            **interpretation_result,
+            "metadata": {
+                **interpretation_result.get("metadata", {}),
+                "locale": locale
+            }
+        }
+
+        return GenerateResponse(**result_payload)
 
     except ValueError as e:
         logger.warning("Reading generation failed due to validation error: %s", e)

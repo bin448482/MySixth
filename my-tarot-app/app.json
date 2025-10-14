@@ -62,7 +62,7 @@
         }
       },
       "router": {},
-      "API_BASE_URL": "http://192.168.71.8:8000",
+      "API_BASE_URL": "http://192.168.71.16:8002",
       // "API_BASE_URL": "http://47.100.96.180",
       "PUBLIC_API_BASE_URL": "http://47.100.96.180",
       "eas": {
