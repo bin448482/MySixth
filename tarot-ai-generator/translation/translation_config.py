@@ -64,12 +64,6 @@ class TranslationConfig:
                     "prompt_file": "card_translation.txt",
                     "description": "塔罗牌基础信息翻译"
                 },
-                "dimension": {
-                    "source_file": "dimension_raw.json",
-                    "target_file": "dimension_translated.json",
-                    "prompt_file": "dimension_translation.txt",
-                    "description": "解读维度翻译"
-                },
                 "spread": {
                     "source_file": "spread_raw.json",
                     "target_file": "spread_translated.json",

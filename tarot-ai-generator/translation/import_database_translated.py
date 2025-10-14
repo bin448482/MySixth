@@ -76,8 +76,7 @@ class TranslationImporter:
             # 确定翻译表名
             translation_table_map = {
                 "card": "card_translation",
-                "dimension": "dimension_translation",
-                "spread": "spread_translation",
+                                "spread": "spread_translation",
                 "card_interpretation": "card_interpretation_translation"
             }
 
@@ -123,32 +122,7 @@ class TranslationImporter:
 
         return imported_count
 
-    def import_dimension_translations(self, conn: sqlite3.Connection, translated_data: List[Dict]) -> int:
-        """导入维度翻译"""
-        cursor = conn.cursor()
-        imported_count = 0
-
-        for record in translated_data:
-            try:
-                cursor.execute("""
-                    INSERT INTO dimension_translation
-                    (dimension_id, locale, name, description, category)
-                    VALUES (?, ?, ?, ?, ?)
-                """, (
-                    record.get("id"),
-                    self.config["database"]["target_locale"],
-                    record.get("name_en"),
-                    record.get("description_en"),
-                    record.get("category_en")
-                ))
-                imported_count += 1
-
-            except Exception as e:
-                console.print(f"[red]❌ 导入维度翻译失败 (ID: {record.get('id')}): {e}[/red]")
-                self.stats["failed_records"] += 1
-
-        return imported_count
-
+    
     def import_spread_translations(self, conn: sqlite3.Connection, translated_data: List[Dict]) -> int:
         """导入牌阵翻译"""
         cursor = conn.cursor()
@@ -207,8 +181,6 @@ class TranslationImporter:
         # 根据表名选择导入方法
         if table_name == "card":
             return self.import_card_translations(conn, translated_data)
-        elif table_name == "dimension":
-            return self.import_dimension_translations(conn, translated_data)
         elif table_name == "spread":
             return self.import_spread_translations(conn, translated_data)
         elif table_name == "card_interpretation":
@@ -352,8 +324,7 @@ class TranslationImporter:
             # 验证每个翻译表的记录数
             translation_tables = {
                 "card": "card_translation",
-                "dimension": "dimension_translation",
-                "spread": "spread_translation",
+                                "spread": "spread_translation",
                 "card_interpretation": "card_interpretation_translation"
             }
 
