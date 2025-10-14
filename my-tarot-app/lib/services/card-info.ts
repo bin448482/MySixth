@@ -14,6 +14,8 @@ import type {
   CardImageConfig
 } from '../types/cards';
 import type { ServiceResponse } from '../types/database';
+import i18n from 'i18next';
+import { DEFAULT_LOCALE } from '../i18n';
 import { CardService } from './CardService';
 import { CardInterpretationService } from './CardInterpretationService';
 
@@ -24,12 +26,29 @@ interface RawCardInterpretation {
   detail: string;
 }
 
+interface TarotHistoryLocaleContent {
+  description: string;
+  overview: string;
+  origins: string;
+  major_minor: string;
+  usage_notes: string;
+  interpretation_guidance: string;
+  cultural_significance: string;
+  references: string[];
+}
+
+interface TarotHistoryDataset {
+  version: string;
+  updated_at: string;
+  locales: Record<string, TarotHistoryLocaleContent>;
+}
+
 export class CardInfoService {
   private static instance: CardInfoService;
   private cardService: CardService;
   private cardInterpretationService: CardInterpretationService;
   private interpretationsCache: Map<string, CardInterpretation> = new Map();
-  private historyCache: TarotHistory | null = null;
+  private historyCache: Map<string, TarotHistory> = new Map();
   private config: CardServiceConfig;
 
   private constructor() {
@@ -68,48 +87,153 @@ export class CardInfoService {
     };
   }
 
+  private getActiveLocaleCandidates(): string[] {
+    const language = typeof i18n.language === 'string' && i18n.language.length > 0
+      ? i18n.language
+      : DEFAULT_LOCALE;
+
+    const candidates: string[] = [];
+    const addCandidate = (value?: string | null) => {
+      if (!value) return;
+      candidates.push(value);
+    };
+
+    addCandidate(language);
+
+    const lower = language.toLowerCase();
+    if (lower.includes('-')) {
+      const base = lower.split('-')[0];
+      if (base === 'zh') {
+        addCandidate('zh-CN');
+      } else {
+        addCandidate(base);
+      }
+    }
+
+    addCandidate(DEFAULT_LOCALE);
+    addCandidate('en');
+
+    const uniqueCandidates: string[] = [];
+    const seen = new Set<string>();
+    for (const candidate of candidates) {
+      if (!seen.has(candidate)) {
+        uniqueCandidates.push(candidate);
+        seen.add(candidate);
+      }
+    }
+
+    return uniqueCandidates;
+  }
+
+  private resolveHistoryLocale(
+    historyData: TarotHistoryDataset,
+    localeCandidates: string[]
+  ): { localeKey: string; history: TarotHistory } {
+    const availableLocales = historyData.locales ?? {};
+    const localeKeys = Object.keys(availableLocales);
+
+    if (localeKeys.length === 0) {
+      throw new Error('No tarot history locales configured');
+    }
+
+    const resolvedKey =
+      localeCandidates.find(candidate => candidate in availableLocales) ??
+      localeKeys[0];
+
+    const localeContent = availableLocales[resolvedKey];
+    if (!localeContent) {
+      throw new Error(`Failed to resolve tarot history locale for key ${resolvedKey}`);
+    }
+
+    const history: TarotHistory = {
+      version: historyData.version,
+      updated_at: historyData.updated_at,
+      description: localeContent.description,
+      overview: localeContent.overview,
+      origins: localeContent.origins,
+      major_minor: localeContent.major_minor,
+      usage_notes: localeContent.usage_notes,
+      interpretation_guidance: localeContent.interpretation_guidance,
+      cultural_significance: localeContent.cultural_significance,
+      references: localeContent.references
+    };
+
+    return { localeKey: resolvedKey, history };
+  }
+
+  private getFallbackHistoryForLocale(locale: string): TarotHistory {
+    const normalized = locale.toLowerCase();
+    if (normalized.startsWith('en')) {
+      return {
+        version: '1.0.0',
+        updated_at: new Date().toISOString(),
+        description: 'Tarot history overview fallback content',
+        overview: 'Tarot is a symbolic system of 78 cards that supports reflection, inner exploration, and guided decision-making.',
+        origins: 'Historically, tarot emerged in 15th-century Europe as a card game before evolving into the divinatory tool used today.',
+        major_minor: 'The 22 Major Arcana chart key life lessons while the 56 Minor Arcana explore everyday situations across the suits of Wands, Cups, Swords, and Pentacles.',
+        usage_notes: 'Use tarot as inspiration rather than fixed prophecy—its value lies in the insights you gain and the choices you make afterwards.',
+        interpretation_guidance: 'Upright readings highlight direct, flowing energy, while reversed readings can reveal blocks or reflective, internalized dynamics.',
+        cultural_significance: 'Modern psychology and spiritual traditions view tarot as a bridge between conscious thought and deeper archetypal patterns.',
+        references: [
+          'Fallback: The Pictorial Key to the Tarot',
+          'Fallback: Seventy-Eight Degrees of Wisdom'
+        ]
+      };
+    }
+
+    return {
+      version: '1.0.0',
+      updated_at: new Date().toISOString(),
+      description: '塔罗牌历史文化背景备用内容',
+      overview: '塔罗牌由78张卡牌组成，是一种用于内在探索与指引的象征系统。',
+      origins: '塔罗牌在15世纪的欧洲以纸牌游戏形式出现，后来发展为今天的占卜工具。',
+      major_minor: '大阿卡纳象征人生关键主题，小阿卡纳关注日常生活，涵盖权杖、圣杯、宝剑和钱币四个花色。',
+      usage_notes: '请将塔罗牌视为启发与指引，而非命运的唯一答案；关键仍在于你的行动与选择。',
+      interpretation_guidance: '正位代表能量的自然流动，逆位可能暗示阻滞或需要特别关注的面向。',
+      cultural_significance: '现代心理学与灵性领域将塔罗视为连接意识与潜意识的桥梁。',
+      references: ['备用：塔罗牌图像的钥匙', '备用：78度的智慧']
+    };
+  }
+
   /**
    * 获取塔罗历史文化背景
    */
   async getTarotHistory(): Promise<ServiceResponse<TarotHistory>> {
     try {
-      // 检查缓存
-      if (this.config.enableCache && this.historyCache) {
-        return { success: true, data: this.historyCache };
+      const localeCandidates = this.getActiveLocaleCandidates();
+
+      if (this.config.enableCache) {
+        for (const candidate of localeCandidates) {
+          const cached = this.historyCache.get(candidate);
+          if (cached) {
+            return { success: true, data: cached };
+          }
+        }
       }
 
       // 直接导入本地JSON数据
-      const historyData = require('../../assets/data/tarot_history.json') as TarotHistory;
+      const historyData = require('../../assets/data/tarot_history.json') as TarotHistoryDataset;
 
-      if (!historyData) {
+      if (!historyData || !historyData.locales) {
         throw new Error('Failed to load tarot history data');
       }
 
-      // 缓存数据
+      const { localeKey, history } = this.resolveHistoryLocale(historyData, localeCandidates);
+
       if (this.config.enableCache) {
-        this.historyCache = historyData;
+        this.historyCache.set(localeKey, history);
       }
 
-      return { success: true, data: historyData };
+      return { success: true, data: history };
 
     } catch (error) {
       console.error('Error loading tarot history:', error);
       // 提供默认数据作为降级方案
-      const fallbackHistory: TarotHistory = {
-        version: "1.0.0",
-        updated_at: new Date().toISOString(),
-        description: "塔罗牌历史文化背景介绍",
-        overview: "塔罗牌是一套古老的占卜工具，由78张卡牌组成，用于自我探索和内心指引。",
-        origins: "塔罗牌起源于15世纪的欧洲，最初作为纸牌游戏，后发展为占卜工具。",
-        major_minor: "大阿卡纳22张代表人生重要主题，小阿卡纳56张关注日常生活事务。",
-        usage_notes: "塔罗牌是自我反思的工具，请将其作为指引而非绝对预测。",
-        interpretation_guidance: "正位表示能量正面流动，逆位可能暗示阻滞或内在化。",
-        cultural_significance: "塔罗牌反映了人类集体无意识的深层结构和原型象征。",
-        references: ["韦特塔罗牌官方指南", "塔罗牌图像的钥匙"]
-      };
+      const fallbackLocale = this.getActiveLocaleCandidates()[0] ?? DEFAULT_LOCALE;
+      const fallbackHistory = this.getFallbackHistoryForLocale(fallbackLocale);
 
       if (this.config.enableCache) {
-        this.historyCache = fallbackHistory;
+        this.historyCache.set(fallbackLocale, fallbackHistory);
       }
 
       return { success: true, data: fallbackHistory };
