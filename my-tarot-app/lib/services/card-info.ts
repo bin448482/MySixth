@@ -11,17 +11,21 @@ import type {
   CardFilters,
   CardSearchResult,
   CardServiceConfig,
-  CardImageConfig
+  CardImageConfig,
+  CardSide
 } from '../types/cards';
 import type { ServiceResponse } from '../types/database';
 import i18n from 'i18next';
 import { DEFAULT_LOCALE } from '../i18n';
+import { ConfigDatabaseService } from '../database/config-db';
 import { CardService } from './CardService';
 import { CardInterpretationService } from './CardInterpretationService';
 
 interface RawCardInterpretation {
-  card_name: string;
-  direction: string;
+  interpretationId: number;
+  cardId: number;
+  cardName: string;
+  direction: CardSide;
   summary: string;
   detail: string;
 }
@@ -43,15 +47,49 @@ interface TarotHistoryDataset {
   locales: Record<string, TarotHistoryLocaleContent>;
 }
 
+interface CardTranslationRow {
+  card_id: number;
+  locale: string;
+  name: string;
+  deck?: string | null;
+  suit?: string | null;
+}
+
+interface InterpretationTranslationRow {
+  interpretation_id: number;
+  locale: string;
+  summary: string;
+  detail?: string | null;
+  direction?: string | null;
+}
+
+interface CardTranslationRecord {
+  locale: string;
+  name?: string;
+  deck?: string | null;
+  suit?: string | null;
+}
+
+interface InterpretationTranslationRecord {
+  locale: string;
+  summary?: string;
+  detail?: string | null;
+  direction?: string | null;
+}
+
 export class CardInfoService {
   private static instance: CardInfoService;
+  private configDb: ConfigDatabaseService;
   private cardService: CardService;
   private cardInterpretationService: CardInterpretationService;
-  private interpretationsCache: Map<string, CardInterpretation> = new Map();
+  private interpretationsCache: Map<string, Map<string, CardInterpretation>> = new Map();
+  private cardTranslationCache: Map<string, Map<number, CardTranslationRecord>> = new Map();
+  private interpretationTranslationCache: Map<string, Map<number, InterpretationTranslationRecord>> = new Map();
   private historyCache: Map<string, TarotHistory> = new Map();
   private config: CardServiceConfig;
 
   private constructor() {
+    this.configDb = ConfigDatabaseService.getInstance();
     this.cardService = CardService.getInstance();
     this.cardInterpretationService = CardInterpretationService.getInstance();
     this.config = this.getDefaultConfig();
@@ -123,6 +161,58 @@ export class CardInfoService {
     }
 
     return uniqueCandidates;
+  }
+
+  private getCacheKeyForLocales(localeCandidates: string[]): string {
+    return localeCandidates.join('|');
+  }
+
+  private normalizeDirection(direction?: string | CardSide | null): CardSide {
+    const raw = (typeof direction === 'string' ? direction : direction ?? 'upright')?.toString().trim().toLowerCase();
+
+    if (!raw) {
+      return 'upright';
+    }
+
+    const uprightTokens = ['upright', 'up', 'upr', '正位', '正', 'forward'];
+    if (uprightTokens.includes(raw)) {
+      return 'upright';
+    }
+
+    const reversedTokens = ['reversed', 'reverse', 'rev', 'down', '逆位', '逆', 'inverted'];
+    if (reversedTokens.includes(raw)) {
+      return 'reversed';
+    }
+
+    // 默认返回正位，避免出现未识别的值导致逻辑中断
+    return raw.startsWith('u') ? 'upright' : 'reversed';
+  }
+
+  private normalizeSuitValue(value?: string | null): CardSummary['suit'] {
+    if (!value) {
+      return undefined;
+    }
+
+    const normalized = value.trim().toLowerCase();
+    if (!normalized || ['none', 'null', '无', '无花色'].includes(normalized)) {
+      return undefined;
+    }
+
+
+    if (['wands', 'wand', '权杖'].includes(normalized)) {
+      return 'wands';
+    }
+    if (['cups', 'cup', '圣杯'].includes(normalized)) {
+      return 'cups';
+    }
+    if (['swords', 'sword', '宝剑'].includes(normalized)) {
+      return 'swords';
+    }
+    if (['pentacles', 'pentacle', 'coins', 'coin', '钱币', '星币', '金币'].includes(normalized)) {
+      return 'pentacles';
+    }
+
+    return undefined;
   }
 
   private resolveHistoryLocale(
@@ -243,6 +333,88 @@ export class CardInfoService {
   /**
    * 加载卡牌解读数据（从配置数据库）
    */
+  private async loadCardTranslations(localeCandidates: string[]): Promise<ServiceResponse<Map<number, CardTranslationRecord>>> {
+    const combinedMap = new Map<number, CardTranslationRecord>();
+
+    for (const locale of localeCandidates) {
+      let cached = this.cardTranslationCache.get(locale);
+
+      if (!cached) {
+        const queryResult = await this.configDb.query<CardTranslationRow>(
+          `SELECT card_id, locale, name, deck, suit FROM card_translation WHERE locale = ?`,
+          [locale]
+        );
+
+        if (!queryResult.success || !queryResult.data) {
+          continue;
+        }
+
+        cached = new Map<number, CardTranslationRecord>();
+        for (const row of queryResult.data) {
+          cached.set(row.card_id, {
+            locale,
+            name: row.name,
+            deck: row.deck ?? null,
+            suit: row.suit ?? null
+          });
+        }
+
+        if (this.config.enableCache) {
+          this.cardTranslationCache.set(locale, cached);
+        }
+      }
+
+      cached.forEach((record, cardId) => {
+        if (!combinedMap.has(cardId)) {
+          combinedMap.set(cardId, record);
+        }
+      });
+    }
+
+    return { success: true, data: combinedMap };
+  }
+
+  private async loadInterpretationTranslations(localeCandidates: string[]): Promise<ServiceResponse<Map<number, InterpretationTranslationRecord>>> {
+    const combinedMap = new Map<number, InterpretationTranslationRecord>();
+
+    for (const locale of localeCandidates) {
+      let cached = this.interpretationTranslationCache.get(locale);
+
+      if (!cached) {
+        const queryResult = await this.configDb.query<InterpretationTranslationRow>(
+          `SELECT interpretation_id, locale, summary, detail, direction FROM card_interpretation_translation WHERE locale = ?`,
+          [locale]
+        );
+
+        if (!queryResult.success || !queryResult.data) {
+          continue;
+        }
+
+        cached = new Map<number, InterpretationTranslationRecord>();
+        for (const row of queryResult.data) {
+          cached.set(row.interpretation_id, {
+            locale,
+            summary: row.summary ?? undefined,
+            detail: row.detail ?? null,
+            direction: row.direction ?? undefined
+          });
+        }
+
+        if (this.config.enableCache) {
+          this.interpretationTranslationCache.set(locale, cached);
+        }
+      }
+
+      cached.forEach((record, interpretationId) => {
+        if (!combinedMap.has(interpretationId)) {
+          combinedMap.set(interpretationId, record);
+        }
+      });
+    }
+
+    return { success: true, data: combinedMap };
+  }
+
   private async loadCardInterpretations(): Promise<ServiceResponse<RawCardInterpretation[]>> {
     try {
       // 获取所有卡牌列表
@@ -267,8 +439,10 @@ export class CardInfoService {
           );
           if (uprightResponse.success && uprightResponse.data) {
             interpretations.push({
-              card_name: card.name,
-              direction: '正位',
+              interpretationId: uprightResponse.data.id,
+              cardId: card.id,
+              cardName: card.name,
+              direction: this.normalizeDirection(uprightResponse.data.direction || '正位'),
               summary: uprightResponse.data.summary,
               detail: uprightResponse.data.detail || ''
             });
@@ -281,8 +455,10 @@ export class CardInfoService {
           );
           if (reversedResponse.success && reversedResponse.data) {
             interpretations.push({
-              card_name: card.name,
-              direction: '逆位',
+              interpretationId: reversedResponse.data.id,
+              cardId: card.id,
+              cardName: card.name,
+              direction: this.normalizeDirection(reversedResponse.data.direction || '逆位'),
               summary: reversedResponse.data.summary,
               detail: reversedResponse.data.detail || ''
             });
@@ -298,6 +474,27 @@ export class CardInfoService {
           success: false,
           error: 'No card interpretations found in database'
         };
+      }
+
+      const localeCandidates = this.getActiveLocaleCandidates();
+      const translationResponse = await this.loadInterpretationTranslations(localeCandidates);
+
+      if (translationResponse.success && translationResponse.data) {
+        const translationMap = translationResponse.data;
+        for (const item of interpretations) {
+          const translation = translationMap.get(item.interpretationId);
+          if (translation) {
+            if (translation.summary) {
+              item.summary = translation.summary;
+            }
+            if (translation.detail) {
+              item.detail = translation.detail;
+            }
+            if (translation.direction) {
+              item.direction = this.normalizeDirection(translation.direction);
+            }
+          }
+        }
       }
 
       return { success: true, data: interpretations };
@@ -316,9 +513,14 @@ export class CardInfoService {
    */
   private async buildInterpretationsMap(): Promise<ServiceResponse<Map<string, CardInterpretation>>> {
     try {
-      // 如果已有缓存，直接返回
-      if (this.config.enableCache && this.interpretationsCache.size > 0) {
-        return { success: true, data: this.interpretationsCache };
+      const localeCandidates = this.getActiveLocaleCandidates();
+      const cacheKey = this.getCacheKeyForLocales(localeCandidates);
+
+      if (this.config.enableCache) {
+        const cachedMap = this.interpretationsCache.get(cacheKey);
+        if (cachedMap) {
+          return { success: true, data: cachedMap };
+        }
       }
 
       const interpretationsResponse = await this.loadCardInterpretations();
@@ -336,24 +538,25 @@ export class CardInfoService {
       const cardGroups = new Map<string, { upright?: RawCardInterpretation; reversed?: RawCardInterpretation }>();
 
       rawInterpretations.forEach(item => {
-        if (!cardGroups.has(item.card_name)) {
-          cardGroups.set(item.card_name, {});
+        const normalizedDirection = this.normalizeDirection(item.direction);
+        if (!cardGroups.has(item.cardName)) {
+          cardGroups.set(item.cardName, {});
         }
 
-        const group = cardGroups.get(item.card_name)!;
-        if (item.direction === '正位') {
-          group.upright = item;
-        } else if (item.direction === '逆位') {
-          group.reversed = item;
+        const group = cardGroups.get(item.cardName)!;
+        if (normalizedDirection === 'upright') {
+          group.upright = { ...item, direction: 'upright' };
+        } else if (normalizedDirection === 'reversed') {
+          group.reversed = { ...item, direction: 'reversed' };
         }
       });
 
       // 构建最终的解读映射
-      let cardId = 1;
       cardGroups.forEach((group, cardName) => {
         if (group.upright && group.reversed) {
+          const resolvedCardId = group.upright.cardId ?? group.reversed.cardId;
           const interpretation: CardInterpretation = {
-            cardId: cardId++,
+            cardId: resolvedCardId ?? 0,
             cardName,
             upright: {
               summary: group.upright.summary,
@@ -371,7 +574,7 @@ export class CardInfoService {
 
       // 缓存结果
       if (this.config.enableCache) {
-        this.interpretationsCache = interpretationsMap;
+        this.interpretationsCache.set(cacheKey, interpretationsMap);
       }
 
       return { success: true, data: interpretationsMap };
@@ -667,16 +870,25 @@ export class CardInfoService {
         };
       }
 
+      const localeCandidates = this.getActiveLocaleCandidates();
+      const translationsResponse = await this.loadCardTranslations(localeCandidates);
+      const translationMap = translationsResponse.success && translationsResponse.data
+        ? translationsResponse.data
+        : new Map<number, CardTranslationRecord>();
+
       // 转换为CardSummary格式
-      const cardSummaries: CardSummary[] = cardsResponse.data.map(card => ({
-        id: card.id,
-        name: card.name,
-        arcana: card.arcana.toLowerCase() as 'major' | 'minor',
-        suit: card.suit as 'wands' | 'cups' | 'swords' | 'pentacles' | undefined,
-        number: card.number,
-        image: this.getCardImageSource(card.name, card.arcana, card.suit || undefined, card.number),
-        deck: card.deck
-      }));
+      const cardSummaries: CardSummary[] = cardsResponse.data.map(card => {
+        const translation = translationMap.get(card.id);
+        return {
+          id: card.id,
+          name: translation?.name ?? card.name,
+          arcana: card.arcana.toLowerCase() as 'major' | 'minor',
+          suit: this.normalizeSuitValue(translation?.suit ?? card.suit ?? undefined),
+          number: card.number,
+          image: this.getCardImageSource(card.name, card.arcana, card.suit || undefined, card.number),
+          deck: translation?.deck ?? card.deck
+        };
+      });
 
       return { success: true, data: cardSummaries };
 
@@ -704,6 +916,8 @@ export class CardInfoService {
       }
 
       const card = cardResponse.data;
+      const baseName = card.name;
+      const baseSuit = card.suit || undefined;
 
       // 获取解读映射
       const interpretationsMapResponse = await this.buildInterpretationsMap();
@@ -715,7 +929,7 @@ export class CardInfoService {
       }
 
       const interpretationsMap = interpretationsMapResponse.data;
-      const interpretation = interpretationsMap.get(card.name);
+      const interpretation = interpretationsMap.get(baseName);
 
       if (!interpretation) {
         return {
@@ -724,16 +938,40 @@ export class CardInfoService {
         };
       }
 
+      const localeCandidates = this.getActiveLocaleCandidates();
+      const translationsResponse = await this.loadCardTranslations(localeCandidates);
+      const translation = translationsResponse.success && translationsResponse.data
+        ? translationsResponse.data.get(card.id)
+        : undefined;
+
+      const fallbackSuit = this.normalizeSuitValue(baseSuit);
+      const localizedSuit = this.normalizeSuitValue(translation?.suit ?? baseSuit) ?? fallbackSuit;
+      const localizedName = translation?.name ?? card.name;
+      const localizedDeck = translation?.deck ?? card.deck;
+
+      const localizedInterpretation: CardInterpretation = {
+        cardId: interpretation.cardId,
+        cardName: localizedName,
+        upright: {
+          summary: interpretation.upright.summary,
+          detail: interpretation.upright.detail
+        },
+        reversed: {
+          summary: interpretation.reversed.summary,
+          detail: interpretation.reversed.detail
+        }
+      };
+
       // 构建完整卡牌详情
       const cardDetail: CardDetail = {
         id: card.id,
-        name: card.name,
+        name: localizedName,
         arcana: card.arcana.toLowerCase() as 'major' | 'minor',
-        suit: card.suit as 'wands' | 'cups' | 'swords' | 'pentacles' | undefined,
+        suit: localizedSuit,
         number: card.number,
-        image: this.getCardImageSource(card.name, card.arcana, card.suit || undefined, card.number),
-        deck: card.deck,
-        interpretations: interpretation
+        image: this.getCardImageSource(baseName, card.arcana, baseSuit, card.number),
+        deck: localizedDeck,
+        interpretations: localizedInterpretation
       };
 
       return { success: true, data: cardDetail };
@@ -761,25 +999,47 @@ export class CardInfoService {
         };
       }
 
+      const localeCandidates = this.getActiveLocaleCandidates();
+      const translationsResponse = await this.loadCardTranslations(localeCandidates);
+      const translationMap = translationsResponse.success && translationsResponse.data
+        ? translationsResponse.data
+        : new Map<number, CardTranslationRecord>();
+      const queryLower = query.toLowerCase();
+
       // 构建搜索结果
       const results: CardSearchResult[] = searchResponse.data.map(card => {
         const matchFields: string[] = [];
         let score = 0;
+        const translation = translationMap.get(card.id);
+        const localizedName = translation?.name ?? card.name;
+        const localizedDeck = translation?.deck ?? card.deck;
+        const localizedSuitRaw = translation?.suit ?? card.suit ?? undefined;
+        const normalizedSuit = this.normalizeSuitValue(localizedSuitRaw);
+
+        const nameCandidates = new Set(
+          [card.name, localizedName].filter((value): value is string => Boolean(value))
+        );
+        const suitCandidates = new Set(
+          [card.suit, localizedSuitRaw].filter((value): value is string => Boolean(value))
+        );
+        const deckCandidates = new Set(
+          [card.deck, localizedDeck].filter((value): value is string => Boolean(value))
+        );
 
         // 计算匹配分数
-        if (card.name.includes(query)) {
+        if ([...nameCandidates].some(value => value.toLowerCase().includes(queryLower))) {
           matchFields.push('name');
           score += 10;
         }
-        if (card.arcana.includes(query)) {
+        if (card.arcana.toLowerCase().includes(queryLower)) {
           matchFields.push('arcana');
           score += 5;
         }
-        if (card.suit && card.suit.includes(query)) {
+        if ([...suitCandidates].some(value => value.toLowerCase().includes(queryLower))) {
           matchFields.push('suit');
           score += 3;
         }
-        if (card.deck.includes(query)) {
+        if ([...deckCandidates].some(value => value.toLowerCase().includes(queryLower))) {
           matchFields.push('deck');
           score += 1;
         }
@@ -787,12 +1047,12 @@ export class CardInfoService {
         return {
           card: {
             id: card.id,
-            name: card.name,
+            name: localizedName,
             arcana: card.arcana.toLowerCase() as 'major' | 'minor',
-            suit: card.suit as 'wands' | 'cups' | 'swords' | 'pentacles' | undefined,
+            suit: normalizedSuit,
             number: card.number,
             image: this.getCardImageSource(card.name, card.arcana, card.suit || undefined, card.number),
-            deck: card.deck
+            deck: localizedDeck
           },
           matchFields,
           score
@@ -818,7 +1078,9 @@ export class CardInfoService {
    */
   clearCache(): void {
     this.interpretationsCache.clear();
-    this.historyCache = null;
+    this.cardTranslationCache.clear();
+    this.interpretationTranslationCache.clear();
+    this.historyCache.clear();
   }
 
   /**
