@@ -16,6 +16,7 @@ interface CardFlipAnimationProps {
   card: {
     id: number;
     name: string;
+    displayName?: string;
     imageUrl: string;
     direction: 'upright' | 'reversed';
     revealed: boolean;
@@ -391,7 +392,9 @@ export function CardFlipAnimation({
               />
             </View>
             {showName && (
-              <Text style={styles.cardTitle} numberOfLines={2}>{card.name}</Text>
+              <Text style={styles.cardTitle} numberOfLines={2}>
+                {card.displayName ?? card.name}
+              </Text>
             )}
             {card.direction === 'reversed' && (
           <Text style={styles.directionLabel}>

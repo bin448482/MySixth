@@ -8,19 +8,12 @@ import {
 import { CardSlot } from './CardSlot';
 import { DraggableCard } from './DraggableCard';
 import { useTranslation } from 'react-i18next';
-
-interface DimensionData {
-  id: number;
-  name: string;
-  category: string;
-  description: string;
-  aspect: string;
-  aspect_type: number;
-}
+import type { DimensionData } from '@/lib/contexts/ReadingContext';
 
 interface DrawnCard {
   cardId: number;
   name: string;
+  displayName?: string;
   imageUrl: string;
   position: string;
   dimension: DimensionData;
@@ -190,6 +183,7 @@ export function DragDropContainer({
                 card={{
                   id: card.cardId,
                   name: card.name,
+                  displayName: card.displayName ?? card.name,
                   imageUrl: card.imageUrl,
                   direction: card.direction,
                   revealed: card.revealed,

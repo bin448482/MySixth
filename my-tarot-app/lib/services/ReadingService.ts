@@ -230,6 +230,7 @@ export class ReadingService implements IReadingService {
           card: {
             id: selectedCard.cardId,
             name: selectedCard.name || '未知卡牌',
+            localizedName: selectedCard.displayName ?? selectedCard.name,
             arcana: 'Major' as const, // 默认值
             number: 0, // 默认值
             image_url: selectedCard.imageUrl || '',

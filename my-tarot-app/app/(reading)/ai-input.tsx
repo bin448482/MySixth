@@ -15,6 +15,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useReadingFlow } from '@/lib/contexts/ReadingContext';
 import AIReadingService from '@/lib/services/AIReadingService';
 import { useTranslation } from 'react-i18next';
+import type { DimensionData } from '@/lib/contexts/ReadingContext';
 
 export default function AIInputScreen() {
   const router = useRouter();
@@ -24,7 +25,7 @@ export default function AIInputScreen() {
 
   const [userDescription, setUserDescription] = useState('');
   const [loading, setLoading] = useState(false);
-  const [dimensions, setDimensions] = useState(null);
+  const [dimensions, setDimensions] = useState<DimensionData[] | null>(null);
   const [error, setError] = useState('');
   const [hasAnalyzed, setHasAnalyzed] = useState(false); // 标记是否已分析成功
 
@@ -102,8 +103,17 @@ export default function AIInputScreen() {
 
       // 更新状态
       updateUserDescription(userDescription.trim());
-      updateAIDimensions(result.recommended_dimensions);
-      setDimensions(result.recommended_dimensions);
+      const normalizedDimensions: DimensionData[] = result.recommended_dimensions.map((dimension) => ({
+        id: dimension.id ?? 0,
+        name: dimension.name,
+        category: dimension.category,
+        description: dimension.description,
+        aspect: dimension.aspect ?? '',
+        aspect_type: dimension.aspect_type ?? 0,
+        localizedAspect: dimension.localizedAspect ?? dimension.aspect,
+      }));
+      updateAIDimensions(normalizedDimensions);
+      setDimensions(normalizedDimensions);
       setHasAnalyzed(true); // 标记已分析成功
 
       // 移除自动跳转，只能手动点击继续
@@ -205,7 +215,7 @@ export default function AIInputScreen() {
             const isLast = index === (dimensions as any[]).length - 1;
             console.log(`🎯 Debug - Dimension ${index + 1}:`, {
               isLast,
-              dimensionName: dimension.aspect,
+              dimensionName: dimension.localizedAspect ?? dimension.aspect,
               appliedStyles: isLast ? 'dimensionItem + dimensionItemLast' : 'dimensionItem',
               totalDimensions: (dimensions as any[]).length
             });
@@ -219,7 +229,7 @@ export default function AIInputScreen() {
                 ]}
               >
                 <Text style={styles.dimensionName}>
-                  {index + 1}. {dimension.aspect}
+                  {index + 1}. {dimension.localizedAspect ?? dimension.aspect}
                 </Text>
                 {/* <Text style={styles.dimensionDescription}>
                   {dimension.description}

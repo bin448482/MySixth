@@ -57,6 +57,14 @@ export default function AIResultScreen() {
   const [retryCount, setRetryCount] = useState(0);
   const [hasSaved, setHasSaved] = useState(false); // Tracks local save status
 
+  const resolveCardDisplayName = useCallback(
+    (cardId: number, fallback: string) => {
+      const match = state.selectedCards?.find(card => card.cardId === cardId);
+      return match?.displayName ?? fallback;
+    },
+    [state.selectedCards]
+  );
+
   // Intercept hardware back events while the screen is focused
   useFocusEffect(
     useCallback(() => {
@@ -374,7 +382,9 @@ export default function AIResultScreen() {
                     <Text style={styles.positionText}>{cardInterpretation.position}</Text>
                   </View>
                   <View style={styles.cardInfoSection}>
-                    <Text style={styles.cardName}>{cardInterpretation.card_name}</Text>
+                    <Text style={styles.cardName}>
+                      {resolveCardDisplayName(cardInterpretation.card_id, cardInterpretation.card_name)}
+                    </Text>
                     <Text style={styles.cardDirection}>
                       {getDirectionLabel(cardInterpretation.direction)}
                     </Text>

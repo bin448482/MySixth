@@ -20,6 +20,7 @@ interface DetailedReading {
   card: {
     id: number;
     name: string;
+    displayName?: string;
     imageUrl: string;
     direction: 'upright' | 'reversed';
     position: string;
@@ -113,6 +114,7 @@ export default function BasicReadingScreen() {
           card: {
             id: selectedCard.cardId,
             name: selectedCard.name,
+            displayName: selectedCard.displayName ?? selectedCard.name,
             imageUrl: selectedCard.imageUrl,
             direction: selectedCard.direction,
             position: selectedCard.position,
@@ -216,7 +218,9 @@ export default function BasicReadingScreen() {
                 <Text style={styles.positionText}>{index + 1}</Text>
               </View>
               <View style={styles.cardInfo}>
-                <Text style={styles.cardName}>{reading.card.name}</Text>
+                <Text style={styles.cardName}>
+                  {reading.card.displayName ?? reading.card.name}
+                </Text>
                 <Text style={styles.cardDirection}>{getDirectionText(reading.card.direction)}</Text>
               </View>
             </View>

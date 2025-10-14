@@ -1,6 +1,15 @@
+import i18n from 'i18next';
 import { ConfigDatabaseService } from '../database/config-db';
+import { DEFAULT_LOCALE } from '../i18n';
 import type { ServiceResponse } from '../types/database';
 import type { DimensionData } from '../contexts/ReadingContext';
+
+interface DimensionTranslationRow {
+  dimension_id: number;
+  name?: string | null;
+  description?: string | null;
+  aspect?: string | null;
+}
 
 export class DimensionService {
   private static instance: DimensionService;
@@ -58,7 +67,8 @@ export class DimensionService {
       );
 
       if (result.success && result.data) {
-        return { success: true, data: result.data };
+        const localized = await this.localizeDimensions(result.data);
+        return { success: true, data: localized };
       }
 
       return { success: false, error: result.error || 'Failed to get dimensions' };
@@ -85,7 +95,8 @@ export class DimensionService {
 
       if (result.success && result.data) {
         // console.log(`[DimensionService] Successfully retrieved ${result.data.length} dimensions from database`);
-        return { success: true, data: result.data };
+        const localized = await this.localizeDimensions(result.data);
+        return { success: true, data: localized };
       }
 
       // console.log('[DimensionService] Database query failed or returned no data:', result.error);
@@ -179,5 +190,108 @@ export class DimensionService {
     };
     if (specialMap[mainCategory]) return specialMap[mainCategory];
     return `${mainCategory}-时间线`;
+  }
+
+  private getActiveLocale(): string {
+    const active = (i18n?.language as string | undefined) ?? DEFAULT_LOCALE;
+    return active || DEFAULT_LOCALE;
+  }
+
+  private getAspectFallback(locale: string, original: string): string | undefined {
+    const map: Record<string, Record<string, string>> = {
+      en: {
+        '过去': 'Past',
+        '现在': 'Present',
+        '将来': 'Future',
+        '自己': 'Self',
+        '对方': 'Partner',
+        '关系': 'Relationship',
+        '现状': 'Current Situation',
+        '选择是': 'Choice A',
+        '选择非': 'Choice B',
+        '上玄月': 'Waxing Moon',
+        '下玄月': 'Waning Moon',
+        '总体趋势': 'Overall Trend',
+      },
+    };
+
+    return map[locale]?.[original];
+  }
+
+  private extractAspectFromName(name?: string | null): string | undefined {
+    if (!name) return undefined;
+
+    const separators = [' - ', '：', ':', '—', '––', '—'];
+    for (const separator of separators) {
+      if (name.includes(separator)) {
+        const parts = name.split(separator).filter(Boolean);
+        if (parts.length > 0) {
+          const candidate = parts[parts.length - 1]?.trim();
+          if (candidate) return candidate;
+        }
+      }
+    }
+
+    return name.trim();
+  }
+
+  private async localizeDimensions(dimensions: DimensionData[]): Promise<DimensionData[]> {
+    if (!dimensions.length) {
+      return dimensions;
+    }
+
+    const locale = this.getActiveLocale();
+    const normalizedLocale = locale.toLowerCase();
+
+    if (normalizedLocale.startsWith('zh')) {
+      return dimensions.map(dimension => ({
+        ...dimension,
+        localizedAspect: dimension.localizedAspect ?? dimension.aspect,
+      }));
+    }
+
+    const ids = dimensions
+      .map(dimension => dimension.id)
+      .filter((id): id is number => typeof id === 'number' && Number.isFinite(id) && id > 0);
+
+    const translationsMap = new Map<number, DimensionTranslationRow>();
+
+    if (ids.length > 0) {
+      const placeholders = ids.map(() => '?').join(', ');
+      const query = `
+        SELECT dimension_id, name, description, aspect
+        FROM dimension_translation
+        WHERE locale = ?
+          AND dimension_id IN (${placeholders})
+      `;
+
+      const translationResult = await this.dbService.query<DimensionTranslationRow>(
+        query,
+        [locale, ...ids]
+      );
+
+      if (translationResult.success && translationResult.data) {
+        translationResult.data.forEach(row => {
+          translationsMap.set(row.dimension_id, row);
+        });
+      }
+    }
+
+    return dimensions.map(dimension => {
+      const translation = translationsMap.get(dimension.id);
+      const localizedAspect =
+        translation?.aspect?.trim() ||
+        this.extractAspectFromName(translation?.name) ||
+        this.getAspectFallback(normalizedLocale, dimension.aspect) ||
+        dimension.localizedAspect ||
+        dimension.aspect;
+
+      return {
+        ...dimension,
+        name: translation?.name ?? dimension.name,
+        description: translation?.description ?? dimension.description,
+        localizedAspect,
+      };
+    });
   }
 }

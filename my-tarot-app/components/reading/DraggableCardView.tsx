@@ -14,6 +14,7 @@ interface DraggableCardViewProps {
   card: {
     id: number;
     name: string;
+    displayName?: string;
     imageUrl: string;
     direction: 'upright' | 'reversed';
     revealed: boolean;
@@ -62,7 +63,9 @@ export function DraggableCardView({
               />
             </View>
             {showName && (
-              <Text style={styles.cardTitle} numberOfLines={2}>{card.name}</Text>
+              <Text style={styles.cardTitle} numberOfLines={2}>
+                {card.displayName ?? card.name}
+              </Text>
             )}
             {card.direction === 'reversed' && (
           <Text style={styles.directionLabel}>

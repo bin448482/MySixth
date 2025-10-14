@@ -12,6 +12,7 @@ import { useReadingFlow } from '@/lib/contexts/ReadingContext';
 import { DimensionService } from '@/lib/services/DimensionService';
 // import { DatabaseInitializer } from '@/lib/database/initializer';
 import { useTranslation } from 'react-i18next';
+import type { DimensionData } from '@/lib/contexts/ReadingContext';
 
 interface GroupItem {
   id: string;
@@ -20,7 +21,7 @@ interface GroupItem {
   displayName: string;
   icon: string;
   color: string;
-  dimensions: any[];
+  dimensions: DimensionData[];
 }
 
 export default function CategorySelectionScreen() {
@@ -42,7 +43,7 @@ export default function CategorySelectionScreen() {
       setLoading(true);
       const res = await dimensionService.getAllDimensions();
       // console.log('[Category] getAllDimensions result:', res);
-      let dims: any[] = [];
+      let dims: DimensionData[] = [];
       if (res && res.success && res.data && res.data.length > 0) {
         dims = res.data;
         // console.log('[Category] Using database data, count:', dims.length);
@@ -91,7 +92,9 @@ export default function CategorySelectionScreen() {
       for (const g of map.values()) {
         g.dimensions.sort((a, b) => (a.aspect_type || 0) - (b.aspect_type || 0));
         // Generate displayName from aspects sorted by aspect_type
-        g.displayName = g.dimensions.map(d => d.aspect).join(' - ');
+        g.displayName = g.dimensions
+          .map(d => d.localizedAspect ?? d.aspect)
+          .join(' - ');
         result.push(g);
         // console.log('[Category] Group added:', g.id, 'with', g.dimensions.length, 'dimensions');
       }
@@ -116,6 +119,7 @@ export default function CategorySelectionScreen() {
       description: d.description,
       aspect: d.aspect,
       aspect_type: Number(d.aspect_type || 0),
+      localizedAspect: d.localizedAspect ?? d.aspect,
     })));
   };
 

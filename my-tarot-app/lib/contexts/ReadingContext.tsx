@@ -6,6 +6,7 @@ import { useAppContext } from './AppContext';
 export interface SelectedCard {
   cardId: number;
   name: string;
+  displayName?: string;
   imageUrl: string;
   position: 'past' | 'present' | 'future';
   dimension: DimensionData;
@@ -21,6 +22,7 @@ export interface DimensionData {
   description: string;
   aspect: string;
   aspect_type: number;
+  localizedAspect?: string;
 }
 
 export interface ReadingFlowState {

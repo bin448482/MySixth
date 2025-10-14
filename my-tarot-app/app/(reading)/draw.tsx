@@ -19,13 +19,15 @@ import { CardFlipAnimation } from '@/components/reading/CardFlipAnimation';
 import { DragDropContainer } from '@/components/reading/DragDropContainer';
 import { SimpleTestCard } from '@/components/reading/SimpleTestCard';
 import { useTranslation } from 'react-i18next';
+import type { DimensionData } from '@/lib/contexts/ReadingContext';
 
 interface DrawnCard {
   cardId: number;
   name: string;
+  displayName?: string;
   imageUrl: string;
   position: string;
-  dimension: any;
+  dimension: DimensionData;
   direction: 'upright' | 'reversed';
   revealed: boolean;
   basicSummary?: string;
@@ -37,7 +39,7 @@ export default function DrawCardsScreen() {
   const { t } = useTranslation('reading');
   const { t: tCommon } = useTranslation('common');
   const [drawnCards, setDrawnCards] = useState<DrawnCard[]>([]);
-  const [dimensions, setDimensions] = useState<any[]>([]);
+  const [dimensions, setDimensions] = useState<DimensionData[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDrawing, setIsDrawing] = useState(false);
   const [allCardsPlaced, setAllCardsPlaced] = useState(false);
@@ -159,12 +161,14 @@ export default function DrawCardsScreen() {
             direction === 'upright' ? '正位' : '逆位'
           );
 
-          return {
-            cardId: card.id,
-            name: card.name,
-            imageUrl: card.image_url,
+        return {
+          cardId: card.id,
+          name: card.name,
+          displayName: card.localizedName ?? card.name,
+          imageUrl: card.image_url,
         position:
-          dimensions[index]?.aspect ||
+          dimensions[index]?.localizedAspect ??
+          dimensions[index]?.aspect ??
           t('draw.positionFallback', { index: index + 1 }),
             dimension: dimensions[index],
             direction,
@@ -225,7 +229,7 @@ export default function DrawCardsScreen() {
         ? {
             ...card,
             dimension: dimensions[slotIndex],
-            position: dimensions[slotIndex].aspect,
+            position: dimensions[slotIndex].localizedAspect ?? dimensions[slotIndex].aspect,
             revealed: true // 放入卡槽时自动翻牌
           }
         : card
@@ -239,7 +243,7 @@ export default function DrawCardsScreen() {
   const handleCardPress = (card: DrawnCard) => {
     if (card.basicSummary) {
       Alert.alert(
-        `${card.name} (${card.direction})`,
+        `${card.displayName ?? card.name} (${card.direction})`,
         card.basicSummary,
         [{ text: '了解', style: 'default' }]
       );
