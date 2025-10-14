@@ -6,14 +6,16 @@ import { router } from 'expo-router';
 
 import { HistoryList, HistoryDetail } from '@/components/history';
 import { useTranslation } from '@/lib/hooks/useTranslation';
+import { useAppContext } from '@/lib/contexts/AppContext';
 
 export default function HistoryScreen() {
   const [selectedHistoryId, setSelectedHistoryId] = useState<string | null>(null);
   const { t } = useTranslation('history');
+  const {
+    state: { userId: appUserId },
+  } = useAppContext();
 
-  // 模拟用户ID，实际应用中应该从全局状态或认证系统获取
-  // TODO: 替换为真实的用户ID管理
-  const userId = 'anonymous_user';
+  const userId = appUserId ?? 'anonymous_user';
 
   const handleHistoryPress = (historyId: string) => {
     setSelectedHistoryId(historyId);

@@ -3,6 +3,7 @@ Reading service for tarot card interpretation business logic.
 """
 import json
 import re
+import logging
 from datetime import datetime
 from typing import Dict, List, Optional, Any
 from sqlalchemy.orm import Session
@@ -444,7 +445,8 @@ class ReadingService:
             # 调用LLM一次性生成所有解读
             result = await self.llm_service.call_ai_api(
                 prompt=complete_prompt,
-                locale=locale
+                locale=locale,
+                force_json=True
             )
 
             if not result:
@@ -635,7 +637,7 @@ Always respond in English."""
                 # 如果没有markdown格式，尝试直接解析整个结果
                 json_str = llm_result.strip()
 
-            parsed_data = json.loads(json_str)
+            parsed_data = self._parse_json_payload(json_str, llm_result)
 
             # 从数据库重新获取完整的维度信息（包含aspect和aspect_type）
             complete_dimensions = []
@@ -681,8 +683,66 @@ Always respond in English."""
             }
 
         except Exception as e:
-            api_logger.log_error("parse_complete_interpretation_result", e, {"result_length": len(llm_result)})
+            api_logger.log_error(
+                "parse_complete_interpretation_result",
+                e,
+                {
+                    "result_length": len(llm_result),
+                    "result_preview": llm_result[:600]
+                }
+            )
             raise ValueError(f"解析LLM返回结果失败: {e}")
+
+    def _parse_json_payload(self, json_str: str, raw_result: str) -> Dict[str, Any]:
+        """尝试以多种方式从LLM结果中解析JSON"""
+        candidates: List[str] = []
+
+        if json_str:
+            candidates.append(json_str.strip())
+
+        # 处理可能存在JSON前后的无关文本
+        if json_str:
+            first_brace = json_str.find('{')
+            last_brace = json_str.rfind('}')
+            if first_brace != -1 and last_brace != -1 and last_brace > first_brace:
+                candidates.append(json_str[first_brace:last_brace + 1].strip())
+
+        # 如果仍未找到，尝试从原始结果中截取
+        if raw_result and raw_result not in candidates:
+            trimmed = raw_result.strip()
+            if trimmed:
+                candidates.append(trimmed)
+            first_brace = raw_result.find('{')
+            last_brace = raw_result.rfind('}')
+            if first_brace != -1 and last_brace != -1 and last_brace > first_brace:
+                brace_candidate = raw_result[first_brace:last_brace + 1].strip()
+                if brace_candidate and brace_candidate not in candidates:
+                    candidates.append(brace_candidate)
+
+        decoder = json.JSONDecoder()
+        errors: List[str] = []
+
+        api_debug_logger = logging.getLogger("api")
+
+        for candidate in candidates:
+            if not candidate:
+                continue
+            candidate_clean = candidate.lstrip('\ufeff').strip()
+            if not candidate_clean:
+                continue
+            try:
+                parsed, _ = decoder.raw_decode(candidate_clean)
+                return parsed
+            except json.JSONDecodeError as e:
+                errors.append(str(e))
+                api_debug_logger.debug(
+                    "LLM JSON parsing attempt failed | error=%s | preview=%s",
+                    str(e),
+                    candidate_clean[:400]
+                )
+                continue
+
+        raise ValueError(f"无法解析LLM返回的JSON内容: {'; '.join(errors[:2])}")
 
     def get_basic_interpretation(
         self,

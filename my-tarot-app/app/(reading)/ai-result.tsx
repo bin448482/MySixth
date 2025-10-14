@@ -150,7 +150,7 @@ export default function AIResultScreen() {
         name: card.name,
         arcana: 'Major', // Placeholder; derive from card data when available
         number: card.cardId,
-        direction: card.direction === 'upright' ? 'upright' : 'reversed',
+        direction: card.direction === 'reversed' ? '逆位' : '正位',
         position: card.dimension?.aspect_type || 1, // Use dimension aspect_type (1,2,3) as position
         image_url: card.imageUrl || '',
         deck: 'default'

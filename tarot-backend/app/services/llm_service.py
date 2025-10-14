@@ -85,7 +85,8 @@ class LLMService:
         prompt: str,
         locale: Optional[str] = None,
         provider: Optional[str] = None,
-        model: Optional[str] = None
+        model: Optional[str] = None,
+        force_json: bool = False
     ) -> Optional[str]:
         """调用AI API生成内容（异步版本）"""
         resolved_provider, resolved_model = self._resolve_provider_and_model(locale, provider, model)
@@ -95,7 +96,8 @@ class LLMService:
                 self._call_ai_api_sync,
                 prompt,
                 resolved_provider,
-                resolved_model
+                resolved_model,
+                force_json
             )
         except Exception as e:
             api_logger.log_error(
@@ -105,7 +107,7 @@ class LLMService:
             )
             return None
 
-    def _call_ai_api_sync(self, prompt: str, provider: str, model: str) -> Optional[str]:
+    def _call_ai_api_sync(self, prompt: str, provider: str, model: str, force_json: bool) -> Optional[str]:
         """同步版本的AI API调用"""
         client = self.clients.get(provider)
         if not client:
@@ -120,11 +122,16 @@ class LLMService:
                     max_tokens=self.config.MAX_TOKENS
                 )
             elif provider == 'openai':
+                create_kwargs = {
+                    "model": model,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "temperature": self.config.TEMPERATURE,
+                    "max_tokens": self.config.MAX_TOKENS
+                }
+                if force_json:
+                    create_kwargs["response_format"] = {"type": "json_object"}
                 response = client.chat.completions.create(
-                    model=model,
-                    messages=[{"role": "user", "content": prompt}],
-                    temperature=self.config.TEMPERATURE,
-                    max_tokens=self.config.MAX_TOKENS
+                    **create_kwargs
                 )
             else:
                 raise ValueError(f"Unsupported provider: {provider}")

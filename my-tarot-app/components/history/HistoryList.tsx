@@ -22,7 +22,7 @@ import { HistoryFilterBar } from './HistoryFilterBar';
 import { useTranslation } from '@/lib/hooks/useTranslation';
 
 interface HistoryListProps {
-  userId: string;
+  userId?: string | null;
   onHistoryPress: (historyId: string) => void;
   style?: any;
 }
@@ -67,21 +67,30 @@ export const HistoryList: React.FC<HistoryListProps> = ({
         setLoadingMore(true);
       }
 
-      // 查询多个可能的匿名用户ID
-      const possibleUserIds = ['anonymous_user', 'anonymous'];
+      const candidateUserIds = Array.from(
+        new Set(
+          [userId, 'anonymous_user', 'anonymous'].filter(
+            (value): value is string => typeof value === 'string' && value.length > 0
+          )
+        )
+      );
       let allHistories: ParsedUserHistory[] = [];
       let totalCount = 0;
 
-      for (const uid of possibleUserIds) {
+      if (candidateUserIds.length === 0) {
+        console.warn('HistoryList: no valid user ids available for querying history.');
+      }
+
+      for (const uid of candidateUserIds) {
         try {
-          const histories = await userDbService.getUserHistory(
+          const historiesForUser = await userDbService.getUserHistory(
             uid,
             currentPagination,
             currentFilter
           );
           const count = await userDbService.getUserHistoryCount(uid, currentFilter);
 
-          allHistories = [...allHistories, ...histories];
+          allHistories = [...allHistories, ...historiesForUser];
           totalCount += count;
         } catch (err) {
           // 忽略单个用户ID的查询错误，继续查询其他ID
@@ -113,7 +122,7 @@ export const HistoryList: React.FC<HistoryListProps> = ({
       // 淡入动画
       opacity.value = withTiming(1, { duration: 300 });
     }
-  }, [filter, pagination, histories.length, t]);
+  }, [filter, pagination, histories.length, userId, t, userDbService]);
 
   // 初始加载
   useEffect(() => {
