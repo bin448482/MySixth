@@ -6,6 +6,7 @@
  */
 
 import { UserDatabaseService } from '../database/user-db';
+import { DEFAULT_LOCALE, type AppLocale } from '../i18n';
 import { CardService } from './CardService';
 import { SpreadService } from './SpreadService';
 import type {
@@ -190,11 +191,17 @@ export class ReadingService implements IReadingService {
    * 将ReadingResult转换为UserHistory格式
    */
   private convertReadingResultToUserHistory(result: ReadingResult): Omit<UserHistory, 'id' | 'created_at' | 'updated_at'> {
+    const locale = result.metadata.locale ?? DEFAULT_LOCALE;
+    if (!result.metadata.locale) {
+      result.metadata.locale = locale;
+    }
+
     return {
       user_id: result.metadata.user_id,
       spread_id: result.spread.id,
       card_ids: JSON.stringify(result.cards.map(card => card.card.id)),
       interpretation_mode: result.metadata.interpretation_mode,
+      locale,
       result: JSON.stringify(result),
       timestamp: new Date().toISOString()
     };
@@ -203,7 +210,11 @@ export class ReadingService implements IReadingService {
   /**
    * 通过ReadingFlowState保存记录（用于ReadingContext集成）
    */
-  async saveReadingFromState(state: ReadingFlowState, userId: string = 'anonymous_user'): Promise<ServiceResponse<string>> {
+  async saveReadingFromState(
+    state: ReadingFlowState,
+    userId: string = 'anonymous_user',
+    locale: AppLocale = DEFAULT_LOCALE
+  ): Promise<ServiceResponse<string>> {
     try {
       // 如果没有完整的解读结果，构建一个基础的
       if (!state.readingResult) {
@@ -219,6 +230,7 @@ export class ReadingService implements IReadingService {
           card: {
             id: selectedCard.cardId,
             name: selectedCard.name || '未知卡牌',
+            localizedName: selectedCard.displayName ?? selectedCard.name,
             arcana: 'Major' as const, // 默认值
             number: 0, // 默认值
             image_url: selectedCard.imageUrl || '',
@@ -261,13 +273,22 @@ export class ReadingService implements IReadingService {
           }
         };
 
+        readingResult.metadata.locale = locale;
+
         const savedId = await this.saveReadingResult('temp_session', readingResult);
         return {
           success: true,
           data: savedId
         };
       } else {
-        const savedId = await this.saveReadingResult('temp_session', state.readingResult);
+        const normalizedResult: ReadingResult = {
+          ...state.readingResult,
+          metadata: {
+            ...state.readingResult.metadata,
+            locale: state.readingResult.metadata.locale ?? locale,
+          },
+        };
+        const savedId = await this.saveReadingResult('temp_session', normalizedResult);
         return {
           success: true,
           data: savedId

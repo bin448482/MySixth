@@ -25,25 +25,6 @@ export class ConfigDatabaseService {
   }
 
   /**
-   * 初始化配置数据库
-   */
-  async initialize(): Promise<ServiceResponse<boolean>> {
-    try {
-      const result = await this.connectionManager.initialize();
-      return {
-        success: result.success,
-        data: result.success,
-        error: result.error
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Config database initialization failed'
-      };
-    }
-  }
-
-  /**
    * 查询多行数据
    */
   async query<T>(sql: string, params: any[] = []): Promise<ServiceResponse<T[]>> {

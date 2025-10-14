@@ -90,10 +90,22 @@ export const CREATE_TABLES = {
       spread_id INTEGER NOT NULL,
       card_ids TEXT NOT NULL,
       interpretation_mode TEXT NOT NULL CHECK (interpretation_mode IN ('default', 'ai')),
+      locale TEXT NOT NULL DEFAULT 'zh-CN',
       result TEXT NOT NULL,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (spread_id) REFERENCES spread (id)
+    );
+  `,
+
+  // 8. user_settings 表 - 用户偏好（语言等）
+  user_settings: `
+    CREATE TABLE IF NOT EXISTS user_settings (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL UNIQUE,
+      locale TEXT NOT NULL DEFAULT 'zh-CN',
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      synced_at DATETIME
     );
   `
 };
@@ -107,5 +119,7 @@ export const CREATE_INDEXES = [
   'CREATE INDEX IF NOT EXISTS idx_user_history_user_timestamp ON user_history (user_id, timestamp DESC);',
   'CREATE INDEX IF NOT EXISTS idx_user_history_mode ON user_history (interpretation_mode);',
   'CREATE INDEX IF NOT EXISTS idx_user_history_spread ON user_history (spread_id);',
-  'CREATE INDEX IF NOT EXISTS idx_user_history_created_at ON user_history (created_at DESC);'
+  'CREATE INDEX IF NOT EXISTS idx_user_history_created_at ON user_history (created_at DESC);',
+  'CREATE INDEX IF NOT EXISTS idx_user_history_locale ON user_history (locale);',
+  'CREATE INDEX IF NOT EXISTS idx_user_settings_user_id ON user_settings (user_id);'
 ];

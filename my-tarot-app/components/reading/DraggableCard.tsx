@@ -19,6 +19,7 @@ interface DraggableCardProps {
   card: {
     id: number;
     name: string;
+    displayName?: string;
     imageUrl: string;
     direction: 'upright' | 'reversed';
     revealed: boolean;

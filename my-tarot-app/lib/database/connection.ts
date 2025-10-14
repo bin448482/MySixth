@@ -64,10 +64,24 @@ export class DatabaseConnectionManager {
 
   /**
    * 初始化双数据库连接
+   * 幂等性:如果已经初始化,直接返回成功
    */
   async initialize(): Promise<ServiceResponse<DatabaseStatus>> {
+    // 如果已经初始化,直接返回成功
+    if (this.isConfigInitialized && this.isUserInitialized) {
+      console.log('[ConnectionManager] Database already initialized, skipping initialization');
+      return {
+        success: true,
+        data: {
+          isInitialized: true,
+          version: 1,
+          lastSync: new Date().toISOString()
+        }
+      };
+    }
+
     try {
-      // console.log('[ConnectionManager] Starting dual database initialization...');
+      console.log('[ConnectionManager] Starting dual database initialization...');
 
       // 1. 初始化配置数据库（只读）
       await this.initializeConfigDatabase();
@@ -161,32 +175,52 @@ export class DatabaseConnectionManager {
     const configDbFile = this.getConfigDatabaseFile();
 
     try {
-      // console.log('[ConnectionManager] Force copying bundled config database on every startup...');
+      console.log('[ConnectionManager] Starting to copy bundled config database...');
 
       // 确保SQLite目录存在
       this.ensureSQLiteDirectoryExists();
+      console.log('[ConnectionManager] SQLite directory ensured:', this.getSQLiteDirectory().uri);
 
       try {
         // 加载预置配置数据库资源
+        console.log('[ConnectionManager] Loading asset from bundle...');
         const asset = Asset.fromModule(require('../../assets/db/tarot_config.db'));
         await asset.downloadAsync();
 
         if (!asset.localUri) {
-          throw new Error('Failed to download config database asset');
+          throw new Error('Failed to download config database asset - localUri is null');
         }
 
+        console.log('[ConnectionManager] Asset downloaded to:', asset.localUri);
+
+        // 删除现有文件
         const existingFileInfo = configDbFile.info();
         if (existingFileInfo.exists) {
+          console.log('[ConnectionManager] Deleting existing config database...');
           configDbFile.delete();
         }
 
-        // 每次启动都复制，覆盖现有文件
+        // 复制文件
+        console.log('[ConnectionManager] Copying asset to:', configDbFile.uri);
         const assetFile = new File(asset.localUri);
         assetFile.copy(configDbFile);
 
-        // console.log('[ConnectionManager] Config database force copied successfully');
+        // 验证复制成功
+        const copiedFileInfo = configDbFile.info();
+        if (!copiedFileInfo.exists) {
+          throw new Error('Config database file does not exist after copy operation');
+        }
+
+        console.log('[ConnectionManager] ✅ Config database copied successfully, size:', copiedFileInfo.size, 'bytes');
       } catch (assetError) {
         console.error('[ConnectionManager] ❌ Asset loading failed:', assetError);
+        if (assetError instanceof Error) {
+          console.error('[ConnectionManager] Error details:', {
+            message: assetError.message,
+            name: assetError.name,
+            stack: assetError.stack
+          });
+        }
         throw new Error(`Failed to load config database asset: ${assetError instanceof Error ? assetError.message : 'Unknown error'}`);
       }
     } catch (error) {
@@ -201,6 +235,19 @@ export class DatabaseConnectionManager {
    */
   private async verifyConfigDatabase(): Promise<void> {
     try {
+      console.log('[ConnectionManager] Verifying config database integrity...');
+
+      // 首先检查数据库连接是否正常
+      if (!this.configDb) {
+        throw new Error('Config database connection is null');
+      }
+
+      // 列出数据库中所有的表
+      const allTables = this.configDb.getAllSync<{name: string}>(
+        "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
+      );
+      console.log('[ConnectionManager] Tables in config database:', allTables.map(t => t.name).join(', '));
+
       // 检查必要的表是否存在
       const requiredTables = ['card', 'card_style', 'dimension', 'card_interpretation', 'spread'];
 
@@ -210,14 +257,27 @@ export class DatabaseConnectionManager {
           [table]
         );
 
-        if ((result?.count || 0) === 0) {
-          throw new Error(`Required table '${table}' not found in config database`);
+        const tableCount = result?.count || 0;
+        console.log(`[ConnectionManager] Table '${table}' check: ${tableCount} found`);
+
+        if (tableCount === 0) {
+          throw new Error(`Required table '${table}' not found in config database. Available tables: ${allTables.map(t => t.name).join(', ')}`);
         }
       }
 
-      // console.log('[ConnectionManager] Config database integrity verified');
+      console.log('[ConnectionManager] ✅ Config database integrity verified - all required tables present');
     } catch (error) {
       console.error('[ConnectionManager] ❌ Config database verification failed:', error);
+
+      // 提供更详细的错误信息
+      if (error instanceof Error) {
+        console.error('[ConnectionManager] Error details:', {
+          message: error.message,
+          name: error.name,
+          stack: error.stack
+        });
+      }
+
       throw error;
     }
   }
@@ -227,41 +287,98 @@ export class DatabaseConnectionManager {
    */
   private async createUserTables(): Promise<void> {
     try {
-      // 创建用户历史表 - 使用TEXT类型的UUID主键
-      const userHistorySQL = `
-        CREATE TABLE IF NOT EXISTS user_history (
-          id TEXT PRIMARY KEY,
-          user_id TEXT NOT NULL,
-          timestamp DATETIME NOT NULL,
-          spread_id INTEGER NOT NULL,
-          card_ids TEXT NOT NULL,
-          interpretation_mode TEXT NOT NULL CHECK (interpretation_mode IN ('default', 'ai')),
-          result TEXT NOT NULL,
-          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        );
-      `;
+      console.log('[ConnectionManager] Creating/migrating user tables...');
 
-      this.userDb.execSync(userHistorySQL);
-
-      // 验证表结构
-      const tableInfo = this.userDb.getAllSync<{name: string, type: string}>(
-        "PRAGMA table_info(user_history)"
+      // 检查 user_history 表是否存在
+      const historyTableExists = this.userDb.getFirstSync<{count: number}>(
+        "SELECT COUNT(*) as count FROM sqlite_master WHERE type='table' AND name='user_history'"
       );
-      // console.log('[ConnectionManager] User history table structure:', tableInfo);
+
+      if ((historyTableExists?.count || 0) > 0) {
+        console.log('[ConnectionManager] user_history table exists, checking schema...');
+
+        // 检查 locale 字段是否存在
+        const columns = this.userDb.getAllSync<{name: string}>(
+          "PRAGMA table_info(user_history)"
+        );
+        const hasLocaleColumn = columns.some(col => col.name === 'locale');
+
+        console.log('[ConnectionManager] Existing columns:', columns.map(c => c.name).join(', '));
+
+        if (!hasLocaleColumn) {
+          console.log('[ConnectionManager] locale column missing, adding it...');
+          // 添加 locale 字段到现有表
+          this.userDb.execSync(`
+            ALTER TABLE user_history ADD COLUMN locale TEXT NOT NULL DEFAULT 'zh-CN';
+          `);
+          console.log('[ConnectionManager] ✅ locale column added successfully');
+        } else {
+          console.log('[ConnectionManager] ✅ locale column already exists');
+        }
+      } else {
+        console.log('[ConnectionManager] Creating new user_history table...');
+        // 创建新表
+        const userHistorySQL = `
+          CREATE TABLE user_history (
+            id TEXT PRIMARY KEY,
+            user_id TEXT NOT NULL,
+            timestamp DATETIME NOT NULL,
+            spread_id INTEGER NOT NULL,
+            card_ids TEXT NOT NULL,
+            interpretation_mode TEXT NOT NULL CHECK (interpretation_mode IN ('default', 'ai')),
+            locale TEXT NOT NULL DEFAULT 'zh-CN',
+            result TEXT NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+          );
+        `;
+        this.userDb.execSync(userHistorySQL);
+        console.log('[ConnectionManager] ✅ user_history table created');
+      }
+
+      // 检查 user_settings 表是否存在
+      const settingsTableExists = this.userDb.getFirstSync<{count: number}>(
+        "SELECT COUNT(*) as count FROM sqlite_master WHERE type='table' AND name='user_settings'"
+      );
+
+      if ((settingsTableExists?.count || 0) === 0) {
+        console.log('[ConnectionManager] Creating new user_settings table...');
+        const userSettingsSQL = `
+          CREATE TABLE user_settings (
+            id TEXT PRIMARY KEY,
+            user_id TEXT NOT NULL UNIQUE,
+            locale TEXT NOT NULL DEFAULT 'zh-CN',
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            synced_at DATETIME
+          );
+        `;
+        this.userDb.execSync(userSettingsSQL);
+        console.log('[ConnectionManager] ✅ user_settings table created');
+      } else {
+        console.log('[ConnectionManager] ✅ user_settings table already exists');
+      }
 
       // 创建索引
+      console.log('[ConnectionManager] Creating indexes...');
       const indexSQL = `
         CREATE INDEX IF NOT EXISTS idx_user_history_user_id ON user_history(user_id);
         CREATE INDEX IF NOT EXISTS idx_user_history_timestamp ON user_history(timestamp);
         CREATE INDEX IF NOT EXISTS idx_user_history_user_timestamp ON user_history(user_id, timestamp);
+        CREATE INDEX IF NOT EXISTS idx_user_history_locale ON user_history(locale);
+        CREATE INDEX IF NOT EXISTS idx_user_settings_user_id ON user_settings(user_id);
       `;
-
       this.userDb.execSync(indexSQL);
+      console.log('[ConnectionManager] ✅ Indexes created');
 
-      // console.log('[ConnectionManager] User tables created successfully');
+      // 验证最终表结构
+      const finalColumns = this.userDb.getAllSync<{name: string, type: string}>(
+        "PRAGMA table_info(user_history)"
+      );
+      console.log('[ConnectionManager] Final user_history schema:', finalColumns.map(c => `${c.name}:${c.type}`).join(', '));
+
+      console.log('[ConnectionManager] ✅ User tables migration completed successfully');
     } catch (error) {
-      console.error('[ConnectionManager] ❌ Failed to create user tables:', error);
+      console.error('[ConnectionManager] ❌ Failed to create/migrate user tables:', error);
       throw error;
     }
   }
@@ -279,6 +396,7 @@ export class DatabaseConnectionManager {
 
       // 删除现有表
       this.userDb.execSync('DROP TABLE IF EXISTS user_history');
+      this.userDb.execSync('DROP TABLE IF EXISTS user_settings');
 
       // 重新创建表
       await this.createUserTables();

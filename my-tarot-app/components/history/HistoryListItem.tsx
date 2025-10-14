@@ -6,7 +6,9 @@ import Animated, {
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
+
 import type { ParsedUserHistory } from '../../lib/types/user';
+import { useTranslation } from '@/lib/hooks/useTranslation';
 
 interface HistoryListItemProps {
   history: ParsedUserHistory;
@@ -17,25 +19,31 @@ export const HistoryListItem: React.FC<HistoryListItemProps> = ({
   history,
   onPress,
 }) => {
+  const { t, i18n } = useTranslation('history');
+  const locale = i18n.resolvedLanguage ?? i18n.language ?? 'zh-CN';
   const scale = useSharedValue(1);
   const glowOpacity = useSharedValue(0);
 
   // 格式化时间显示 - 显示完整的日期时间
   const formatTime = (timestamp: string) => {
-    const date = new Date(timestamp);
-    return date.toLocaleString('zh-CN', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit'
-    });
+    try {
+      const date = new Date(timestamp);
+      return date.toLocaleString(locale, {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+      } as Intl.DateTimeFormatOptions);
+    } catch {
+      return timestamp;
+    }
   };
 
   // 获取占卜类型显示文本
   const getModeText = (mode: string) => {
-    return mode === 'ai' ? '✨ AI解读' : '基础解读';
+    return mode === 'ai' ? t('list.modeBadge.ai') : t('list.modeBadge.default');
   };
 
   // 获取占卜类型颜色
@@ -50,11 +58,14 @@ export const HistoryListItem: React.FC<HistoryListItemProps> = ({
       const dimensions = history.result?.metadata?.ai_dimensions;
       if (dimensions && dimensions.length > 0) {
         const dimensionDesc = dimensions[0].description;
-        return `${userDesc} AI分析：${dimensionDesc}`;
+        return t('list.preview.aiAnalysis', {
+          description: userDesc,
+          dimension: dimensionDesc,
+        });
       }
       return userDesc;
     }
-    return history.result?.metadata?.theme || '查看完整解读...';
+    return history.result?.metadata?.theme || t('list.preview.fallback');
   };
 
   // 获取卡牌数量
@@ -107,7 +118,9 @@ export const HistoryListItem: React.FC<HistoryListItemProps> = ({
             </View>
 
             <View style={styles.rightSection}>
-              <Text style={styles.cardCountText}>{getCardCount()}张牌</Text>
+              <Text style={styles.cardCountText}>
+                {t('list.cardCount', { count: getCardCount() })}
+              </Text>
               <Text style={styles.arrow}>›</Text>
             </View>
           </View>

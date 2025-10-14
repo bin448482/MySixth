@@ -4,6 +4,7 @@
  */
 
 import { UserDatabaseService } from '../database/user-db';
+import { DEFAULT_LOCALE, type AppLocale } from '../i18n';
 import type {
   ParsedUserHistory,
   HistoryFilter,
@@ -39,7 +40,8 @@ export class HistoryService {
     spreadId: number,
     cardIds: number[],
     result: ReadingResult,
-    interpretationMode: 'default' | 'ai' = 'default'
+    interpretationMode: 'default' | 'ai' = 'default',
+    locale: AppLocale = DEFAULT_LOCALE
   ): Promise<string> {
     try {
       const historyData = {
@@ -49,6 +51,7 @@ export class HistoryService {
         spread_id: spreadId,
         card_ids: JSON.stringify(cardIds),
         interpretation_mode: interpretationMode,
+        locale,
         result: JSON.stringify(result),
       };
 

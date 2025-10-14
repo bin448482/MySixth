@@ -7,6 +7,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { CollapsibleSection } from '../common/CollapsibleSection';
+import { useTranslation } from '@/lib/hooks/useTranslation';
 
 interface PrivacyItem {
   id: string;
@@ -60,31 +61,15 @@ const PrivacyCard: React.FC<PrivacyCardProps> = ({ item, expanded, onToggle }) =
 };
 
 export const PrivacySection: React.FC = () => {
+  const { t } = useTranslation('settings');
   const [expandedItem, setExpandedItem] = useState<string | null>(null);
 
-  const privacyItems: PrivacyItem[] = [
-    {
-      id: "collection",
-      title: "数据收集说明",
-      icon: "📊",
-      summary: "我们遵循最小化、必要性原则收集数据",
-      details: "我们仅收集提供服务所必需的数据，包括：\n\n• 占卜记录：您的占卜问题、选择的卡牌、解读结果\n• 使用偏好：界面设置、语言偏好等个性化配置\n• 设备信息：设备型号、操作系统版本（用于兼容性优化）\n• 使用统计：功能使用频率、操作路径（用于改善用户体验）\n\n我们承诺不收集您的姓名、地址、电话等个人身份信息。"
-    },
-    {
-      id: "usage",
-      title: "数据使用方式",
-      icon: "🎯",
-      summary: "用于改进体验与个性化，不出售数据",
-      details: "您的数据仅用于以下目的：\n\n• 提供塔罗牌解读服务\n• 保存和同步您的占卜历史\n• 改善应用功能和用户体验\n• 提供个性化推荐和设置\n• 技术支持和客户服务\n\n我们承诺：\n• 绝不将您的数据出售给第三方\n• 不用于广告投放或营销目的\n• 不与其他应用或服务共享个人数据"
-    },
-    {
-      id: "protection",
-      title: "数据保护承诺",
-      icon: "🔒",
-      summary: "加密存储、定期审计、支持导出与删除",
-      details: "我们采用行业标准的安全措施保护您的数据：\n\n• 加密存储：所有数据采用AES-256加密存储\n• 传输安全：使用HTTPS/TLS加密传输\n• 访问控制：严格限制数据访问权限\n• 定期审计：定期进行安全审计和漏洞扫描\n• 备份保护：安全的数据备份和恢复机制\n\n您的权利：\n• 随时查看和导出您的数据\n• 请求删除您的所有数据\n• 修正或更新您的信息\n• 撤回数据使用同意"
-    }
-  ];
+  const privacyItems = (t('privacy.items', { returnObjects: true }) as PrivacyItem[]) ?? [];
+  const contact = (t('privacy.contact', { returnObjects: true }) as {
+    title?: string;
+    description?: string;
+    email?: string;
+  }) ?? {};
 
   const handleToggle = (itemId: string) => {
     setExpandedItem(expandedItem === itemId ? null : itemId);
@@ -92,7 +77,7 @@ export const PrivacySection: React.FC = () => {
 
   return (
     <CollapsibleSection
-      title="隐私政策"
+      title={t('privacy.title')}
       icon="🔒"
       defaultExpanded={false}
     >
@@ -109,11 +94,13 @@ export const PrivacySection: React.FC = () => {
 
       {/* 联系方式 */}
       <View style={styles.contactInfo}>
-        <Text style={styles.contactTitle}>📧 隐私问题咨询</Text>
-        <Text style={styles.contactContent}>
-          如果您对我们的隐私政策有任何疑问，请通过以下方式联系我们：
-        </Text>
-        <Text style={styles.contactEmail}>privacy@tarotapp.com</Text>
+        {!!contact.title && <Text style={styles.contactTitle}>{contact.title}</Text>}
+        {!!contact.description && (
+          <Text style={styles.contactContent}>
+            {contact.description}
+          </Text>
+        )}
+        {!!contact.email && <Text style={styles.contactEmail}>{contact.email}</Text>}
       </View>
     </CollapsibleSection>
   );

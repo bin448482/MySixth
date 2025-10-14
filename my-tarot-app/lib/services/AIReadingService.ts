@@ -5,6 +5,7 @@
 
 import { apiConfig, endpoints } from '../config/api';
 import AuthService from './AuthService';
+import { DEFAULT_LOCALE, getCurrentLocale } from '../i18n';
 
 export interface AnalyzeRequest {
   description: string;
@@ -77,13 +78,28 @@ class AIReadingService {
     return `${this.baseUrl}${endpoint}`;
   }
 
-  private async getRequestHeaders(): Promise<Record<string, string>> {
+  private resolveLocale(explicit?: string): string {
+    try {
+      return explicit ?? getCurrentLocale() ?? DEFAULT_LOCALE;
+    } catch (error) {
+      console.warn('AIReadingService failed to resolve locale, falling back to default', error);
+      return DEFAULT_LOCALE;
+    }
+  }
+
+  private async getRequestHeaders(locale?: string): Promise<Record<string, string>> {
     const authHeaders = await this.authService.getAuthHeaders();
-    return {
+    const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
       ...authHeaders
     };
+
+    if (locale) {
+      headers['Accept-Language'] = locale;
+    }
+
+    return headers;
   }
 
   /**
@@ -96,12 +112,15 @@ class AIReadingService {
     try {
       console.log('调用AI分析接口:', { description, spreadType });
 
+      const locale = this.resolveLocale();
+
       const request: AnalyzeRequest = {
         description,
-        spread_type: spreadType
+        spread_type: spreadType,
+        locale
       };
 
-      const headers = await this.getRequestHeaders();
+      const headers = await this.getRequestHeaders(locale);
 
       const response = await fetch(this.buildUrl(endpoints.readings.analyze), {
         method: 'POST',
@@ -139,17 +158,21 @@ class AIReadingService {
     spreadType: string = 'three-card'
   ): Promise<GenerateResponse> {
     try {
+      const locale = this.resolveLocale();
+
       const request: GenerateRequest = {
         cards,
         dimensions,
         description,
-        spread_type: spreadType
+        spread_type: spreadType,
+        locale
       };
 
       console.log('🚀 === AIReadingService.generateAIReading 开始 ===');
       console.log('🌐 请求URL:', `${this.baseUrl}/api/v1/readings/generate`);
       console.log('📋 请求方法: POST');
       console.log('📄 请求体 (完整):', JSON.stringify(request, null, 2));
+      console.log('🌍 使用的语言环境:', locale);
       console.log('🎴 卡牌详情:');
       cards.forEach((card, index) => {
         console.log(`  卡牌 ${index + 1}:`, {
@@ -169,7 +192,7 @@ class AIReadingService {
         });
       });
 
-      const headers = await this.getRequestHeaders();
+      const headers = await this.getRequestHeaders(locale);
       console.log('📦 请求头:', headers);
 
       const response = await fetch(this.buildUrl(endpoints.readings.generate), {

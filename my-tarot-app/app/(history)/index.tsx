@@ -3,15 +3,19 @@ import { View, StyleSheet, Text, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+
 import { HistoryList, HistoryDetail } from '@/components/history';
-import { HistoryService } from '@/lib/services/HistoryService';
+import { useTranslation } from '@/lib/hooks/useTranslation';
+import { useAppContext } from '@/lib/contexts/AppContext';
 
 export default function HistoryScreen() {
   const [selectedHistoryId, setSelectedHistoryId] = useState<string | null>(null);
+  const { t } = useTranslation('history');
+  const {
+    state: { userId: appUserId },
+  } = useAppContext();
 
-  // 模拟用户ID，实际应用中应该从全局状态或认证系统获取
-  // TODO: 替换为真实的用户ID管理
-  const userId = 'anonymous_user';
+  const userId = appUserId ?? 'anonymous_user';
 
   const handleHistoryPress = (historyId: string) => {
     setSelectedHistoryId(historyId);
@@ -32,7 +36,7 @@ export default function HistoryScreen() {
           >
             <Ionicons name="arrow-back" size={24} color="#d4af37" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>占卜详情</Text>
+          <Text style={styles.headerTitle}>{t('screen.detailTitle')}</Text>
           <View style={styles.headerSpacer} />
         </View>
 
@@ -55,7 +59,7 @@ export default function HistoryScreen() {
         >
           <Ionicons name="arrow-back" size={24} color="#d4af37" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>占卜历史</Text>
+        <Text style={styles.headerTitle}>{t('screen.listTitle')}</Text>
         <View style={styles.headerSpacer} />
       </View>
 

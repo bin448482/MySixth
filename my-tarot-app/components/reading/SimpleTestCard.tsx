@@ -12,6 +12,7 @@ import Animated, {
   withSpring,
   runOnJS,
 } from 'react-native-reanimated';
+import { useTranslation } from 'react-i18next';
 
 interface SimpleTestCardProps {
   onDrag?: (id: number, x: number, y: number) => void;
@@ -25,6 +26,7 @@ export function SimpleTestCard({ onDrag }: SimpleTestCardProps) {
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
   const scale = useSharedValue(1);
+  const { t } = useTranslation('reading');
 
   const gesture = Gesture.Pan()
     .onStart(() => {
@@ -58,7 +60,7 @@ export function SimpleTestCard({ onDrag }: SimpleTestCardProps) {
   return (
     <GestureDetector gesture={gesture}>
       <Animated.View style={[styles.card, animatedStyle]}>
-        <Text style={styles.cardText}>拖我试试</Text>
+        <Text style={styles.cardText}>{t('shared.components.simpleTestCard.label')}</Text>
       </Animated.View>
     </GestureDetector>
   );

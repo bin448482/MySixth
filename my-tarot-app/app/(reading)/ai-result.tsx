@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -9,21 +9,20 @@ import {
   Alert,
   BackHandler,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { useReadingFlow } from '@/lib/contexts/ReadingContext';
 import AIReadingService from '@/lib/services/AIReadingService';
 import { CardImageLoader } from '@/components/reading/CardImageLoader';
+import { useTranslation } from 'react-i18next';
 
 interface AIResult {
-  dimension_summaries?: Record<string, string>; // 现在是可选的，为了向后兼容
+  dimension_summaries?: Record<string, string>; // Optional for backward compatibility
   overall_summary: string;
   insights: string[];
   generated_at: string;
-  // 新的主要数据结构
-  card_interpretations: Array<{
+  // Primary response payload
+  card_interpretations: {
     card_id: number;
     card_name: string;
     direction: string;
@@ -34,107 +33,110 @@ interface AIResult {
       dimension_name: string;
       interpretation: string;
     };
-  }>;
-  dimensions: Array<{
+  }[];
+  dimensions: {
     id: number;
     name: string;
     aspect: string;
     aspect_type: number;
     category: string;
     description: string;
-  }>;
+  }[];
 }
 
 export default function AIResultScreen() {
   const router = useRouter();
   const { state, updateAIResult, resetFlow, saveToHistory, updateInterpretations } = useReadingFlow();
+  const { t } = useTranslation('reading');
+  const { t: tCommon } = useTranslation('common');
+  const { t: tCards } = useTranslation('cards');
 
   const [loading, setLoading] = useState(true);
   const [aiResult, setAiResult] = useState<AIResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
-  const [hasSaved, setHasSaved] = useState(false); // 本地保存状态标记
+  const [hasSaved, setHasSaved] = useState(false); // Tracks local save status
 
-  // 添加硬件返回键拦截 - 只在页面聚焦时生效
+  const resolveCardDisplayName = useCallback(
+    (cardId: number, fallback: string) => {
+      const match = state.selectedCards?.find(card => card.cardId === cardId);
+      return match?.displayName ?? fallback;
+    },
+    [state.selectedCards]
+  );
+
+  // Intercept hardware back events while the screen is focused
   useFocusEffect(
-    React.useCallback(() => {
+    useCallback(() => {
       const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
-        // AI结果页面返回提示 - 已经消耗积分
         Alert.alert(
-          '确认返回',
-          '您已完成AI解读，返回将结束当前占卜。确定要返回吗？',
+          t('shared.alerts.confirmExit.title'),
+          t('shared.alerts.confirmExit.afterAIResult'),
           [
             {
-              text: '取消',
+              text: tCommon('app.cancel'),
               style: 'cancel',
             },
             {
-              text: '确定返回',
+              text: t('shared.buttons.confirmReturn'),
               onPress: () => {
-                // 清除状态并直接跳转到选择占卜类型页面
+                // Reset state and navigate back to the type selection screen
                 resetFlow();
                 router.push('/(reading)/type');
               },
             },
           ]
         );
-        return true; // 阻止默认返回行为
+        return true; // Prevent default back navigation
       });
 
       return () => backHandler.remove();
-    }, [router, resetFlow])
+    }, [router, resetFlow, t, tCommon])
   );
 
   useEffect(() => {
-    // 检查是否已经有AI解读结果
+    // Reuse existing AI result if it is already available
     if (state.aiResult) {
-      // 如果已经有结果，直接使用，不重新调用API，也不重复保存
-      console.log('使用已有的AI解读结果，避免重复调用API');
+      console.log('AI result already available; skip API call');
       setAiResult(state.aiResult);
       setLoading(false);
-      // 如果Context中已经标记为已保存，也同步本地状态
       if (state.savedToHistory) {
         setHasSaved(true);
-        console.log('AI解读已经保存过，跳过自动保存');
+        console.log('AI result already saved; skip auto-save');
       }
     } else {
-      // 如果没有结果，才调用API生成解读
-      console.log('没有AI解读结果，开始生成新的解读');
+      console.log('No AI result found; generating a new interpretation');
       generateAIReading();
     }
-  }, []);
+  }, [state.aiResult, state.savedToHistory, generateAIReading]);
 
-  // 新增：在AI解读数据加载完成且渲染完成后自动保存
+  // Automatically persist the reading once it is fully rendered
   useEffect(() => {
-    // 更严格的条件检查，只在真正需要保存时才保存
     if (!loading && aiResult && !hasSaved) {
-      // 额外的安全检查：确保Context状态符合预期
       const shouldSave = state.aiResult && !state.savedToHistory;
 
       if (shouldSave) {
-        console.log('AI解读自动保存条件检查通过，开始保存');
+        console.log('Auto-save threshold met; persisting AI reading');
         const autoSave = async () => {
           try {
-            // 立即设置本地保存标记，防止并发保存
             setHasSaved(true);
             await saveToHistory();
-            console.log('AI解读渲染完成后自动保存成功');
+            console.log('AI reading saved successfully after render');
           } catch (error) {
-            console.error('自动保存失败:', error);
-            // 如果保存失败，重置标记以便重试
+            console.error('Auto-save failed:', error);
             setHasSaved(false);
           }
         };
         autoSave();
       } else {
-        console.log('AI解读自动保存条件不满足，跳过保存');
+        console.log('Auto-save conditions not satisfied; skipping persistence');
       }
     }
-  }, [loading, aiResult, hasSaved]); // 移除state相关依赖，避免循环触发
+  }, [loading, aiResult, hasSaved, state.aiResult, state.savedToHistory, saveToHistory]);
 
-  const generateAIReading = async () => {
+  const generateAIReading = useCallback(async () => {
     if (!state.selectedCards || !state.aiDimensions || !state.userDescription) {
-      setError('缺少必要的占卜数据，请重新开始');
+      setError(t('shared.errors.aiMissingData'));
       setLoading(false);
       return;
     }
@@ -145,37 +147,35 @@ export default function AIResultScreen() {
     try {
       const aiService = AIReadingService.getInstance();
 
-      // 检查服务健康状态
       const isHealthy = await aiService.checkServiceHealth();
       if (!isHealthy) {
-        throw new Error('AI服务暂时不可用，请稍后重试');
+        throw new Error(t('shared.errors.serviceUnavailable'));
       }
 
-      // 转换卡牌数据格式，符合后端API要求
+      // Normalize card payload for the backend API
       const cardInfos = state.selectedCards.map((card) => ({
         id: card.cardId,
         name: card.name,
-        arcana: 'Major', // 可以从卡牌数据获取
+        arcana: 'Major', // Placeholder; derive from card data when available
         number: card.cardId,
-        direction: card.direction === 'upright' ? '正位' : '逆位',
-        position: card.dimension?.aspect_type || 1, // 使用维度的aspect_type作为位置（1,2,3）
+        direction: card.direction === 'reversed' ? '逆位' : '正位',
+        position: card.dimension?.aspect_type || 1, // Use dimension aspect_type (1,2,3) as position
         image_url: card.imageUrl || '',
         deck: 'default'
-      })).sort((a, b) => a.position - b.position); // 按position排序
+      })).sort((a, b) => a.position - b.position); // Keep cards ordered by position
 
-      // 📋 详细打印请求数据用于后台调试
-      console.log('=== AI解读请求数据开始 ===');
-      console.log('📝 用户问题描述:', state.userDescription);
-      console.log('🎴 卡牌信息 (cardInfos):', JSON.stringify(cardInfos, null, 2));
-      console.log('🎯 AI维度信息 (aiDimensions):', JSON.stringify(state.aiDimensions, null, 2));
-      console.log('📊 牌阵类型 (spreadType):', 'three-card');
-      console.log('🔗 完整请求参数:', {
+      console.log('=== AI reading request payload ===');
+      console.log('Question:', state.userDescription);
+      console.log('Cards:', JSON.stringify(cardInfos, null, 2));
+      console.log('AI dimensions:', JSON.stringify(state.aiDimensions, null, 2));
+      console.log('Spread type:', 'three-card');
+      console.log('Full request parameters:', {
         cards: cardInfos,
         dimensions: state.aiDimensions,
         userDescription: state.userDescription,
         spreadType: 'three-card'
       });
-      console.log('=== AI解读请求数据结束 ===');
+      console.log('=== End of AI reading request payload ===');
 
       const result = await aiService.generateAIReading(
         cardInfos,
@@ -184,29 +184,27 @@ export default function AIResultScreen() {
         'three-card'
       );
 
-      // 📋 详细打印响应数据用于后台调试
-      console.log('=== AI解读响应数据开始 ===');
-      console.log('📦 完整响应数据:', JSON.stringify(result, null, 2));
-      console.log('🔍 响应数据类型检查:');
-      console.log('  - 是否有 card_interpretations:', !!result.card_interpretations);
-      console.log('  - card_interpretations 类型:', typeof result.card_interpretations);
-      console.log('  - card_interpretations 长度:', result.card_interpretations?.length);
-      console.log('  - 是否有 dimensions:', !!result.dimensions);
-      console.log('  - dimensions 长度:', result.dimensions?.length);
-      console.log('  - 是否有 overall_summary:', !!result.overall_summary);
-      console.log('  - 是否有 insights:', !!result.insights);
-      console.log('=== AI解读响应数据结束 ===');
+      console.log('=== AI reading response payload ===');
+      console.log('Raw response:', JSON.stringify(result, null, 2));
+      console.log('Response sanity check:');
+      console.log('  - card_interpretations exists:', !!result.card_interpretations);
+      console.log('  - card_interpretations type:', typeof result.card_interpretations);
+      console.log('  - card_interpretations length:', result.card_interpretations?.length);
+      console.log('  - dimensions exists:', !!result.dimensions);
+      console.log('  - dimensions length:', result.dimensions?.length);
+      console.log('  - overall_summary exists:', !!result.overall_summary);
+      console.log('  - insights exists:', !!result.insights);
+      console.log('=== End of AI reading response payload ===');
 
-      // 验证返回数据
       if (!result || !result.card_interpretations || !result.overall_summary) {
-        throw new Error('AI解读生成失败，请重试');
+        throw new Error(t('shared.errors.aiGenerateFailed'));
       }
 
-      console.log('AI解读生成成功，保存到Context');
+      console.log('AI reading generated successfully; updating context');
       updateAIResult(result);
       setAiResult(result);
 
-      // 将AI解读数据同步到ReadingContext中的interpretations
+      // Update ReadingContext interpretations with the latest AI data
       if (result.card_interpretations) {
         const interpretationData = result.card_interpretations.map(cardInterpretation => ({
           cardId: cardInterpretation.card_id,
@@ -215,28 +213,17 @@ export default function AIResultScreen() {
           direction: cardInterpretation.direction,
           summary: cardInterpretation.basic_summary,
           detail: cardInterpretation.ai_interpretation,
-          // AI占卜专用字段
+          // AI-specific metadata
           dimensionName: cardInterpretation.dimension_aspect?.dimension_name,
         }));
         updateInterpretations(interpretationData);
         console.log('[AIResult] Updated interpretations in context:', interpretationData);
       }
 
-      // 自动保存到历史记录（仅在未保存的情况下）
-      // 移动到useEffect中处理，确保数据完全同步后再保存
-      // if (!state.savedToHistory) {
-      //   try {
-      //     const savedId = await saveToHistory();
-      //     console.log('AI解读自动保存成功, ID:', savedId);
-      //   } catch (saveError) {
-      //     console.error('自动保存失败:', saveError);
-      //   }
-      // } else {
-      //   console.log('AI解读已经保存过，跳过自动保存');
-      // }
+      // Auto-save is handled in the effect once render completes
     } catch (error) {
-      console.error('AI解读生成失败:', error);
-      let errorMessage = '网络连接失败，请检查网络设置';
+      console.error('Failed to generate AI reading:', error);
+      let errorMessage = t('shared.errors.network');
 
       if (error instanceof Error) {
         errorMessage = error.message;
@@ -249,29 +236,34 @@ export default function AIResultScreen() {
     } finally {
       setLoading(false);
     }
+  }, [
+    state.selectedCards,
+    state.aiDimensions,
+    state.userDescription,
+    t,
+    updateAIResult,
+    updateInterpretations,
+  ]);
+
+  const isReversedDirection = (direction?: string | null) => {
+    if (!direction) return false;
+    const normalized = direction.toLowerCase();
+    const reversedLabel = tCards('sideToggle.reversed').toLowerCase();
+    return normalized === 'reversed' || normalized === reversedLabel;
   };
 
-  // const handleSaveToHistory = async () => {
-  //   if (!aiResult) {
-  //     Alert.alert('保存失败', '没有可保存的解读结果');
-  //     return;
-  //   }
-
-  //   try {
-  //     // 调用ReadingContext的saveToHistory方法
-  //     // 该方法会调用ReadingService.saveReadingFromState()处理AI占卜数据保存
-  //     const savedId = await saveToHistory();
-  //     Alert.alert(
-  //       '保存成功',
-  //       '请到占卜历史中查阅。',
-  //       [{ text: '了解', onPress: handleComplete }]
-  //     );
-  //   } catch (error) {
-  //     console.error('保存AI占卜记录失败:', error);
-  //     const errorMessage = error instanceof Error ? error.message : '保存记录失败，请重试';
-  //     Alert.alert('保存失败', errorMessage);
-  //   }
-  // };
+  const getDirectionLabel = (direction?: string | null) => {
+    if (!direction) return '';
+    if (isReversedDirection(direction)) {
+      return tCards('sideToggle.reversed');
+    }
+    const normalized = direction.toLowerCase();
+    const uprightLabel = tCards('sideToggle.upright').toLowerCase();
+    if (normalized === 'upright' || normalized === uprightLabel) {
+      return tCards('sideToggle.upright');
+    }
+    return direction;
+  };
 
   const handleComplete = () => {
     resetFlow();
@@ -284,15 +276,15 @@ export default function AIResultScreen() {
   };
 
   const handleRetry = () => {
-    // 清除当前结果并重新生成
+    // Reset state and trigger regeneration
     setAiResult(null);
     setError(null);
     setRetryCount(prev => prev + 1);
 
-    // 清除context中的结果，确保重新调用API
+    // Clear context result so the API is invoked again
     updateAIResult(undefined);
 
-    // 重新生成解读
+    // Generate a fresh interpretation
     generateAIReading();
   };
 
@@ -301,50 +293,50 @@ export default function AIResultScreen() {
     router.back();
   };
 
-  // 改进加载状态显示
+  // Enhanced loading state handling
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#FFD700" />
-        <Text style={styles.loadingText}>AI正在生成您的专属解读...</Text>
+        <Text style={styles.loadingText}>{t('aiResult.loading.title')}</Text>
         <Text style={styles.loadingSubText}>
-          {retryCount > 0 ? `正在重试 (${retryCount}/3)` : '请稍候，这可能需要10-30秒'}
+          {retryCount > 0 ? t('aiResult.retrying', { count: retryCount }) : t('aiResult.loading.subtitle')}
         </Text>
         <View style={styles.loadingProgress}>
           <View style={styles.progressBar}>
             <View style={[styles.progressFill, { width: '60%' }]} />
           </View>
-          <Text style={styles.progressText}>分析卡牌含义...</Text>
+          <Text style={styles.progressText}>{t('aiResult.progress.analysis')}</Text>
         </View>
       </View>
     );
   }
 
-  // 改进错误状态显示
+  // Enhanced error state handling
   if (error) {
     return (
       <View style={styles.errorContainer}>
         <Text style={styles.errorIcon}>⚠️</Text>
-        <Text style={styles.errorTitle}>解读生成失败</Text>
+        <Text style={styles.errorTitle}>{t('aiResult.errors.title')}</Text>
         <Text style={styles.errorText}>{error}</Text>
 
         <View style={styles.errorActions}>
           <TouchableOpacity style={styles.retryButton} onPress={handleRetry}>
             <Text style={styles.retryButtonText}>
-              {retryCount >= 3 ? '再次尝试' : '重试'}
+              {retryCount >= 3 ? t('aiResult.buttons.tryAgain') : t('aiResult.buttons.retry')}
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.backButton} onPress={handleGoBack}>
-            <Text style={styles.backButtonText}>返回上一步</Text>
+            <Text style={styles.backButtonText}>{t('aiResult.buttons.back')}</Text>
           </TouchableOpacity>
         </View>
 
         <View style={styles.errorTips}>
-          <Text style={styles.tipsTitle}>💡 解决建议：</Text>
-          <Text style={styles.tipsText}>• 检查网络连接是否正常</Text>
-          <Text style={styles.tipsText}>• 稍后再试，AI服务可能繁忙</Text>
-          <Text style={styles.tipsText}>• 重新描述问题可能有帮助</Text>
+          <Text style={styles.tipsTitle}>{t('aiResult.tips.title')}</Text>
+          <Text style={styles.tipsText}>{t('aiResult.tips.network')}</Text>
+          <Text style={styles.tipsText}>{t('aiResult.tips.busy')}</Text>
+          <Text style={styles.tipsText}>{t('aiResult.tips.rewrite')}</Text>
         </View>
       </View>
     );
@@ -353,13 +345,17 @@ export default function AIResultScreen() {
   if (!aiResult) {
     return (
       <View style={styles.errorContainer}>
-        <Text style={styles.errorText}>解读数据不完整</Text>
+        <Text style={styles.errorText}>{t('aiResult.errors.dataIncomplete')}</Text>
         <TouchableOpacity style={styles.retryButton} onPress={handleRetry}>
-          <Text style={styles.retryButtonText}>重新生成</Text>
+          <Text style={styles.retryButtonText}>{t('aiResult.buttons.regenerate')}</Text>
         </TouchableOpacity>
       </View>
     );
   }
+
+  const generatedTime = aiResult.generated_at
+    ? new Date(aiResult.generated_at).toLocaleString()
+    : new Date().toLocaleString();
 
   return (
     <ScrollView
@@ -370,12 +366,12 @@ export default function AIResultScreen() {
         <Text style={styles.title}>{state.userDescription}</Text>
       </View>
 
-      {/* 各维度解读 - 包含卡牌图片和基础牌意 */}
+      {/* Dimension-level interpretations with imagery and core meanings */}
       <View style={styles.dimensionsContainer}>
         {/* <Text style={styles.sectionTitle}>{state.userDescription}</Text> */}
         {aiResult.card_interpretations && aiResult.card_interpretations.length > 0 ? (
           aiResult.card_interpretations.map((cardInterpretation, index) => {
-            // 根据position找到对应的卡牌
+            // Match card reference by position for display
             const card = state.selectedCards.find(c => c.dimension?.aspect_type === cardInterpretation.position);
             if (!card) return null;
 
@@ -386,15 +382,17 @@ export default function AIResultScreen() {
                     <Text style={styles.positionText}>{cardInterpretation.position}</Text>
                   </View>
                   <View style={styles.cardInfoSection}>
-                    <Text style={styles.cardName}>{cardInterpretation.card_name}</Text>
+                    <Text style={styles.cardName}>
+                      {resolveCardDisplayName(cardInterpretation.card_id, cardInterpretation.card_name)}
+                    </Text>
                     <Text style={styles.cardDirection}>
-                      {cardInterpretation.direction}
+                      {getDirectionLabel(cardInterpretation.direction)}
                     </Text>
                   </View>
                 </View>
 
                 <View style={styles.cardContent}>
-                  {/* 卡牌图片居中显示 */}
+                  {/* Card image displayed in the center */}
                   <View style={styles.cardImageSection}>
                     <CardImageLoader
                       imageUrl={card.imageUrl}
@@ -402,33 +400,34 @@ export default function AIResultScreen() {
                       height={200}
                       style={[
                         styles.cardImageLarge,
-                        cardInterpretation.direction === '逆位' && styles.cardImageReversed
+                        isReversedDirection(cardInterpretation.direction) && styles.cardImageReversed
                       ]}
                       resizeMode="contain"
                     />
                   </View>
 
-                  {/* 维度信息 */}
+                  {/* Dimension metadata */}
                   <View style={styles.dimensionInfo}>
                     <Text style={styles.dimensionName}>
-                      {cardInterpretation.dimension_aspect?.dimension_name || `维度${index + 1}`}
+                      {cardInterpretation.dimension_aspect?.dimension_name ??
+                        t('aiResult.fallback.dimension', { index: index + 1 })}
                     </Text>
                     <Text style={styles.dimensionAspect}>
                       {aiResult.dimensions?.[index]?.aspect || ''}
                     </Text>
                   </View>
 
-                  {/* 基础牌意 */}
+                  {/* Baseline card meaning */}
                   <View style={styles.basicInterpretationContainer}>
-                    <Text style={styles.interpretationLabel}>基础牌意：</Text>
+                    <Text style={styles.interpretationLabel}>{t('aiResult.labels.basic')}</Text>
                     <Text style={styles.basicInterpretation}>
                       {cardInterpretation.basic_summary}
                     </Text>
                   </View>
 
-                  {/* AI详细解读 */}
+                  {/* AI detailed interpretation */}
                   <View style={styles.aiInterpretationContainer}>
-                    <Text style={styles.interpretationLabel}>AI详细解读：</Text>
+                    <Text style={styles.interpretationLabel}>{t('aiResult.labels.aiDetail')}</Text>
                     <Text style={styles.aiInterpretation}>
                       {cardInterpretation.ai_interpretation}
                     </Text>
@@ -439,21 +438,21 @@ export default function AIResultScreen() {
           })
         ) : (
           <View style={styles.errorContainer}>
-            <Text style={styles.errorText}>没有找到卡牌解读数据</Text>
+            <Text style={styles.errorText}>{t('aiResult.errors.noCardData')}</Text>
           </View>
         )}
       </View>
 
-      {/* 综合分析 */}
+      {/* Overall summary */}
       <View style={styles.overallContainer}>
-        <Text style={styles.sectionTitle}>综合分析</Text>
+        <Text style={styles.sectionTitle}>{t('aiResult.sections.overview')}</Text>
         <Text style={styles.overallSummary}>{aiResult.overall_summary}</Text>
       </View>
 
-      {/* 关键洞察 */}
+      {/* Key insights */}
       {aiResult.insights && aiResult.insights.length > 0 && (
         <View style={styles.insightsContainer}>
-          <Text style={styles.sectionTitle}>关键洞察</Text>
+          <Text style={styles.sectionTitle}>{t('aiResult.sections.insights')}</Text>
           {aiResult.insights.map((insight, index) => (
             <View key={index} style={styles.insightItem}>
               <Text style={styles.insightBullet}>•</Text>
@@ -463,22 +462,14 @@ export default function AIResultScreen() {
         </View>
       )}
 
-      {/* 操作按钮 */}
+      {/* Action buttons */}
       <View style={styles.actionsContainer}>
-        {/* <TouchableOpacity
-          style={[styles.actionButton, styles.primaryButton]}
-          onPress={handleSaveToHistory}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.primaryButtonText}>保存记录</Text>
-        </TouchableOpacity> */}
-
         <TouchableOpacity
           style={[styles.actionButton, styles.secondaryButton]}
           onPress={handleNewReading}
           activeOpacity={0.8}
         >
-          <Text style={styles.secondaryButtonText}>重新占卜</Text>
+          <Text style={styles.secondaryButtonText}>{t('shared.buttons.readAgain')}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -486,14 +477,14 @@ export default function AIResultScreen() {
           onPress={handleComplete}
           activeOpacity={0.8}
         >
-          <Text style={styles.tertiaryButtonText}>返回首页</Text>
+          <Text style={styles.tertiaryButtonText}>{t('shared.buttons.backHome')}</Text>
         </TouchableOpacity>
       </View>
 
       <View style={styles.footer}>
-        <Text style={styles.footerText}>步骤 4 / 4 - 完成</Text>
+        <Text style={styles.footerText}>{t('aiResult.footer')}</Text>
         <Text style={styles.generatedTime}>
-          生成时间：{new Date().toLocaleString()}
+          {t('aiResult.generatedAt', { time: generatedTime })}
         </Text>
       </View>
     </ScrollView>
@@ -800,7 +791,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#666666',
   },
-  // 改进的加载状态样式
+  // Loading visuals
   loadingProgress: {
     marginTop: 24,
     alignItems: 'center',
@@ -822,7 +813,7 @@ const styles = StyleSheet.create({
     color: '#CCCCCC',
     textAlign: 'center',
   },
-  // 改进的错误状态样式
+  // Error presentation styling
   errorIcon: {
     fontSize: 48,
     textAlign: 'center',

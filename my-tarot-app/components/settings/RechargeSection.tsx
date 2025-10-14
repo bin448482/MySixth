@@ -4,6 +4,7 @@ import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { UserTransaction } from '../../lib/services/UserService';
 import { apiConfig } from '../../lib/config/api';
+import { useTranslation } from '@/lib/hooks/useTranslation';
 
 interface RechargeRecord {
   id: string;
@@ -36,6 +37,8 @@ interface HistoryItemProps {
 }
 
 const HistoryItem: React.FC<HistoryItemProps> = ({ record }) => {
+  const { t, i18n } = useTranslation('settings');
+  const locale = i18n.resolvedLanguage ?? i18n.language;
   const getStatusColor = (type: string) => {
     switch (type) {
       case 'recharge': return '#27ae60';
@@ -46,18 +49,15 @@ const HistoryItem: React.FC<HistoryItemProps> = ({ record }) => {
   };
 
   const getStatusText = (type: string) => {
-    switch (type) {
-      case 'recharge': return '充值';
-      case 'consume': return '消费';
-      case 'refund': return '退款';
-      default: return '其他';
-    }
+    const key = `recharge.history.status.${type}`;
+    const translation = t(key);
+    return translation === key ? t('recharge.history.status.other') : translation;
   };
 
   const formatDate = (dateString: string) => {
     try {
       const date = new Date(dateString);
-      return date.toLocaleDateString('zh-CN', {
+      return date.toLocaleString(locale, {
         month: 'short',
         day: 'numeric',
         hour: '2-digit',
@@ -79,7 +79,10 @@ const HistoryItem: React.FC<HistoryItemProps> = ({ record }) => {
           styles.historyCredits,
           { color: record.credit_change > 0 ? '#27ae60' : '#e74c3c' }
         ]}>
-          {record.credit_change > 0 ? '+' : ''}{record.credit_change} 积分
+          {t('recharge.history.creditChange', {
+            sign: record.credit_change > 0 ? '+' : record.credit_change < 0 ? '-' : '',
+            value: Math.abs(record.credit_change),
+          })}
         </Text>
         <Text style={[styles.historyStatus, { color: getStatusColor(record.transaction_type) }]}>
           {getStatusText(record.transaction_type)}
@@ -105,6 +108,7 @@ export const RechargeSection: React.FC<RechargeSectionProps> = ({
   userEmail,
   rechargeHistory = []
 }) => {
+  const { t } = useTranslation('settings');
   const handleRedeemCode = async () => {
     try {
       const origin = resolveRedeemOrigin();
@@ -131,7 +135,7 @@ export const RechargeSection: React.FC<RechargeSectionProps> = ({
 
   return (
     <View style={styles.sectionContainer}>
-      <Text style={styles.sectionTitle}>积分管理</Text>
+      <Text style={styles.sectionTitle}>{t('recharge.title')}</Text>
 
       <BlurView intensity={20} style={styles.cardContainer}>
         {/* 用户信息区域 */}
@@ -143,9 +147,9 @@ export const RechargeSection: React.FC<RechargeSectionProps> = ({
             </View>
           )}
           <View style={styles.balanceContainer}>
-            <Text style={styles.balanceLabel}>当前积分余额</Text>
+            <Text style={styles.balanceLabel}>{t('recharge.balance.label')}</Text>
             <Text style={styles.balanceAmount}>{currentCredits}</Text>
-            <Text style={styles.balanceNote}>1 积分 = 1 元人民币</Text>
+            <Text style={styles.balanceNote}>{t('recharge.balance.note')}</Text>
           </View>
         </View>
 
@@ -158,7 +162,7 @@ export const RechargeSection: React.FC<RechargeSectionProps> = ({
           <View style={styles.redeemButtonContent}>
             <View style={styles.redeemButtonLeft}>
               <Ionicons name="gift" size={20} color="#d4af37" />
-              <Text style={styles.redeemButtonTitle}>兑换码充值</Text>
+              <Text style={styles.redeemButtonTitle}>{t('recharge.redeem.title')}</Text>
             </View>
             <Ionicons name="chevron-forward" size={16} color="#8b8878" />
           </View>
@@ -167,7 +171,7 @@ export const RechargeSection: React.FC<RechargeSectionProps> = ({
         {/* 充值记录 */}
         {rechargeHistory.length > 0 && (
           <View style={styles.historyContainer}>
-            <Text style={styles.subsectionTitle}>充值记录</Text>
+            <Text style={styles.subsectionTitle}>{t('recharge.history.title')}</Text>
             <FlatList
               data={rechargeHistory.slice(0, 5)} // 只显示最近5条
               renderItem={renderHistoryItem}
@@ -176,7 +180,7 @@ export const RechargeSection: React.FC<RechargeSectionProps> = ({
             />
             {rechargeHistory.length > 5 && (
               <TouchableOpacity style={styles.viewMoreButton}>
-                <Text style={styles.viewMoreText}>查看更多</Text>
+                <Text style={styles.viewMoreText}>{t('recharge.history.viewMore')}</Text>
               </TouchableOpacity>
             )}
           </View>

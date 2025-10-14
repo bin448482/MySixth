@@ -4,6 +4,7 @@ export { RechargeSection } from './RechargeSection';
 export { DisclaimerSection } from './DisclaimerSection';
 export { PrivacySection } from './PrivacySection';
 export { SupportSection } from './SupportSection';
+export { LanguageSection } from './LanguageSection';
 
 // 导出组件类型定义
 export type {

@@ -10,11 +10,13 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { getCardImage } from '@/lib/utils/cardImages';
+import { useTranslation } from 'react-i18next';
 
 interface CardFlipAnimationProps {
   card: {
     id: number;
     name: string;
+    displayName?: string;
     imageUrl: string;
     direction: 'upright' | 'reversed';
     revealed: boolean;
@@ -40,6 +42,7 @@ export function CardFlipAnimation({
 }: CardFlipAnimationProps) {
   const [animatedValue] = useState(new Animated.Value(0));
   const [isFlipped, setIsFlipped] = useState(false);
+  const { t } = useTranslation('reading');
   
   // 星星特效动画
   const starsOpacity = useRef(new Animated.Value(0)).current;
@@ -389,10 +392,14 @@ export function CardFlipAnimation({
               />
             </View>
             {showName && (
-              <Text style={styles.cardTitle} numberOfLines={2}>{card.name}</Text>
+              <Text style={styles.cardTitle} numberOfLines={2}>
+                {card.displayName ?? card.name}
+              </Text>
             )}
             {card.direction === 'reversed' && (
-              <Text style={styles.directionLabel}>逆位</Text>
+          <Text style={styles.directionLabel}>
+            {t('shared.components.cardFlip.reversed')}
+          </Text>
             )}
           </LinearGradient>
         </Animated.View>

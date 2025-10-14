@@ -17,6 +17,9 @@ export interface Card {
   image_url: string;
   style_id?: number;
   deck: string;
+  localizedName?: string;
+  localizedSuit?: string;
+  localizedDeck?: string;
 }
 
 // 2. CardStyle - 牌面风格

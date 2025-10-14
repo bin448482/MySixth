@@ -33,6 +33,7 @@ my-tarot-app/
 ├── lib/                     # 核心业务逻辑
 │   ├── database/            # 数据库层 -> 详见 lib/database/CLAUDE.md
 │   ├── ai/                  # AI功能架构 -> 详见 lib/ai/CLAUDE.md
+│   ├── i18n/                # 多语言初始化与资源管理
 │   ├── services/            # 服务层
 │   └── types/               # TypeScript类型定义
 ├── assets/                  # 静态资源
@@ -72,6 +73,7 @@ my-tarot-app/
 #### 5. 系统说明模块 (`app/settings/`)
 - **应用信息展示**：版本信息、愿景使命声明
 - **积分管理功能**：余额查询、充值套餐、充值记录
+- **语言切换**：`LanguageSection` 提供本地化快捷切换，立即生效并持久化
 - **使用声明**：免责声明、使用建议、注意事项
 - **隐私政策**：数据收集、使用方式、保护承诺
 - **帮助支持**：联系方式、用户反馈、版本检查
@@ -103,6 +105,7 @@ lib/contexts/
 ```
 
 **AppContext提供的全局状态**：
+- **语言状态**：`locale`, `availableLocales`, `isLocaleLoading`, `localeError`（与 AsyncStorage + user_settings 同步）
 - **数据库状态**: `isDatabaseInitialized`, `isInitializingDatabase`, `databaseError` (✅ 新增)
 - **AI服务状态**: `isAIServiceAvailable`, `isCheckingAIService`, `aiServiceError`
 - **认证状态**: `isAuthenticated`, `isAuthenticating`, `authError`, `userToken`
@@ -114,6 +117,7 @@ lib/contexts/
 - **全局状态同步**: 所有页面可直接从Context获取状态，无需重复检查
 - **错误处理**: 数据库初始化失败时提供详细错误信息和用户提示
 - **支持手动刷新**: AI服务状态和认证状态支持手动刷新
+- **多语言就绪**: 初始化时自动检测设备/用户偏好，语言切换自动同步 `i18next` + 本地数据库
 
 ## 📡 API集成架构
 
@@ -167,11 +171,12 @@ lib/contexts/
 ## 🎯 开发重点
 
 ### 当前开发优先级
-1. **系统说明模块**：应用信息、充值管理、使用声明、隐私政策
-2. **占卜流程完善**：AI占卜功能集成和优化
-3. **历史记录功能**：完整的历史管理和同步机制
-4. **支付集成**：Stripe支付流程集成
-5. **性能优化**：图片加载、动画性能、内存管理
+1. **多语言覆盖**：逐步替换硬编码文本，补充 `settings`、`reading` 等命名空间资源
+2. **系统说明模块**：应用信息、充值管理、使用声明、隐私政策
+3. **占卜流程完善**：AI占卜功能集成和优化（含多语言 prompt）
+4. **历史记录功能**：完整的历史管理和同步机制
+5. **支付集成**：Stripe支付流程集成
+6. **性能优化**：图片加载、动画性能、内存管理
 
 ### 关键技术要点
 - **类型安全**：完整的TypeScript类型定义系统
@@ -198,10 +203,20 @@ lib/contexts/
 ### 对 Claude 的指导
 1. **组件化优先**：严格按照组件库架构开发
 2. **类型安全**：确保TypeScript类型定义完整
-3. **API集成**：优先实现与后端API的集成
-4. **性能考虑**：注意图片加载、动画性能优化
-5. **用户体验**：保持流畅的交互体验
+3. **本地化优先**：新增/修改 UI 文案必须走 `useTranslation`，缺失词条需要更新 JSON
+4. **API集成**：优先实现与后端API的集成（传递 `Accept-Language` 或 `locale` 字段）
+5. **性能考虑**：注意图片加载、动画性能优化
+6. **用户体验**：保持流畅的交互体验
 
 ---
 
 *此文档专门针对 my-tarot-app 前端开发，详细的功能实现和组件设计请参考对应的专门文档。*
+## 🌐 多语言本地化
+
+- **基础设施**：`lib/i18n/` 封装 `i18next + react-i18next + expo-localization`，资源位于 `assets/i18n/<locale>/<namespace>.json`。
+- **命名空间**：当前启用 `common`、`home`、`settings`，可在 `lib/i18n/resources.ts` 中集中注册。
+- **使用方式**：在组件中通过 `useTranslation('<namespace>')` 获取 `t` 函数；若需全局访问，使用 `useAppContext` 获取 `locale`。
+- **设置入口**：`components/settings/LanguageSection` 提供语言选项，调用 `AppContext.actions.setLocale`，同步更新 AsyncStorage 与 `user_settings` 表。
+- **历史记录**：`user_history` 新增 `locale` 字段，`ReadingResult.metadata.locale` 会随记录一起持久化，便于多语言渲染/筛选。
+- **占卜流程**：`ReadingContext` 在保存历史时传入当前语言，确保 AI/离线解读与 UI 文案一致。
+- **首页示例**：`HeroSection`、`NavigationGrid`、`DeclarationCard` 已改用文案 key，README 中可参考写法推广到其它模块。

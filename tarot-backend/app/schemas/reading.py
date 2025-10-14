@@ -10,6 +10,7 @@ class AnalyzeRequest(BaseModel):
     """分析用户描述的请求"""
     description: str = Field(..., max_length=200, description="用户描述，最多200字")
     spread_type: str = Field(default="three-card", description="牌阵类型：three-card（三牌阵）、celtic-cross（凯尔特十字）")
+    locale: Optional[str] = Field(default=None, description="首选语言区域标识，例如 zh-CN、en-US")
 
 
 class DimensionInfo(BaseModel):
@@ -26,6 +27,7 @@ class AnalyzeResponse(BaseModel):
     """分析用户描述的响应"""
     recommended_dimensions: List[DimensionInfo]
     user_description: str
+    metadata: Dict[str, Any] = Field(default_factory=dict, description="额外的元信息，例如 locale")
 
 
 class CardInfo(BaseModel):
@@ -60,6 +62,7 @@ class GenerateRequest(BaseModel):
     dimensions: List[DimensionInfo] = Field(..., min_items=1, max_items=3, description="用户选择的维度列表")
     description: str = Field(..., max_length=200, description="用户原始描述")
     spread_type: str = Field(default="three-card", description="牌阵类型")
+    locale: Optional[str] = Field(default=None, description="首选语言区域标识，例如 zh-CN、en-US")
 
 
 class DimensionAspectInfo(BaseModel):
@@ -88,6 +91,7 @@ class GenerateResponse(BaseModel):
     overall_summary: str
     insights: List[str] = Field(default=[], description="关键洞察点")
     generated_at: str
+    metadata: Dict[str, Any] = Field(default_factory=dict, description="额外的元信息，例如 locale")
 
 
 class BasicInterpretationRequest(BaseModel):

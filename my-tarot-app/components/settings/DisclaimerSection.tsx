@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { CollapsibleSection } from '../common/CollapsibleSection';
+import { useTranslation } from '@/lib/hooks/useTranslation';
 
 interface DisclaimerItem {
   icon: string;
@@ -53,36 +54,13 @@ const DisclaimerCard: React.FC<DisclaimerCardProps> = ({ item }) => {
 };
 
 export const DisclaimerSection: React.FC = () => {
-  const disclaimers: DisclaimerItem[] = [
-    {
-      icon: "💫",
-      title: "应用目的",
-      content: "本应用旨在提供个人成长和自我探索的工具，帮助用户通过塔罗牌获得心理咨询和个人洞察，同时提供娱乐性和启发性体验。",
-      type: 'info'
-    },
-    {
-      icon: "⚠️",
-      title: "免责声明",
-      content: "塔罗牌解读仅供参考，不构成医学、法律、金融等专业建议。本应用不能替代心理咨询与专业诊断，用户需对自身决策承担责任。",
-      type: 'warning'
-    },
-    {
-      icon: "🧘",
-      title: "使用建议",
-      content: "建议用户保持开放和反思的心态，不要过度依赖占卜结果。请理性看待占卜内容，尊重个人意志和选择，将其作为思考和成长的辅助工具。",
-      type: 'suggestion'
-    },
-    {
-      icon: "👶",
-      title: "年龄限制",
-      content: "未成年人使用本应用需要监护人的同意和指导。我们建议家长陪同未成年人一起使用，确保正确理解和使用塔罗牌功能。",
-      type: 'restriction'
-    }
-  ];
+  const { t } = useTranslation('settings');
+  const disclaimers = (t('disclaimer.items', { returnObjects: true }) as DisclaimerItem[]) ?? [];
+  const important = (t('disclaimer.important', { returnObjects: true }) as { title?: string; content?: string }) ?? {};
 
   return (
     <CollapsibleSection
-      title="使用声明"
+      title={t('disclaimer.title')}
       icon="⚠️"
       defaultExpanded={false}
     >
@@ -94,11 +72,12 @@ export const DisclaimerSection: React.FC = () => {
 
       {/* 重要提醒 */}
       <View style={styles.importantNotice}>
-        <Text style={styles.noticeTitle}>⚡ 重要提醒</Text>
-        <Text style={styles.noticeContent}>
-          塔罗牌是一种心理投射工具，其价值在于帮助用户反思和探索内心。
-          请将占卜结果作为参考和启发，而非绝对真理或行动指南。
-        </Text>
+        {!!important.title && <Text style={styles.noticeTitle}>{important.title}</Text>}
+        {!!important.content && (
+          <Text style={styles.noticeContent}>
+            {important.content}
+          </Text>
+        )}
       </View>
     </CollapsibleSection>
   );

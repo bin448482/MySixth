@@ -14,14 +14,18 @@ import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { useReadingFlow } from '@/lib/contexts/ReadingContext';
 import AIReadingService from '@/lib/services/AIReadingService';
+import { useTranslation } from 'react-i18next';
+import type { DimensionData } from '@/lib/contexts/ReadingContext';
 
 export default function AIInputScreen() {
   const router = useRouter();
   const { updateStep, updateUserDescription, updateAIDimensions, resetFlow } = useReadingFlow();
+  const { t } = useTranslation('reading');
+  const { t: tCommon } = useTranslation('common');
 
   const [userDescription, setUserDescription] = useState('');
   const [loading, setLoading] = useState(false);
-  const [dimensions, setDimensions] = useState(null);
+  const [dimensions, setDimensions] = useState<DimensionData[] | null>(null);
   const [error, setError] = useState('');
   const [hasAnalyzed, setHasAnalyzed] = useState(false); // 标记是否已分析成功
 
@@ -31,21 +35,21 @@ export default function AIInputScreen() {
       const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
         // 根据是否已分析成功来判断积分扣除状态
         const hasConsumedCredits = hasAnalyzed && dimensions;
-        const title = '确认返回';
+        const title = t('shared.alerts.confirmExit.title');
         const message = hasConsumedCredits
-          ? '您已完成AI分析，返回将损失已消耗的积分。确定要返回吗？'
-          : '返回将取消当前占卜流程。确定要返回吗？';
+          ? t('shared.alerts.confirmExit.afterAnalysis')
+          : t('shared.alerts.confirmExit.default');
 
         Alert.alert(
           title,
           message,
           [
             {
-              text: '取消',
+              text: tCommon('app.cancel'),
               style: 'cancel',
             },
             {
-              text: '确定返回',
+              text: t('shared.buttons.confirmReturn'),
               onPress: () => {
                 // 清除状态并直接跳转到选择占卜类型页面
                 resetFlow();
@@ -66,12 +70,12 @@ export default function AIInputScreen() {
     setError('');
 
     if (!userDescription.trim()) {
-      setError('请输入您的问题');
+      setError(t('aiInput.errors.required'));
       return;
     }
 
     if (userDescription.trim().length > 200) {
-      setError('问题描述不能超过200字');
+      setError(t('aiInput.errors.tooLong'));
       return;
     }
 
@@ -81,30 +85,42 @@ export default function AIInputScreen() {
 
       // 检查服务健康状态
       const isHealthy = await aiService.checkServiceHealth();
-      if (!isHealthy) {
-        alert('AI服务当前不可用，请稍后再试');
-        setLoading(false);
-        return;
-      }
+    if (!isHealthy) {
+      Alert.alert(
+        t('aiInput.alerts.analyzeFailedTitle'),
+        t('aiInput.alerts.serviceUnavailable')
+      );
+      setLoading(false);
+      return;
+    }
 
       const result = await aiService.analyzeDescription(userDescription.trim());
 
       // 验证返回数据
       if (!result || !result.recommended_dimensions || result.recommended_dimensions.length === 0) {
-        throw new Error('AI分析未返回有效结果，请重新描述您的问题');
+        throw new Error(t('aiInput.errors.invalidResponse'));
       }
 
       // 更新状态
       updateUserDescription(userDescription.trim());
-      updateAIDimensions(result.recommended_dimensions);
-      setDimensions(result.recommended_dimensions);
+      const normalizedDimensions: DimensionData[] = result.recommended_dimensions.map((dimension) => ({
+        id: dimension.id ?? 0,
+        name: dimension.name,
+        category: dimension.category,
+        description: dimension.description,
+        aspect: dimension.aspect ?? '',
+        aspect_type: dimension.aspect_type ?? 0,
+        localizedAspect: dimension.localizedAspect ?? dimension.aspect,
+      }));
+      updateAIDimensions(normalizedDimensions);
+      setDimensions(normalizedDimensions);
       setHasAnalyzed(true); // 标记已分析成功
 
       // 移除自动跳转，只能手动点击继续
 
     } catch (error) {
       console.error('AI分析失败:', error);
-      let errorMessage = '网络连接失败，请检查网络设置';
+      let errorMessage = t('shared.errors.network');
 
       if (error instanceof Error) {
         errorMessage = error.message;
@@ -139,21 +155,19 @@ export default function AIInputScreen() {
       showsVerticalScrollIndicator={false}
     >
       <View style={styles.header}>
-        <Text style={styles.title}>描述您的问题</Text>
-        <Text style={styles.subtitle}>
-          请详细描述您想要占卜的问题，AI将为您推荐最合适的解读维度
-        </Text>
+        <Text style={styles.title}>{t('aiInput.title')}</Text>
+        <Text style={styles.subtitle}>{t('aiInput.description')}</Text>
       </View>
 
       <View style={styles.inputContainer}>
-        <Text style={styles.inputLabel}>您的问题：</Text>
+        <Text style={styles.inputLabel}>{t('aiInput.inputLabel')}</Text>
         <TextInput
           style={styles.textInput}
           multiline
           numberOfLines={6}
           value={userDescription}
           onChangeText={setUserDescription}
-          placeholder="请详细描述您想要占卜的问题..."
+          placeholder={t('aiInput.placeholder')}
           placeholderTextColor="#888888"
           maxLength={200}
           textAlignVertical="top"
@@ -171,14 +185,16 @@ export default function AIInputScreen() {
       {/* 错误显示 */}
       {error && (
         <View style={styles.errorContainer}>
-          <Text style={styles.errorTitle}>⚠️ 分析失败</Text>
+          <Text style={styles.errorTitle}>
+            ⚠️ {t('aiInput.alerts.analyzeFailedTitle')}
+          </Text>
           <Text style={styles.errorText}>{error}</Text>
           <TouchableOpacity
             style={styles.retryButton}
             onPress={handleRetry}
             activeOpacity={0.8}
           >
-            <Text style={styles.retryButtonText}>重试</Text>
+            <Text style={styles.retryButtonText}>{tCommon('app.retry')}</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -187,19 +203,19 @@ export default function AIInputScreen() {
       {loading && (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#FFD700" />
-          <Text style={styles.loadingText}>AI正在分析您的问题...</Text>
-          <Text style={styles.loadingSubText}>请稍候，这可能需要几秒钟</Text>
+        <Text style={styles.loadingText}>{t('shared.status.analyzing')}</Text>
+        <Text style={styles.loadingSubText}>{t('shared.status.analysisHint')}</Text>
         </View>
       )}
 
       {dimensions && !loading && (
         <View style={styles.dimensionsContainer}>
-          <Text style={styles.dimensionsTitle}>推荐的解读维度：</Text>
+          <Text style={styles.dimensionsTitle}>{t('aiInput.recommendedTitle')}</Text>
           {dimensions.map((dimension, index) => {
             const isLast = index === (dimensions as any[]).length - 1;
             console.log(`🎯 Debug - Dimension ${index + 1}:`, {
               isLast,
-              dimensionName: dimension.aspect,
+              dimensionName: dimension.localizedAspect ?? dimension.aspect,
               appliedStyles: isLast ? 'dimensionItem + dimensionItemLast' : 'dimensionItem',
               totalDimensions: (dimensions as any[]).length
             });
@@ -213,7 +229,7 @@ export default function AIInputScreen() {
                 ]}
               >
                 <Text style={styles.dimensionName}>
-                  {index + 1}. {dimension.aspect}
+                  {index + 1}. {dimension.localizedAspect ?? dimension.aspect}
                 </Text>
                 {/* <Text style={styles.dimensionDescription}>
                   {dimension.description}
@@ -223,14 +239,16 @@ export default function AIInputScreen() {
           })}
           <View style={styles.continueContainer}>
             <Text style={styles.autoRedirectText}>
-              点击下方按钮继续
+              {t('aiInput.continueHint')}
             </Text>
             <TouchableOpacity
               style={styles.continueButton}
               onPress={handleManualContinue}
               activeOpacity={0.8}
             >
-              <Text style={styles.continueButtonText}>立即继续</Text>
+              <Text style={styles.continueButtonText}>
+                {t('aiInput.buttons.continue')}
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -250,14 +268,18 @@ export default function AIInputScreen() {
             {loading ? (
               <ActivityIndicator size="small" color="#0F0F1A" />
             ) : (
-              <Text style={styles.analyzeButtonText}>分析问题</Text>
+              <Text style={styles.analyzeButtonText}>
+                {t('aiInput.buttons.analyze')}
+              </Text>
             )}
           </TouchableOpacity>
         )}
       </View>
 
       <View style={styles.footer}>
-        <Text style={styles.footerText}>步骤 2 / 4</Text>
+        <Text style={styles.footerText}>
+          {t('shared.stepIndicator', { current: 2, total: 4 })}
+        </Text>
       </View>
     </ScrollView>
   );

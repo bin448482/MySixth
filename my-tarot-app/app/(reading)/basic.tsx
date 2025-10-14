@@ -14,11 +14,13 @@ import { CardInterpretationService } from '@/lib/services/CardInterpretationServ
 import { DimensionService } from '@/lib/services/DimensionService';
 import { getCardImage } from '@/lib/utils/cardImages';
 import { CardImageLoader } from '@/components/reading/CardImageLoader';
+import { useTranslation } from 'react-i18next';
 
 interface DetailedReading {
   card: {
     id: number;
     name: string;
+    displayName?: string;
     imageUrl: string;
     direction: 'upright' | 'reversed';
     position: string;
@@ -43,6 +45,8 @@ export default function BasicReadingScreen() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [hasSaved, setHasSaved] = useState(false); // 本地保存状态标记
+  const { t } = useTranslation('reading');
+  const { t: tCommon } = useTranslation('common');
 
   const interpretationService = CardInterpretationService.getInstance();
   const dimensionService = DimensionService.getInstance();
@@ -110,6 +114,7 @@ export default function BasicReadingScreen() {
           card: {
             id: selectedCard.cardId,
             name: selectedCard.name,
+            displayName: selectedCard.displayName ?? selectedCard.name,
             imageUrl: selectedCard.imageUrl,
             direction: selectedCard.direction,
             position: selectedCard.position,
@@ -117,7 +122,9 @@ export default function BasicReadingScreen() {
           dimension: selectedCard.dimension,
           interpretation: {
             summary: basicInterpretation.success ? basicInterpretation.data?.summary || '' : '',
-            detailedContent: interpretation.success ? interpretation.data?.content || '' : '暂无详细解读',
+            detailedContent: interpretation.success
+              ? interpretation.data?.content || ''
+              : t('shared.errors.noDetailedInterpretation'),
           },
         });
       }
@@ -141,7 +148,10 @@ export default function BasicReadingScreen() {
       // 移除这里的自动保存逻辑，移到useEffect中处理
     } catch (error) {
       console.error('[BasicReading] Error generating detailed reading:', error);
-      Alert.alert('错误', '生成解读失败，请重试');
+      Alert.alert(
+        t('aiResult.errors.title'),
+        t('shared.errors.basicGenerateFailed')
+      );
     } finally {
       setLoading(false);
     }
@@ -183,7 +193,7 @@ export default function BasicReadingScreen() {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#FFD700" />
-        <Text style={styles.loadingText}>正在生成详细解读...</Text>
+      <Text style={styles.loadingText}>{t('basic.loading')}</Text>
       </View>
     );
   }
@@ -194,9 +204,9 @@ export default function BasicReadingScreen() {
       showsVerticalScrollIndicator={false}
     >
       <View style={styles.header}>
-        <Text style={styles.title}>基础牌意解读</Text>
+        <Text style={styles.title}>{t('basic.title')}</Text>
         <Text style={styles.subtitle}>
-          基于{state.category}主题的详细解读
+          {t('basic.subtitle', { category: state.category })}
         </Text>
       </View>
 
@@ -208,7 +218,9 @@ export default function BasicReadingScreen() {
                 <Text style={styles.positionText}>{index + 1}</Text>
               </View>
               <View style={styles.cardInfo}>
-                <Text style={styles.cardName}>{reading.card.name}</Text>
+                <Text style={styles.cardName}>
+                  {reading.card.displayName ?? reading.card.name}
+                </Text>
                 <Text style={styles.cardDirection}>{getDirectionText(reading.card.direction)}</Text>
               </View>
             </View>
@@ -233,12 +245,16 @@ export default function BasicReadingScreen() {
               </View>
 
               <View style={styles.basicInterpretationContainer}>
-                <Text style={styles.interpretationLabel}>基础牌意：</Text>
+          <Text style={styles.interpretationLabel}>
+            {t('basic.labels.basic')}
+          </Text>
                 <Text style={styles.interpretationSummary}>{reading.interpretation.summary}</Text>
               </View>
 
               <View style={styles.detailedInterpretationContainer}>
-                <Text style={styles.interpretationLabel}>详细解读：</Text>
+          <Text style={styles.interpretationLabel}>
+            {t('basic.labels.detail')}
+          </Text>
                 <Text style={styles.interpretationDetail}>{reading.interpretation.detailedContent}</Text>
               </View>
             </View>
@@ -256,7 +272,9 @@ export default function BasicReadingScreen() {
           {saving ? (
             <ActivityIndicator size="small" color="#0F0F1A" />
           ) : (
-            <Text style={styles.primaryButtonText}>保存记录</Text>
+          <Text style={styles.primaryButtonText}>
+            {t('shared.buttons.saveRecord')}
+          </Text>
           )}
         </TouchableOpacity> */}
 
@@ -265,7 +283,9 @@ export default function BasicReadingScreen() {
           onPress={handleNewReading}
           activeOpacity={0.8}
         >
-          <Text style={styles.secondaryButtonText}>重新占卜</Text>
+          <Text style={styles.secondaryButtonText}>
+            {t('shared.buttons.readAgain')}
+          </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -273,12 +293,14 @@ export default function BasicReadingScreen() {
           onPress={handleComplete}
           activeOpacity={0.8}
         >
-          <Text style={styles.tertiaryButtonText}>返回首页</Text>
+          <Text style={styles.tertiaryButtonText}>
+            {t('shared.buttons.backHome')}
+          </Text>
         </TouchableOpacity>
       </View>
 
       <View style={styles.footer}>
-        <Text style={styles.footerText}>步骤 4 / 4 - 基础解读完成</Text>
+        <Text style={styles.footerText}>{t('basic.footer')}</Text>
       </View>
     </ScrollView>
   );

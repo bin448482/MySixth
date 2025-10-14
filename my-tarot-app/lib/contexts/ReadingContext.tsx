@@ -1,10 +1,12 @@
 import React, { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ReadingService } from '../services/ReadingService';
+import { useAppContext } from './AppContext';
 
 export interface SelectedCard {
   cardId: number;
   name: string;
+  displayName?: string;
   imageUrl: string;
   position: 'past' | 'present' | 'future';
   dimension: DimensionData;
@@ -20,6 +22,7 @@ export interface DimensionData {
   description: string;
   aspect: string;
   aspect_type: number;
+  localizedAspect?: string;
 }
 
 export interface ReadingFlowState {
@@ -131,6 +134,9 @@ const ReadingContext = createContext<ReadingContextType | undefined>(undefined);
 
 export function ReadingProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(readingReducer, initialState);
+  const {
+    state: { userId: appUserId, locale: appLocale },
+  } = useAppContext();
 
   const updateStep = useCallback((step: number) => {
     dispatch({ type: 'UPDATE_STEP', payload: step });
@@ -178,7 +184,8 @@ export function ReadingProvider({ children }: { children: React.ReactNode }) {
       console.log('开始保存占卜记录到历史...');
 
       const readingService = ReadingService.getInstance();
-      const result = await readingService.saveReadingFromState(state);
+      const userId = appUserId ?? 'anonymous_user';
+      const result = await readingService.saveReadingFromState(state, userId, appLocale);
 
       if (result.success) {
         console.log('占卜记录保存成功，ID:', result.data);
@@ -195,7 +202,7 @@ export function ReadingProvider({ children }: { children: React.ReactNode }) {
       console.error('保存占卜记录时出错:', errorMessage);
       throw new Error(errorMessage);
     }
-  }, [state]);
+  }, [state, appUserId, appLocale]);
 
   const restoreState = useCallback(async () => {
     try {

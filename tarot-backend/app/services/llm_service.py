@@ -24,30 +24,28 @@ class LLMService:
 
     def __init__(self):
         self.config = settings
-        self.client = None
-        self._initialize_client()
+        self.clients: Dict[str, Any] = {}
+        self.default_provider = self.config.API_PROVIDER or "zhipu"
+        self._initialize_clients()
         self.prompt_template = self._load_prompt_template()
 
-    def _initialize_client(self):
-        """初始化LLM客户端"""
-        if self.config.API_PROVIDER == 'zhipu':
-            if not ZhipuAI:
-                raise ImportError("ZhipuAI library not installed. Run: pip install zhipuai")
-            if not self.config.ZHIPUAI_API_KEY:
-                raise ValueError("ZHIPUAI_API_KEY not configured")
-            self.client = ZhipuAI(api_key=self.config.ZHIPUAI_API_KEY)
+    def _initialize_clients(self):
+        """初始化可用的 LLM 客户端"""
+        if ZhipuAI and self.config.ZHIPUAI_API_KEY:
+            self.clients['zhipu'] = ZhipuAI(api_key=self.config.ZHIPUAI_API_KEY)
 
-        elif self.config.API_PROVIDER == 'openai':
-            if not OpenAI:
-                raise ImportError("OpenAI library not installed. Run: pip install openai")
-            if not self.config.OPENAI_API_KEY:
-                raise ValueError("OPENAI_API_KEY not configured")
-            self.client = OpenAI(
+        if OpenAI and self.config.OPENAI_API_KEY:
+            self.clients['openai'] = OpenAI(
                 api_key=self.config.OPENAI_API_KEY,
                 base_url=self.config.OPENAI_BASE_URL
             )
-        else:
-            raise ValueError(f"Unsupported API provider: {self.config.API_PROVIDER}")
+
+        if not self.clients:
+            raise ValueError("No LLM providers are configured. Please set API keys for at least one provider.")
+
+        if self.default_provider not in self.clients:
+            # 回退到第一个可用的提供方
+            self.default_provider = next(iter(self.clients.keys()))
 
     def _load_prompt_template(self) -> str:
         """加载提示词模板"""
@@ -82,43 +80,98 @@ class LLMService:
 ## 输出格式
 请直接输出解读内容，不要包含任何格式化标记或前言后语。"""
 
-    async def call_ai_api(self, prompt: str) -> Optional[str]:
+    async def call_ai_api(
+        self,
+        prompt: str,
+        locale: Optional[str] = None,
+        provider: Optional[str] = None,
+        model: Optional[str] = None,
+        force_json: bool = False
+    ) -> Optional[str]:
         """调用AI API生成内容（异步版本）"""
+        resolved_provider, resolved_model = self._resolve_provider_and_model(locale, provider, model)
         try:
             # 在线程池中执行同步API调用
-            return await asyncio.to_thread(self._call_ai_api_sync, prompt)
+            return await asyncio.to_thread(
+                self._call_ai_api_sync,
+                prompt,
+                resolved_provider,
+                resolved_model,
+                force_json
+            )
         except Exception as e:
-            api_logger.log_error("zhipu_api_call", e, {"prompt_length": len(prompt)})
+            api_logger.log_error(
+                "llm_api_call",
+                e,
+                {"prompt_length": len(prompt), "provider": resolved_provider, "model": resolved_model}
+            )
             return None
 
-    def _call_ai_api_sync(self, prompt: str) -> Optional[str]:
+    def _call_ai_api_sync(self, prompt: str, provider: str, model: str, force_json: bool) -> Optional[str]:
         """同步版本的AI API调用"""
+        client = self.clients.get(provider)
+        if not client:
+            raise ValueError(f"LLM provider '{provider}' is not initialized")
+
         try:
-            if self.config.API_PROVIDER == 'zhipu':
-                response = self.client.chat.completions.create(
-                    model=self.config.MODEL_NAME,
-                    messages=[
-                        {"role": "user", "content": prompt}
-                    ],
+            if provider == 'zhipu':
+                response = client.chat.completions.create(
+                    model=model,
+                    messages=[{"role": "user", "content": prompt}],
                     temperature=self.config.TEMPERATURE,
                     max_tokens=self.config.MAX_TOKENS
                 )
-                return response.choices[0].message.content.strip()
-
-            elif self.config.API_PROVIDER == 'openai':
-                response = self.client.chat.completions.create(
-                    model=self.config.MODEL_NAME,
-                    messages=[
-                        {"role": "user", "content": prompt}
-                    ],
-                    temperature=self.config.TEMPERATURE,
-                    max_tokens=self.config.MAX_TOKENS
+            elif provider == 'openai':
+                create_kwargs = {
+                    "model": model,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "temperature": self.config.TEMPERATURE,
+                    "max_tokens": self.config.MAX_TOKENS
+                }
+                if force_json:
+                    create_kwargs["response_format"] = {"type": "json_object"}
+                response = client.chat.completions.create(
+                    **create_kwargs
                 )
-                return response.choices[0].message.content.strip()
+            else:
+                raise ValueError(f"Unsupported provider: {provider}")
 
+            return response.choices[0].message.content.strip()
         except Exception as e:
-            api_logger.log_error("openai_api_call", e, {"prompt_length": len(prompt)})
+            api_logger.log_error(
+                f"{provider}_api_call",
+                e,
+                {"prompt_length": len(prompt), "model": model}
+            )
             return None
+
+    def _resolve_provider_and_model(
+        self,
+        locale: Optional[str],
+        provider: Optional[str],
+        model: Optional[str]
+    ) -> tuple[str, str]:
+        """根据 locale 和配置决定使用的模型和服务商"""
+        resolved_provider = provider
+        if not resolved_provider:
+            if self._is_english_locale(locale) and 'openai' in self.clients:
+                resolved_provider = 'openai'
+            else:
+                resolved_provider = self.default_provider if self.default_provider in self.clients else next(iter(self.clients))
+
+        if resolved_provider == 'openai':
+            resolved_model = model or self.config.OPENAI_MODEL_NAME or self.config.MODEL_NAME
+        elif resolved_provider == 'zhipu':
+            resolved_model = model or self.config.ZHIPU_MODEL_NAME or self.config.MODEL_NAME
+        else:
+            resolved_model = model or self.config.MODEL_NAME
+
+        return resolved_provider, resolved_model
+
+    @staticmethod
+    def _is_english_locale(locale: Optional[str]) -> bool:
+        """判断 locale 是否为英文环境"""
+        return bool(locale and locale.lower().startswith("en"))
 
     @staticmethod
     def _clean_dimension_name(line: str) -> str:
@@ -138,52 +191,85 @@ class LLMService:
 
         return cleaned[index:].strip()
 
-    async def analyze_user_description(self, description: str, spread_type: str = "three-card") -> tuple[List[str], str]:
+    async def analyze_user_description(
+        self,
+        description: str,
+        spread_type: str = "three-card",
+        locale: str = "zh-CN"
+    ) -> tuple[List[str], str]:
         """
         分析用户描述，返回推荐的维度名称列表和统一的描述。
-        Args:
-            description: 用户描述（200字以内）
-            spread_type: 牌阵类型（three-card 或 celtic-cross）
-
-        Returns:
-            (推荐的维度名称列表, 统一的描述)
         """
-        # if spread_type == "three-card":
-        #     return await self._analyze_for_three_card(description)
-        # elif spread_type == "celtic-cross":
-        #     return await self._analyze_for_celtic_cross(description)
-        # else:
-        #     # 默认使用三牌阵逻辑
-        #     return await self._analyze_for_three_card(description)
-        return await self._analyze_for_three_card(description)
+        try:
+            if spread_type == "celtic-cross":
+                dimensions = await self._analyze_for_celtic_cross(locale)
+                return dimensions, self._default_celtic_summary(locale)
+            return await self._analyze_for_three_card(description, locale)
+        except Exception as e:
+            api_logger.log_error("analyze_user_description", e, {"description_length": len(description)})
+            if spread_type == "celtic-cross":
+                return self._get_celtic_default(locale), self._default_celtic_summary(locale)
+            return self._get_default_three_card_dimensions_with_description(locale)
 
-    async def _analyze_for_three_card(self, description: str) -> tuple[List[str], str]:
+    async def _analyze_for_three_card(self, description: str, locale: str) -> tuple[List[str], str]:
         """
         三牌阵专用分析：基于因果率和发展趋势动态确定三个维度
         """
-        analysis_prompt = f"""你是一位专业的塔罗牌解读师。用户提供了占卜描述，请根据三牌阵的因果率和发展趋势分析逻辑，为这个问题确定最合适的三个分析维度，并生成统一的问题概要。
+        is_english = self._is_english_locale(locale)
+        if is_english:
+            analysis_prompt = f"""You are a seasoned tarot reader. Based on the client's question, determine the most aligned three-card dimensions and produce a unified summary (30-50 words).
+
+Client Question:
+{description}
+
+Instructions:
+1. Select one overarching category that best matches the client's concern.
+2. Generate three specific aspects (category-aspect) that describe the evolution of the issue from cause to outcome.
+3. Ensure all three aspects share the exact same category prefix (e.g., Career-Root Cause, Career-Current Status, Career-Next Step).
+4. Provide a concise summary (30-50 words) capturing the overall theme.
+
+Available categories:
+- Time: past, present, future dynamics
+- Emotion: relationships, feelings, inner state
+- Career: work, vocation, achievements
+- Decision: choices, judgement, action plans
+- Health: mind-body wellness, lifestyle
+- Finance: money, investment, economic outlook
+- Relationship: social interaction, communication
+- Study: learning, exams, knowledge growth
+- Family: household matters, family ties
+
+Output format:
+DIMENSIONS:
+Category-Aspect1
+Category-Aspect2
+Category-Aspect3
+
+DESCRIPTION:
+[Unified summary]
+
+Respond in English and keep the category names consistent."""
+        else:
+            analysis_prompt = f"""你是一位资深的塔罗牌解读师。请结合用户的问题，为三牌阵分析生成最合适的三个维度，并给出统一的问题概要（30-50字）。
 
 用户描述：{description}
 
-三牌阵分析要求：
-1. 深入分析用户问题的核心关注点，确定ONE个最相关的主要类别
-2. 根据用户的具体问题内容，动态确定三个最贴合的分析角度(aspect)
-3. 按照因果递进逻辑排列这三个角度，体现从起因到结果的发展脉络
-4. **重要**：三个维度必须使用完全相同的类别名称！
-5. 同时生成一个统一的问题概要描述（30-50字），概括整个分析的核心主题
+分析要求：
+1. 找出最契合问题的一个主要类别。
+2. 生成三个细化的分析角度（类别-aspect），体现问题从起因到结果的发展。
+3. 三个维度必须具有相同的类别前缀。
+4. 输出一个概括性的概要描述（30-50字），体现整体主题。
 
-可选的主要类别：
-- 时间：涉及过去现在未来的时间发展
-- 情感：涉及感情、关系、内心状态
-- 事业：涉及工作、职业发展、成就
-- 决策：涉及选择、判断、行动方案
-- 健康：涉及身心健康、生活状态
-- 财务：涉及金钱、投资、经济状况
-- 人际：涉及人际关系、社交、沟通
-- 学业：涉及学习、考试、知识技能
-- 家庭：涉及家庭关系、家事处理
-
-**关键**：请根据用户的具体问题，动态生成最合适的三个aspect，不要使用模板化的固定组合。
+可选类别：
+- 时间：关注过去、现在与未来
+- 情感：关注关系、情绪与内在状态
+- 事业：关注工作、职涯与成就
+- 决策：关注选择、判断与行动计划
+- 健康：关注身心状态与生活节律
+- 财务：关注资金、投资与经济状况
+- 人际：关注社交、沟通与合作
+- 学业：关注学习、考试与技能成长
+- 家庭：关注家庭关系与事务处理
 
 输出格式：
 DIMENSIONS:
@@ -192,30 +278,20 @@ DIMENSIONS:
 类别-aspect3
 
 DESCRIPTION:
-[统一的问题概要描述]
+[统一概要描述]
 
-例如：
-DIMENSIONS:
-财务-债务现状
-财务-还款策略
-财务-财务重建
-
-DESCRIPTION:
-探索债务处理的核心策略，从现状分析到具体行动的全面解决方案。
-
-**确保三个维度的类别名称完全一致，aspect要贴合用户的具体问题！**"""
+请使用简体中文输出，确保三个维度类别名称完全一致。"""
 
         try:
-            result = await self.call_ai_api(analysis_prompt)
+            result = await self.call_ai_api(analysis_prompt, locale=locale)
             if result:
-                # 解析新的输出格式
-                dimensions, description = self._parse_combined_result(result)
+                dimensions, summary = self._parse_combined_result(result)
                 if dimensions:
-                    return dimensions[:3], description
-            return self._get_default_three_card_dimensions_with_description()
+                    return dimensions[:3], summary
+            return self._get_default_three_card_dimensions_with_description(locale)
         except Exception as e:
-            api_logger.log_error("analyze_three_card_question", e, {"question_length": len(question)})
-            return self._get_default_three_card_dimensions_with_description()
+            api_logger.log_error("analyze_three_card_question", e, {"description_length": len(description)})
+            return self._get_default_three_card_dimensions_with_description(locale)
 
     def _parse_combined_result(self, result: str) -> tuple[List[str], str]:
         """解析合并的LLM结果，提取维度和描述"""
@@ -257,27 +333,47 @@ DESCRIPTION:
             api_logger.log_error("parse_combined_result", e, {"result_length": len(result)})
             return [], ""
 
-    def _get_default_three_card_dimensions_with_description(self) -> tuple[List[str], str]:
+    def _get_default_three_card_dimensions_with_description(self, locale: str) -> tuple[List[str], str]:
         """获取默认的三牌阵维度和描述"""
+        if self._is_english_locale(locale):
+            return (
+                ["General-Past", "General-Present", "General-Future"],
+                "A foundational three-card storyline that examines how the situation evolved from past influences to its emerging outcome."
+            )
         return (
             ["整体-过去", "整体-现在", "整体-将来"],
-            "三牌阵综合分析，探索问题的时间发展脉络"
+            "三牌阵综合分析，探索问题从过去到未来的发展脉络。"
         )
 
-    async def _analyze_for_celtic_cross(self, description: str) -> List[str]:
+    async def _analyze_for_celtic_cross(self, locale: str) -> List[str]:
         """
-        凯尔特十字专用分析：使用固定的十个牌位维度
+        凯尔特十字专用分析：使用固定的十个牌位维度（语言适配）
         """
-        # 凯尔特十字使用固定的十个维度
-        celtic_dimensions = [
+        return self._get_celtic_default(locale)
+
+    def _get_celtic_default(self, locale: str) -> List[str]:
+        if self._is_english_locale(locale):
+            return [
+                "Celtic Cross-Current Situation",
+                "Celtic Cross-Challenge",
+                "Celtic Cross-Subconscious",
+                "Celtic Cross-Conscious Mind",
+                "Celtic Cross-Past",
+                "Celtic Cross-Future",
+                "Celtic Cross-Self",
+                "Celtic Cross-External Influence",
+                "Celtic Cross-Hopes and Fears",
+                "Celtic Cross-Outcome",
+            ]
+        return [
             "凯尔特十字-现状", "凯尔特十字-挑战", "凯尔特十字-潜意识", "凯尔特十字-显意识", "凯尔特十字-过去",
             "凯尔特十字-未来", "凯尔特十字-自我态度", "凯尔特十字-外部影响", "凯尔特十字-希望恐惧", "凯尔特十字-结果"
         ]
-        return celtic_dimensions
 
-    def _get_default_three_card_dimensions(self) -> List[str]:
-        """获取默认的三牌阵维度"""
-        return ["整体-过去", "整体-现在", "整体-将来"]
+    def _default_celtic_summary(self, locale: str) -> str:
+        if self._is_english_locale(locale):
+            return "A comprehensive Celtic Cross overview that examines ten critical perspectives influencing the issue."
+        return "凯尔特十字牌阵将从十个关键角度展开分析，全面洞察问题的发展走向。"
 
 
 # 全局LLM服务实例

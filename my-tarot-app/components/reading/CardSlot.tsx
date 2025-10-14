@@ -7,19 +7,13 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { CardFlipAnimation } from './CardFlipAnimation';
-
-interface DimensionData {
-  id: number;
-  name: string;
-  category: string;
-  description: string;
-  aspect: string;
-  aspect_type: number;
-}
+import { useTranslation } from 'react-i18next';
+import type { DimensionData } from '@/lib/contexts/ReadingContext';
 
 interface DrawnCard {
   cardId: number;
   name: string;
+  displayName?: string;
   imageUrl: string;
   position: string;
   dimension: DimensionData;
@@ -50,6 +44,7 @@ export function CardSlot({
   onCardPress,
   canTriggerStars = false, // 新增：默认值为false
 }: CardSlotProps) {
+  const { t } = useTranslation('reading');
 
   const renderEmptySlot = () => (
     <LinearGradient
@@ -65,10 +60,12 @@ export function CardSlot({
       <View style={styles.slotInfo}>
         {/* 移除维度名称，只显示aspect */}
         <Text style={[styles.dimensionAspect, isHighlighted && styles.highlightedAspect]}>
-          {dimension.aspect}
+          {dimension.localizedAspect ?? dimension.aspect}
         </Text>
         <Text style={[styles.dragHint, isHighlighted && styles.highlightedHint]}>
-          {isHighlighted ? '松开放置卡牌' : '拖拽卡牌到此处'}
+          {isHighlighted
+            ? t('shared.components.cardSlot.dropHintActive')
+            : t('shared.components.cardSlot.dropHint')}
         </Text>
       </View>
     </LinearGradient>
@@ -80,6 +77,7 @@ export function CardSlot({
         card={{
           id: droppedCard!.cardId,
           name: droppedCard!.name,
+          displayName: droppedCard!.displayName ?? droppedCard!.name,
           imageUrl: droppedCard!.imageUrl,
           direction: droppedCard!.direction,
           revealed: true,
@@ -90,7 +88,9 @@ export function CardSlot({
         canTriggerStars={canTriggerStars} // 传递特效触发状态
       />
       <View style={styles.slotLabel}>
-        <Text style={styles.slotLabelText}>{dimension.aspect}</Text>
+        <Text style={styles.slotLabelText}>
+          {dimension.localizedAspect ?? dimension.aspect}
+        </Text>
       </View>
     </View>
   );

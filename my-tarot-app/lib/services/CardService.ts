@@ -3,7 +3,9 @@
  * Card business logic service
  */
 
+import i18n from 'i18next';
 import { ConfigDatabaseService } from '../database/config-db';
+import { DEFAULT_LOCALE } from '../i18n';
 import type {
   Card,
   CardStyle,
@@ -28,6 +30,14 @@ export interface CardStyleData {
   id: number;
   name: string;
   image_base_url: string;
+}
+
+interface CardTranslationRow {
+  card_id: number;
+  locale: string;
+  name?: string | null;
+  deck?: string | null;
+  suit?: string | null;
 }
 
 export class CardService {
@@ -91,7 +101,12 @@ export class CardService {
       }
     }
 
-    return await this.dbService.query<Card>(sql, params);
+    const result = await this.dbService.query<Card>(sql, params);
+    if (result.success && result.data) {
+      const localized = await this.localizeCards(result.data);
+      return { success: true, data: localized };
+    }
+    return result;
   }
 
   /**
@@ -99,7 +114,12 @@ export class CardService {
    */
   async getCardById(id: number): Promise<ServiceResponse<Card | null>> {
     const sql = 'SELECT * FROM card WHERE id = ?';
-    return await this.dbService.queryFirst<Card>(sql, [id]);
+    const result = await this.dbService.queryFirst<Card>(sql, [id]);
+    if (result.success && result.data) {
+      const localized = await this.localizeCards([result.data]);
+      return { success: true, data: localized[0] ?? null };
+    }
+    return result;
   }
 
   /**
@@ -236,7 +256,12 @@ export class CardService {
     sql += ' ORDER BY RANDOM() LIMIT ?';
     params.push(count);
 
-    return await this.dbService.query<Card>(sql, params);
+    const result = await this.dbService.query<Card>(sql, params);
+    if (result.success && result.data) {
+      const localized = await this.localizeCards(result.data);
+      return { success: true, data: localized };
+    }
+    return result;
   }
 
   /**
@@ -252,7 +277,12 @@ export class CardService {
    */
   async getCardsByStyle(styleId: number): Promise<ServiceResponse<Card[]>> {
     const sql = 'SELECT * FROM card WHERE style_id = ? ORDER BY arcana, number';
-    return await this.dbService.query<Card>(sql, [styleId]);
+    const result = await this.dbService.query<Card>(sql, [styleId]);
+    if (result.success && result.data) {
+      const localized = await this.localizeCards(result.data);
+      return { success: true, data: localized };
+    }
+    return result;
   }
 
   /**
@@ -277,6 +307,85 @@ export class CardService {
       exactPattern, exactPattern
     ];
 
-    return await this.dbService.query<Card>(sql, params);
+    const result = await this.dbService.query<Card>(sql, params);
+    if (result.success && result.data) {
+      const localized = await this.localizeCards(result.data);
+      return { success: true, data: localized };
+    }
+    return result;
+  }
+
+  private getActiveLocale(): string {
+    const active = (i18n?.language as string | undefined) ?? DEFAULT_LOCALE;
+    return active || DEFAULT_LOCALE;
+  }
+
+  private getSuitFallback(locale: string, suit?: string | null): string | undefined {
+    if (!suit) return undefined;
+    const localeKey = locale.split('-')[0];
+    const fallbackMap: Record<string, Record<string, string>> = {
+      en: {
+        '权杖': 'Wands',
+        '圣杯': 'Cups',
+        '宝剑': 'Swords',
+        '金币': 'Pentacles',
+      },
+    };
+    return fallbackMap[localeKey]?.[suit] ?? fallbackMap[locale]?.[suit] ?? suit;
+  }
+
+  private async localizeCards(cards: Card[]): Promise<Card[]> {
+    if (!cards.length) {
+      return cards;
+    }
+
+    const locale = this.getActiveLocale();
+    const normalizedLocale = locale.toLowerCase();
+
+    if (normalizedLocale.startsWith('zh')) {
+      return cards.map(card => ({
+        ...card,
+        localizedName: card.localizedName ?? card.name,
+        localizedDeck: card.localizedDeck ?? card.deck,
+        localizedSuit: card.localizedSuit ?? card.suit,
+      }));
+    }
+
+    const ids = cards
+      .map(card => card.id)
+      .filter((id): id is number => typeof id === 'number' && Number.isFinite(id) && id > 0);
+
+    const translationsMap = new Map<number, CardTranslationRow>();
+
+    if (ids.length > 0) {
+      const placeholders = ids.map(() => '?').join(', ');
+      const query = `
+        SELECT card_id, locale, name, deck, suit
+        FROM card_translation
+        WHERE locale = ?
+          AND card_id IN (${placeholders})
+      `;
+
+      const translationResult = await this.dbService.query<CardTranslationRow>(
+        query,
+        [locale, ...ids]
+      );
+
+      if (translationResult.success && translationResult.data) {
+        translationResult.data.forEach(row => {
+          translationsMap.set(row.card_id, row);
+        });
+      }
+    }
+
+    return cards.map(card => {
+      const translation = translationsMap.get(card.id);
+      return {
+        ...card,
+        localizedName: translation?.name ?? card.localizedName ?? card.name,
+        localizedDeck: translation?.deck ?? card.localizedDeck ?? card.deck,
+        localizedSuit: translation?.suit ?? card.localizedSuit ?? this.getSuitFallback(normalizedLocale, card.suit),
+      };
+    });
   }
 }

@@ -14,13 +14,15 @@ import Animated, {
   withTiming,
   FadeInDown,
 } from 'react-native-reanimated';
+
 import { UserDatabaseService } from '../../lib/database/user-db';
 import type { ParsedUserHistory, HistoryFilter, HistoryPaginationQuery } from '../../lib/types/user';
 import { HistoryListItem } from './HistoryListItem';
 import { HistoryFilterBar } from './HistoryFilterBar';
+import { useTranslation } from '@/lib/hooks/useTranslation';
 
 interface HistoryListProps {
-  userId: string;
+  userId?: string | null;
   onHistoryPress: (historyId: string) => void;
   style?: any;
 }
@@ -30,6 +32,7 @@ export const HistoryList: React.FC<HistoryListProps> = ({
   onHistoryPress,
   style,
 }) => {
+  const { t } = useTranslation('history');
   const [histories, setHistories] = useState<ParsedUserHistory[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -56,6 +59,7 @@ export const HistoryList: React.FC<HistoryListProps> = ({
     currentPagination = pagination
   ) => {
     try {
+      setError(null);
       if (reset) {
         setLoading(true);
         setError(null);
@@ -63,21 +67,30 @@ export const HistoryList: React.FC<HistoryListProps> = ({
         setLoadingMore(true);
       }
 
-      // 查询多个可能的匿名用户ID
-      const possibleUserIds = ['anonymous_user', 'anonymous'];
+      const candidateUserIds = Array.from(
+        new Set(
+          [userId, 'anonymous_user', 'anonymous'].filter(
+            (value): value is string => typeof value === 'string' && value.length > 0
+          )
+        )
+      );
       let allHistories: ParsedUserHistory[] = [];
       let totalCount = 0;
 
-      for (const uid of possibleUserIds) {
+      if (candidateUserIds.length === 0) {
+        console.warn('HistoryList: no valid user ids available for querying history.');
+      }
+
+      for (const uid of candidateUserIds) {
         try {
-          const histories = await userDbService.getUserHistory(
+          const historiesForUser = await userDbService.getUserHistory(
             uid,
             currentPagination,
             currentFilter
           );
           const count = await userDbService.getUserHistoryCount(uid, currentFilter);
 
-          allHistories = [...allHistories, ...histories];
+          allHistories = [...allHistories, ...historiesForUser];
           totalCount += count;
         } catch (err) {
           // 忽略单个用户ID的查询错误，继续查询其他ID
@@ -100,7 +113,7 @@ export const HistoryList: React.FC<HistoryListProps> = ({
 
     } catch (err) {
       console.error('Error loading histories:', err);
-      setError(err instanceof Error ? err.message : '加载历史记录失败');
+      setError(t('list.error.default'));
     } finally {
       setLoading(false);
       setLoadingMore(false);
@@ -109,12 +122,12 @@ export const HistoryList: React.FC<HistoryListProps> = ({
       // 淡入动画
       opacity.value = withTiming(1, { duration: 300 });
     }
-  }, [filter, pagination, histories.length]);
+  }, [filter, pagination, histories.length, userId, t, userDbService]);
 
   // 初始加载
   useEffect(() => {
     loadHistories(true);
-  }, []);
+  }, [loadHistories]);
 
   // 筛选器变化时重新加载
   const handleFilterChange = useCallback((newFilter: HistoryFilter) => {
@@ -122,7 +135,7 @@ export const HistoryList: React.FC<HistoryListProps> = ({
     const newPagination = { ...pagination, offset: 0 };
     setPagination(newPagination);
     loadHistories(true, newFilter, newPagination);
-  }, [pagination]);
+  }, [pagination, loadHistories]);
 
   // 下拉刷新
   const handleRefresh = useCallback(() => {
@@ -130,7 +143,7 @@ export const HistoryList: React.FC<HistoryListProps> = ({
     const resetPagination = { ...pagination, offset: 0 };
     setPagination(resetPagination);
     loadHistories(true, filter, resetPagination);
-  }, [filter, pagination]);
+  }, [filter, pagination, loadHistories]);
 
   // 加载更多
   const handleLoadMore = useCallback(() => {
@@ -142,7 +155,7 @@ export const HistoryList: React.FC<HistoryListProps> = ({
       setPagination(nextPagination);
       loadHistories(false, filter, nextPagination);
     }
-  }, [loadingMore, hasMore, pagination, histories.length, filter]);
+  }, [loadingMore, hasMore, pagination, histories.length, filter, loadHistories]);
 
   // 渲染列表项
   const renderHistoryItem = useCallback(({ item, index }: { item: ParsedUserHistory; index: number }) => (
@@ -161,7 +174,7 @@ export const HistoryList: React.FC<HistoryListProps> = ({
     return (
       <View style={styles.footerLoader}>
         <ActivityIndicator size="small" color="#ffd700" />
-        <Text style={styles.loadingText}>加载更多...</Text>
+        <Text style={styles.loadingText}>{t('list.loadMore')}</Text>
       </View>
     );
   };
@@ -173,11 +186,11 @@ export const HistoryList: React.FC<HistoryListProps> = ({
     return (
       <View style={styles.emptyState}>
         <Text style={styles.emptyIcon}>🔮</Text>
-        <Text style={styles.emptyTitle}>暂无占卜历史</Text>
+        <Text style={styles.emptyTitle}>{t('list.empty.title')}</Text>
         <Text style={styles.emptyDescription}>
           {filter.mode === 'all'
-            ? '开始你的第一次塔罗占卜吧'
-            : '该筛选条件下暂无记录'
+            ? t('list.empty.description.default')
+            : t('list.empty.description.filtered')
           }
         </Text>
       </View>
@@ -193,7 +206,7 @@ export const HistoryList: React.FC<HistoryListProps> = ({
     return (
       <View style={[styles.container, styles.centerContent]}>
         <ActivityIndicator size="large" color="#ffd700" />
-        <Text style={styles.loadingText}>加载历史记录...</Text>
+        <Text style={styles.loadingText}>{t('list.loading')}</Text>
       </View>
     );
   }
@@ -204,7 +217,7 @@ export const HistoryList: React.FC<HistoryListProps> = ({
         <Text style={styles.errorIcon}>⚠️</Text>
         <Text style={styles.errorText}>{error}</Text>
         <TouchableOpacity style={styles.retryButton} onPress={() => loadHistories(true)}>
-          <Text style={styles.retryButtonText}>重试</Text>
+          <Text style={styles.retryButtonText}>{t('list.retry')}</Text>
         </TouchableOpacity>
       </View>
     );

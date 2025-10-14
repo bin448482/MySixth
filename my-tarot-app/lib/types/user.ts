@@ -6,6 +6,7 @@
  */
 
 import type { Card, Spread, Dimension } from './config';
+import type { AppLocale } from '../i18n';
 
 // ============= 用户数据核心类型 =============
 
@@ -17,6 +18,7 @@ export interface UserHistory {
   spread_id: number;
   card_ids: string; // JSON string in database
   interpretation_mode: 'default' | 'ai';
+  locale: AppLocale;
   result: string; // JSON string in database
   created_at?: string;
   updated_at?: string;
@@ -84,6 +86,7 @@ export interface ReadingResult {
     interpretation_mode: 'default' | 'ai';
     user_id: string;
     theme?: string; // 占卜主题 (dimension.description)
+    locale?: AppLocale;
     // AI占卜专用元数据
     ai_dimensions?: any[]; // AI推荐的维度
     generated_at?: string; // AI解读生成时间

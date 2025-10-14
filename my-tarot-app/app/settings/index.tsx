@@ -9,12 +9,15 @@ import {
   RechargeSection,
   DisclaimerSection,
   PrivacySection,
-  SupportSection
+  SupportSection,
+  LanguageSection
 } from '@/components/settings';
+import { useTranslation } from '@/lib/hooks/useTranslation';
 import UserService, { BalanceResponse, UserStatsResponse, UserTransaction, UserInfo } from '@/lib/services/UserService';
 
 export default function SettingsScreen() {
   const router = useRouter();
+  const { t } = useTranslation('settings');
   const [loading, setLoading] = useState(true);
   const [userProfile, setUserProfile] = useState<UserInfo | null>(null);
   const [userBalance, setUserBalance] = useState<BalanceResponse | null>(null);
@@ -43,7 +46,7 @@ export default function SettingsScreen() {
       console.log('✅ 用户数据加载成功');
     } catch (err) {
       console.error('❌ 加载用户数据失败:', err);
-      setError('加载用户信息失败');
+      setError(t('status.error'));
     } finally {
       setLoading(false);
     }
@@ -61,7 +64,7 @@ export default function SettingsScreen() {
           <TouchableOpacity style={styles.backButton} onPress={handleBack}>
             <Ionicons name="arrow-back" size={24} color="#d4af37" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>系统说明</Text>
+          <Text style={styles.headerTitle}>{t('header.title')}</Text>
           <View style={styles.headerSpacer} />
         </View>
 
@@ -80,11 +83,12 @@ export default function SettingsScreen() {
           <DisclaimerSection />
           <PrivacySection />
           <SupportSection />
+          <LanguageSection />
 
           {/* 加载状态和错误提示 */}
           {loading && (
             <View style={styles.statusContainer}>
-              <Text style={styles.statusText}>正在加载用户信息...</Text>
+              <Text style={styles.statusText}>{t('status.loading')}</Text>
             </View>
           )}
 
@@ -92,7 +96,7 @@ export default function SettingsScreen() {
             <View style={styles.errorContainer}>
               <Text style={styles.errorText}>{error}</Text>
               <TouchableOpacity style={styles.retryButton} onPress={loadUserData}>
-                <Text style={styles.retryText}>重试</Text>
+                <Text style={styles.retryText}>{t('status.retry')}</Text>
               </TouchableOpacity>
             </View>
           )}
