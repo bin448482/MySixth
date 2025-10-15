@@ -1,0 +1,159 @@
+{
+  "version": "1.0.0",
+  "generated_at": "2025-10-15T10:44:27Z",
+  "source_question": "我下个月的运势如何？",
+  "spread_type": "three-card",
+  "source_locale": "zh-CN",
+  "root_dimension_locale": "zh-CN",
+  "guardrails": {
+    "force_json": true,
+    "retry": 2,
+    "timeout_seconds": 40
+  },
+  "dimensions": [
+    {
+      "dimension_key": {
+        "category": "运势",
+        "aspect": "过去",
+        "aspect_type": 1
+      },
+      "localizations": [
+        {
+          "locale": "zh-CN",
+          "name": "运势-起因",
+          "category": "运势",
+          "aspect": "过去",
+          "aspect_type": 1,
+          "description": "分析过去一段时间内的影响因素，包括个人行为、外部环境等，为下个月的运势变化提供背景信息。",
+          "summary": "回顾过去，找出影响下月运势的关键因素。"
+        },
+        {
+          "locale": "en-US",
+          "name": "General-Past",
+          "category": "General",
+          "aspect": "Past",
+          "aspect_type": 1,
+          "description": "In the past, you have experienced fluctuations in luck, with both positive and negative outcomes influencing your overall fortune.",
+          "summary": "Past experiences have shown a mix of luck, with ups and downs affecting your overall fortune."
+        },
+        {
+          "locale": "ja-JP",
+          "name": "総合-過去",
+          "category": "総合",
+          "aspect": "過去",
+          "aspect_type": 1,
+          "description": "過去の出来事や行動が、来月の運勢に影響を与えています。過去の経験を振り返り、学びを得ることが重要です。",
+          "summary": "過去の経験が来月の運勢に影響を与えています。学びを得ることが重要です。"
+        }
+      ]
+    },
+    {
+      "dimension_key": {
+        "category": "运势",
+        "aspect": "当前",
+        "aspect_type": 2
+      },
+      "localizations": [
+        {
+          "locale": "zh-CN",
+          "name": "运势-现状",
+          "category": "运势",
+          "aspect": "当前",
+          "aspect_type": 2,
+          "description": "评估当前运势状况，包括正面和负面的影响，以及个人应对策略的有效性。",
+          "summary": "审视当前运势，了解现有状况及应对措施。"
+        },
+        {
+          "locale": "en-US",
+          "name": "General-Present",
+          "category": "General",
+          "aspect": "Present",
+          "aspect_type": 2,
+          "description": "Currently, your luck seems to be stable, with a sense of balance and consistency in the opportunities coming your way.",
+          "summary": "Your current luck appears to be steady, with a sense of balance and consistency in the opportunities presented."
+        },
+        {
+          "locale": "ja-JP",
+          "name": "総合-現在",
+          "category": "総合",
+          "aspect": "現在",
+          "aspect_type": 2,
+          "description": "現在の状況や行動が、来月の運勢に大きく影響します。自分の行動や考え方に注意を払いましょう。",
+          "summary": "現在の行動や考え方が来月の運勢に大きく影響します。注意を払いましょう。"
+        }
+      ]
+    },
+    {
+      "dimension_key": {
+        "category": "运势",
+        "aspect": "未来",
+        "aspect_type": 3
+      },
+      "localizations": [
+        {
+          "locale": "zh-CN",
+          "name": "运势-未来趋势",
+          "category": "运势",
+          "aspect": "未来",
+          "aspect_type": 3,
+          "description": "预测下个月可能出现的运势变化，包括机遇和挑战，以及如何应对这些变化。",
+          "summary": "预测下月运势走向，准备应对机遇与挑战。"
+        },
+        {
+          "locale": "en-US",
+          "name": "General-Future",
+          "category": "General",
+          "aspect": "Future",
+          "aspect_type": 3,
+          "description": "Looking ahead to next month, it is advised to stay open to new possibilities and remain optimistic, as there may be unexpected opportunities that could enhance your luck.",
+          "summary": "Stay open to new possibilities and maintain optimism, as unexpected opportunities may enhance your luck in the upcoming month."
+        },
+        {
+          "locale": "ja-JP",
+          "name": "総合-未来",
+          "category": "総合",
+          "aspect": "未来",
+          "aspect_type": 3,
+          "description": "未来の展望は、現在の行動や考え方によって変化します。ポジティブなエネルギーを持ち、目標に向かって努力を続けてください。",
+          "summary": "未来の展望は現在の行動や考え方によって変化します。ポジティブなエネルギーを持ち、努力を続けましょう。"
+        }
+      ]
+    }
+  ],
+  "locales": [
+    {
+      "locale": "zh-CN",
+      "question": "我下个月的运势如何？",
+      "overall_summary": "综合分析过去、现在和未来的运势状况，为下个月的运势变化提供全面解读。",
+      "provider": "zhipu",
+      "model": "glm-4-Flash",
+      "prompt_template": "prompts/analyze_three_card.zh.txt"
+    },
+    {
+      "locale": "en-US",
+      "question": "How will my luck be next month?",
+      "overall_summary": "Your past experiences have shown a mix of luck, but currently, your fortune seems stable. Stay open to new possibilities and maintain optimism for unexpected opportunities that could enhance your luck next month.",
+      "provider": "openai",
+      "model": "gpt-3.5-turbo",
+      "prompt_template": "prompts/analyze_three_card.en.txt",
+      "translation": {
+        "provider": "openai",
+        "model": "gpt-3.5-turbo",
+        "prompt_template": "prompts/translate_to_en.txt"
+      }
+    },
+    {
+      "locale": "ja-JP",
+      "question": "来月の運勢はどうですか？",
+      "overall_summary": "来月の運勢は過去の経験や現在の行動に影響されます。ポジティブなエネルギーを持ち、目標に向かって努力を続けましょう。",
+      "provider": "openai",
+      "model": "gpt-3.5-turbo",
+      "prompt_template": "prompts/analyze_three_card.ja.txt",
+      "translation": {
+        "provider": "openai",
+        "model": "gpt-3.5-turbo",
+        "prompt_template": "prompts/translate_to_ja.txt"
+      }
+    }
+  ]
+}

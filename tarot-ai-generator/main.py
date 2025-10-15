@@ -5,7 +5,6 @@
 """
 
 import json
-import os
 import time
 import asyncio
 import argparse
@@ -13,9 +12,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-import requests
 from rich.console import Console
-from rich.progress import Progress, TaskID
+from rich.progress import Progress
 from rich.table import Table
 from rich.prompt import Confirm
 from zhipuai import ZhipuAI
@@ -23,6 +21,7 @@ from openai import OpenAI
 import ollama
 
 from config import Config
+from multilingual import MultilingualDimensionGenerator
 
 console = Console(force_terminal=True, width=120)
 
@@ -44,6 +43,7 @@ class TarotAIGenerator:
         self.cards_data = self.load_cards_data()
         self.dimensions_data = self.load_dimensions_data()
         self.prompt_template = self.load_prompt_template()
+        self.multilingual_generator = MultilingualDimensionGenerator(self.config, console)
 
         Path(self.config.OUTPUT_PATH).parent.mkdir(parents=True, exist_ok=True)
     
@@ -61,7 +61,7 @@ class TarotAIGenerator:
     
     def load_prompt_template(self) -> str:
         """加载提示词模板"""
-        with open('prompt_template.txt', 'r', encoding='utf-8') as f:
+        with open(self.config.PROMPT_TEMPLATE_PATH, 'r', encoding='utf-8') as f:
             return f.read()
     
     def create_prompt(self, card: Dict, dimension: Dict) -> str:
@@ -325,6 +325,23 @@ class TarotAIGenerator:
             json.dump(output_data, f, ensure_ascii=False, indent=2)
         
         console.print(f"[green]结果已保存到: {output_path}[/green]")
+
+    def generate_multilingual_dimensions(
+        self,
+        question: str,
+        spread_type: Optional[str] = None,
+        output_path: Optional[str] = None
+    ) -> None:
+        """根据输入问题生成多语言维度和翻译结果。"""
+        try:
+            result_path = self.multilingual_generator.generate(
+                question=question,
+                spread_type=spread_type,
+                output_path=output_path,
+            )
+            console.print(f"[green]多语言维度解析完成，输出路径: {result_path}[/green]")
+        except Exception as exc:
+            console.print(f"[red]多语言维度生成失败: {exc}[/red]")
     
     def list_cards(self) -> None:
         """列出所有卡牌"""
@@ -613,13 +630,22 @@ def main():
     parser.add_argument("--generate-all", action="store_true", help="生成所有维度的完整解读（支持断点续传）")
     parser.add_argument("--check-status", action="store_true", help="检查当前生成状态")
     parser.add_argument("--force", action="store_true", help="跳过确认直接生成")
+    parser.add_argument("--multilingual-question", help="输入用于多语言维度解析的问题")
+    parser.add_argument("--spread-type", help="指定占卜牌阵类型（默认读取配置）")
+    parser.add_argument("--multilingual-output", help="自定义多语言结果输出文件路径")
 
     args = parser.parse_args()
 
     try:
         generator = TarotAIGenerator()
 
-        if args.list_cards:
+        if args.multilingual_question:
+            generator.generate_multilingual_dimensions(
+                question=args.multilingual_question,
+                spread_type=args.spread_type,
+                output_path=args.multilingual_output
+            )
+        elif args.list_cards:
             generator.list_cards()
         elif args.list_dimensions:
             generator.list_dimensions()
@@ -638,6 +664,7 @@ def main():
             console.print("\n[blue]新功能:[/blue]")
             console.print("  --generate-all   生成所有维度的完整解读（支持断点续传）")
             console.print("  --check-status   检查当前生成状态")
+            console.print("  --multilingual-question \"我下个月的运势如何？\"   生成多语言维度与翻译结果")
 
     except Exception as e:
         console.print(f"[red]程序运行错误: {str(e)}[/red]")

@@ -1,0 +1,49 @@
+你是一位资深的塔罗牌解读师。请基于下方的用户问题，为“三牌阵”生成最匹配的三个解读维度，并输出严格的 JSON。
+
+要求：
+1. 先确定一个最契合主题的类别（如：情感、事业、健康、学业、人际关系、财富、灵性、决策、类比、精神）。
+2. 从“起因 → 现状 → 未来趋势”三个角度生成维度，确保三个条目共享同一个类别前缀。
+3. 每个维度包含：
+   - name：类别-子项（示例：整体-过去）
+   - category：类别（示例：整体）
+   - aspect：子项（示例：过去）
+   - aspect_type：使用 1 表示起因，2 表示现状，3 表示未来。
+   - description：2-3 句中文详细说明。
+   - summary：30-50 字中文要点。
+4. summary 字段描述整个问题的统一主题。
+5. 输出必须是合法 JSON 对象，不包含多余文本或注释。
+
+待分析的问题（语言：{locale}）：
+{question}
+
+请输出如下结构：
+{{
+  "locale": "{locale}",
+  "dimensions": [
+    {{
+      "name": "...",
+      "category": "...",
+      "aspect": "...",
+      "aspect_type": 1,
+      "description": "...",
+      "summary": "..."
+    }},
+    {{
+      "name": "...",
+      "category": "...",
+      "aspect": "...",
+      "aspect_type": 2,
+      "description": "...",
+      "summary": "..."
+    }},
+    {{
+      "name": "...",
+      "category": "...",
+      "aspect": "...",
+      "aspect_type": 3,
+      "description": "...",
+      "summary": "..."
+    }}
+  ],
+  "overall_summary": "..."
+}}

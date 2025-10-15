@@ -11,6 +11,7 @@
 - **成本控制**: 预估API调用成本，支持用户确认
 - **进度跟踪**: 实时显示生成进度和状态
 - **错误处理**: 自动重试机制和详细错误日志
+- **多语言维度生成**: 一次输入问题，自动翻译并输出 `dimension` / `dimension_translation` 数据草稿
 
 ## 📋 数据概览
 
@@ -43,25 +44,28 @@ pip install -r requirements.txt
 cp .env.example .env
 ```
 
-编辑 `.env` 文件：
+编辑 `.env` 文件（仅保留敏感信息），其余配置统一写入 YAML：
 
 ```env
-# 选择AI提供商 (zhipu/openai/ollama)
-API_PROVIDER=zhipu
+# 智谱AI API Key
+ZHIPUAI_API_KEY=your_zhipu_key
 
-# 智谱AI配置
-ZHIPUAI_API_KEY=your_api_key_here
+# OpenAI API Key 与可选的自定义 Base URL
+OPENAI_API_KEY=your_openai_key
+OPENAI_BASE_URL=https://api.openai.com/v1
 
-# 或 OpenAI配置
-# API_PROVIDER=openai
-# OPENAI_API_KEY=your_api_key_here
-# OPENAI_BASE_URL=https://api.openai.com/v1
-
-# 或 Ollama本地模型
-# API_PROVIDER=ollama
-# OLLAMA_BASE_URL=http://localhost:11434
-# OLLAMA_MODEL=qwen2.5:7b
+# Ollama 可选覆盖
+OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_MODEL=qwen2.5:7b
 ```
+
+### 结构化配置
+
+- 非敏感配置以及默认参数集中在 `config/settings.yaml` 与 `config/multilingual_dimension.yaml`。
+- `settings.yaml` 中的 `llm.openai.api_key`、`llm.zhipu.api_key` 字段保存模型密钥；`.env` 只在需要临时覆盖时填写。
+- `settings.yaml` 还管理默认模型、温度、速率限制、数据路径等。
+- `multilingual_dimension.yaml` 定义翻译/分析流程、提示词模板和 Guardrails。
+- 如需覆盖 YAML，可在环境变量中设置同名字段（例如 `OPENAI_API_KEY`、`OPENAI_BASE_URL`）。
 
 ## 📖 使用指南
 
@@ -98,6 +102,10 @@ python main.py --generate-all
 
 # 跳过确认直接生成
 python main.py --generate-all --force
+
+# 多语言维度解析（输出 dimension/dimension_translation 草稿）
+python main.py --multilingual-question "我下个月的运势如何？"
+python main.py --multilingual-question "我需要换工作吗？" --spread-type three-card --multilingual-output ./output/job_switch_multilingual.json
 ```
 
 ## 🔄 断点续传机制
@@ -221,7 +229,16 @@ python main.py --check-status
 tarot-ai-generator/
 ├── main.py                    # 主程序
 ├── config.py                  # 配置管理
-├── prompt_template.txt        # AI提示词模板
+├── config/                    # 结构化配置
+│   ├── settings.yaml
+│   └── multilingual_dimension.yaml
+├── multilingual.py            # 多语言翻译与解析逻辑
+├── prompts/                   # 翻译/分析提示词模板
+│   ├── translate_to_en.txt
+│   ├── translate_to_ja.txt
+│   ├── analyze_three_card.zh.txt
+│   └── ...
+├── prompt_template.txt        # 卡牌 × 维度生成提示词
 ├── requirements.txt           # 依赖包
 ├── .env.example              # 环境变量模板
 ├── README.md                 # 本文档
@@ -230,6 +247,8 @@ tarot-ai-generator/
 │   ├── dimensions.json                # 维度定义(12个)
 │   └── card_interpretation_dimensions.json # 生成结果
 ├── output/                   # 输出文件
+│   ├── card_interpretation_dimensions.json
+│   └── multilingual_dimensions.json
 └── venv/                    # Python虚拟环境
 ```
 
@@ -237,7 +256,7 @@ tarot-ai-generator/
 
 ### 自定义提示词
 
-编辑 `prompt_template.txt` 调整AI生成的内容风格：
+编辑 `prompt_template.txt` 可调整卡牌 × 维度的解读风格；若要调整多语言流程，请修改 `prompts/` 下对应的翻译与分析模板：
 
 ```text
 请为塔罗牌 "{card_name}" ({direction}) 在 "{dimension_name}" 维度下生成详细解读。

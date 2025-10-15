@@ -21,18 +21,20 @@
 - **成本控制**: 预估API调用成本，支持用户确认后执行
 - **进度跟踪**: 实时显示生成进度和预估完成时间
 - **多模型支持**: 支持智谱AI、OpenAI和Ollama本地模型
+- **多语言维度生成**: 生成 `dimension` 与 `dimension_translation` 所需的多语种草稿
 
 ## 📁 项目结构
 
 ```
 tarot-ai-generator/
 ├── main.py                    # 主程序文件
-├── config.py                  # 配置管理
-├── prompt_template.txt        # AI提示词模板
+├── config.py                  # 配置管理入口
+├── config/                    # YAML 配置（settings.yaml、multilingual_dimension.yaml）
+├── multilingual.py            # 多语言翻译与维度解析逻辑
+├── prompts/                   # 翻译与分析提示词模板
+├── prompt_template.txt        # 卡牌 × 维度提示词模板
 ├── requirements.txt           # Python依赖
-├── .env.example              # 环境变量示例
-├── .env                      # 环境变量配置（需创建）
-├── venv/                     # Python虚拟环境
+├── .env.example              # 环境变量示例（仅敏感信息）
 ├── output/                   # 生成结果输出目录
 └── CLAUDE.md                 # 本文档
 ```
@@ -61,22 +63,27 @@ pip install -r requirements.txt
 ```bash
 # 复制环境变量模板
 cp .env.example .env
-
-# 编辑 .env 文件，配置API提供商
-# 方式1: 使用智谱AI
-# API_PROVIDER=zhipu
-# ZHIPUAI_API_KEY=your_api_key_here
-
-# 方式2: 使用OpenAI
-# API_PROVIDER=openai
-# OPENAI_API_KEY=your_api_key_here
-# OPENAI_BASE_URL=https://api.openai.com/v1
-
-# 方式3: 使用Ollama本地模型
-# API_PROVIDER=ollama
-# OLLAMA_BASE_URL=http://localhost:11434
-# OLLAMA_MODEL=llama3
 ```
+
+`.env` 仅保留 API 密钥等敏感信息，其余配置请写入 `config/settings.yaml`：
+
+```env
+# 智谱AI
+ZHIPUAI_API_KEY=your_zhipu_key
+
+# OpenAI
+OPENAI_API_KEY=your_openai_key
+OPENAI_BASE_URL=https://api.openai.com/v1
+
+# Ollama（可选）
+OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_MODEL=llama3
+```
+
+> ⚙️ 结构化配置位于 `config/` 目录：  
+> - `settings.yaml`：模型、温度、速率、数据路径等  
+> - `multilingual_dimension.yaml`：翻译/分析流程与提示词模板  
+> - 可通过 `.env` 覆盖 YAML 中的默认值（如 base_url）
 
 ### 2. 使用方法
 
@@ -99,6 +106,10 @@ python main.py --dimension "情感-时间线-过去"
 
 # 生成样本数据（用于测试）
 python main.py --sample 5
+
+# 多语言维度与翻译草稿
+python main.py --multilingual-question "我下个月的运势如何？"
+python main.py --multilingual-question "我需要换工作吗？" --spread-type three-card --multilingual-output ./output/job_switch_multilingual.json
 ```
 
 ## 📊 数据源
@@ -119,46 +130,37 @@ python main.py --sample 5
 
 | 提供商 | 说明 | 优势 | 配置要求 |
 |--------|------|------|----------|
-| **智谱AI** | 智谱AI的GLM系列模型 | 中文理解能力强，性价比高 | ZHIPUAI_API_KEY |
-| **OpenAI** | OpenAI的GPT系列模型 | 生成质量高，功能强大 | OPENAI_API_KEY, OPENAI_BASE_URL |
-| **Ollama** | 本地部署的开源模型 | 免费使用，数据隐私，无网络依赖 | OLLAMA_BASE_URL, OLLAMA_MODEL |
+| **智谱AI** | 智谱AI的GLM系列模型 | 中文理解能力强，性价比高 | `config/settings.yaml` → `llm.zhipu.api_key` |
+| **OpenAI** | OpenAI的GPT系列模型 | 生成质量高，功能强大 | `config/settings.yaml` → `llm.openai.api_key` |
+| **Ollama** | 本地部署的开源模型 | 免费使用，数据隐私，无网络依赖 | `config/settings.yaml` → `llm.ollama.*` |
 
-### 环境变量配置 (.env)
+### 配置说明
 
-#### 通用配置
-| 变量名 | 说明 | 默认值 |
-|--------|------|--------|
-| `API_PROVIDER` | API提供商选择 (zhipu/openai/ollama) | `zhipu` |
-| `CARD_INTERPRETATIONS_PATH` | 塔罗牌数据文件路径 | `data/config_jsons/card_interpretations.json` |
-| `DIMENSIONS_PATH` | 维度数据文件路径 | `data/config_jsons/dimensions.json` |
-| `OUTPUT_PATH` | 输出文件路径 | `./output/card_interpretation_dimensions.json` |
-| `TEMPERATURE` | AI生成温度参数 | `0.7` |
-| `MAX_TOKENS` | 最大token数量 | `1000` |
-| `RATE_LIMIT_PER_MINUTE` | API调用频率限制 | `60` |
-| `BATCH_SIZE` | 并发批处理大小 | `10` |
+#### `.env`（可选覆盖）
+| 变量名 | 说明 |
+|--------|------|
+| `ZHIPUAI_API_KEY` / `OPENAI_API_KEY` | 若需要临时覆盖 YAML 中的密钥，可在此填写 |
+| `OPENAI_BASE_URL` | 覆盖默认的 OpenAI Base URL |
+| `OLLAMA_BASE_URL` / `OLLAMA_MODEL` | 覆盖本地 Ollama 配置 |
 
-#### 智谱AI配置
-| 变量名 | 说明 | 默认值 |
-|--------|------|--------|
-| `ZHIPUAI_API_KEY` | 智谱AI的API密钥 | 必填（当API_PROVIDER=zhipu） |
-| `MODEL_NAME` | 使用的模型名称 | `glm-4` |
+> 默认情况下 `.env` 留空，所有核心配置与密钥请写入 `config/settings.yaml`。
 
-#### OpenAI配置
-| 变量名 | 说明 | 默认值 |
-|--------|------|--------|
-| `OPENAI_API_KEY` | OpenAI的API密钥 | 必填（当API_PROVIDER=openai） |
-| `OPENAI_BASE_URL` | OpenAI API基础URL | `https://api.openai.com/v1` |
-| `MODEL_NAME` | 使用的模型名称 | `gpt-4` |
+#### `config/settings.yaml`
+- `general`: 输出路径、默认多语言输出路径。
+- `paths`: 卡牌数据、维度数据、主提示词模板路径。
+- `llm`: 默认提供商、模型、温度、速率限制，以及各模型的特定参数与 `api_key` 字段。
 
-#### Ollama配置
-| 变量名 | 说明 | 默认值 |
-|--------|------|--------|
-| `OLLAMA_BASE_URL` | Ollama服务地址 | `http://localhost:11434` |
-| `OLLAMA_MODEL` | Ollama模型名称 | `llama3` |
+#### `config/multilingual_dimension.yaml`
+- `source_locale` / `root_dimension_locale`: 输入语言与维度基准语言。
+- `source_analysis`: 根语言的模型、温度与分析提示词。
+- `translation_pipeline`: 目标语种的翻译与分析配置（可为每种语言指定不同模型与模板）。
+- `guardrails`: JSON 输出、重试次数、超时等安全配置。
 
 ### 提示词模板
 
-工具使用 `prompt_template.txt` 中的模板来构建发送给AI的提示词。模板包含：
+- `prompt_template.txt`：卡牌 × 维度批量生成主模板。
+- `prompts/translate_to_*.txt`：多语言翻译提示词。
+- `prompts/analyze_three_card.*.txt`：多语言三牌阵分析提示词。
 
 - 塔罗牌基础信息（名称、方向、牌意）
 - 解读维度信息（名称、类别、描述）
