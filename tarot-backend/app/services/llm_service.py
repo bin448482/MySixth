@@ -229,15 +229,18 @@ Instructions:
 4. Provide a concise summary (30-50 words) capturing the overall theme.
 
 Available categories:
-- Time: past, present, future dynamics
-- Emotion: relationships, feelings, inner state
-- Career: work, vocation, achievements
-- Decision: choices, judgement, action plans
-- Health: mind-body wellness, lifestyle
-- Finance: money, investment, economic outlook
-- Relationship: social interaction, communication
-- Study: learning, exams, knowledge growth
-- Family: household matters, family ties
+- Time : Explores how the past, present, and future influence your current situation.
+- Emotion : Reflects your emotional landscape, relationships, and inner feelings.
+- Career : Relates to your work path, ambitions, and sense of achievement.
+- Decision : Illuminates your choices, judgments, and direction of action.
+- Health : Concerns your physical and mental balance, and daily life rhythm.
+- Wealth : Focuses on finances, material stability, and resource flow.
+- Interpersonal Relationships : Highlights social interactions, communication, and collaboration.
+- Study : Represents learning progress, academic focus, and personal growth in knowledge or skills.
+- Fortune : Reveals overall trends, opportunities, and the flow of luck around you.
+- Spirituality : Connects to awareness, beliefs, and personal inner growth.
+- Analogy : Interprets symbolic meanings, metaphors, and subconscious messages.
+- Spirit : Expresses willpower, purpose, and inner drive that moves you forward.
 
 Output format:
 DIMENSIONS:
@@ -264,12 +267,15 @@ Respond in English and keep the category names consistent."""
 - 时间：关注过去、现在与未来
 - 情感：关注关系、情绪与内在状态
 - 事业：关注工作、职涯与成就
-- 决策：关注选择、判断与行动计划
+- 决策：关注选择、判断与行动方向
 - 健康：关注身心状态与生活节律
-- 财务：关注资金、投资与经济状况
-- 人际：关注社交、沟通与合作
+- 财富：关注资金、资源与物质基础
+- 人际关系：关注社交、沟通与合作
 - 学业：关注学习、考试与技能成长
-- 家庭：关注家庭关系与事务处理
+- 运势：关注整体趋势、外部机缘与运气流动
+- 灵性：关注觉察、信念与内在成长
+- 类比：关注象征意义、隐喻与潜意识联结
+- 精神：关注意志力、目标感与内在驱动力
 
 输出格式：
 DIMENSIONS:

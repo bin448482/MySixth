@@ -67,7 +67,7 @@ class Config:
 
         self.API_PROVIDER = (llm.get("default_provider") or os.getenv("API_PROVIDER", "zhipu")).lower()
         self.MODEL_NAME = llm.get("default_model") or os.getenv("MODEL_NAME", "glm-4")
-        self.TEMPERATURE = float(llm.get("temperature", 0.7))
+        self.TEMPERATURE = float(llm.get("temperature", 0.1))
         self.MAX_TOKENS = int(llm.get("max_tokens", 1000))
         self.RATE_LIMIT_PER_MINUTE = int(llm.get("rate_limit_per_minute", 60))
         self.BATCH_SIZE = int(llm.get("batch_size", 10))
