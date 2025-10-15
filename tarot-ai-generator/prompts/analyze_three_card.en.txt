@@ -9,7 +9,7 @@ User description: {question}
 3. All three dimensions must share the **same category prefix**.
 4. For each dimension, provide:
 
-   * **name**: a symbolic or tarot-style title
+   * **name**: Combine "category name" and "analysis angle" using a hyphen "-", for example, "fortune-recent opportunities". Do not output placeholders or underscores.
    * **category**: the main category (chosen from the list)
    * **aspect**: the specific analytical focus of this dimension
    * **aspect_type**: number 1, 2, or 3, representing the sequence of analysis

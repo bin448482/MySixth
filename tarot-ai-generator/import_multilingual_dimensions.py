@@ -140,7 +140,20 @@ def main() -> None:
 
     payload = load_multilingual_payload(Path(args.json))
     root_locale = payload["root_dimension_locale"]
+    source_locale = payload.get("source_locale") or root_locale
+    source_question = payload.get("source_question") or ""
     dimensions = payload.get("dimensions", [])
+
+    locale_questions: Dict[str, str] = {}
+    if source_locale and source_question:
+        locale_questions[source_locale] = source_question
+    for locale_meta in payload.get("locales", []):
+        if not isinstance(locale_meta, dict):
+            continue
+        loc = locale_meta.get("locale")
+        question_text = locale_meta.get("question")
+        if loc and isinstance(question_text, str) and question_text:
+            locale_questions[loc] = question_text
 
     if not dimensions:
         print("没有可导入的维度记录。")
@@ -167,7 +180,7 @@ def main() -> None:
             aspect_type = int(aspect_type_raw) if aspect_type_raw not in (None, "") else None
 
             name = root_entry.get("name")
-            description = root_entry.get("description") or ""
+            description = locale_questions.get(root_locale)
 
             if not name:
                 raise ValueError(f"第 {idx} 条记录的根语言名称为空。")
@@ -196,7 +209,7 @@ def main() -> None:
                     dimension_id=dim_id,
                     locale=locale,
                     name=entry.get("name", ""),
-                    description=entry.get("description", ""),
+                    description=locale_questions.get(locale),
                     aspect=entry.get("aspect"),
                     category=entry.get("category"),
                 )

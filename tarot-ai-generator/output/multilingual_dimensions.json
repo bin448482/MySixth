@@ -1,0 +1,119 @@
+{
+  "version": "1.0.0",
+  "generated_at": "2025-10-15T19:23:10Z",
+  "source_question": "下个月的运势如何？",
+  "spread_type": "three-card",
+  "source_locale": "zh-CN",
+  "root_dimension_locale": "zh-CN",
+  "guardrails": {
+    "force_json": true,
+    "retry": 2,
+    "timeout_seconds": 40
+  },
+  "dimensions": [
+    {
+      "dimension_key": {
+        "category": "运势",
+        "aspect": "整体运势走向",
+        "aspect_type": 1
+      },
+      "localizations": [
+        {
+          "locale": "zh-CN",
+          "name": "运势-未来趋势",
+          "category": "运势",
+          "aspect": "整体运势走向",
+          "aspect_type": 1,
+          "description": "分析下个月的整体运势走向，包括可能面临的机遇和挑战。",
+          "summary": "了解下个月的整体运势走向，为接下来的行动做好准备。"
+        },
+        {
+          "locale": "en-US",
+          "name": "fortune-external opportunities",
+          "category": "Fortune",
+          "aspect": "external opportunities",
+          "aspect_type": 1,
+          "description": "This dimension focuses on the external factors and opportunities that may come your way next month.",
+          "summary": "Stay open to new possibilities and be ready to seize the opportunities that present themselves."
+        }
+      ]
+    },
+    {
+      "dimension_key": {
+        "category": "运势",
+        "aspect": "具体机遇分析",
+        "aspect_type": 2
+      },
+      "localizations": [
+        {
+          "locale": "zh-CN",
+          "name": "运势-近期机遇",
+          "category": "运势",
+          "aspect": "具体机遇分析",
+          "aspect_type": 2,
+          "description": "具体分析下个月可能出现的机遇，以及如何把握这些机遇。",
+          "summary": "识别并把握下个月的具体机遇，为个人发展创造有利条件。"
+        },
+        {
+          "locale": "en-US",
+          "name": "fortune-overall trend",
+          "category": "Fortune",
+          "aspect": "overall trend",
+          "aspect_type": 2,
+          "description": "Here, we explore the general trend and energy surrounding your luck for the upcoming month.",
+          "summary": "The overall trend suggests a positive outlook, but be mindful of unexpected changes."
+        }
+      ]
+    },
+    {
+      "dimension_key": {
+        "category": "运势",
+        "aspect": "潜在挑战预判",
+        "aspect_type": 3
+      },
+      "localizations": [
+        {
+          "locale": "zh-CN",
+          "name": "运势-潜在挑战",
+          "category": "运势",
+          "aspect": "潜在挑战预判",
+          "aspect_type": 3,
+          "description": "预判下个月可能遇到的挑战，以及如何应对这些挑战。",
+          "summary": "预判并应对下个月的潜在挑战，确保个人发展的稳定性。"
+        },
+        {
+          "locale": "en-US",
+          "name": "fortune-luck manifestation",
+          "category": "Fortune",
+          "aspect": "luck manifestation",
+          "aspect_type": 3,
+          "description": "This dimension delves into how your luck may manifest in different aspects of your life during the next month.",
+          "summary": "Your luck is likely to manifest through unexpected windfalls or fortunate encounters, so stay optimistic."
+        }
+      ]
+    }
+  ],
+  "locales": [
+    {
+      "locale": "zh-CN",
+      "question": "下个月的运势如何？",
+      "overall_summary": "通过分析下个月的运势走向、具体机遇和潜在挑战，为个人发展提供全面指导。",
+      "provider": "zhipu",
+      "model": "glm-4-Flash",
+      "prompt_template": "prompts/analyze_three_card.zh.txt"
+    },
+    {
+      "locale": "en-US",
+      "question": "How will my luck be next month?",
+      "overall_summary": "Next month's luck seems to be influenced by external opportunities, a generally positive trend, and manifestations of luck in various areas of your life. Stay open, expect the unexpected, and maintain a positive outlook for the best outcomes.",
+      "provider": "openai",
+      "model": "gpt-3.5-turbo",
+      "prompt_template": "prompts/analyze_three_card.en.txt",
+      "translation": {
+        "provider": "openai",
+        "model": "gpt-3.5-turbo",
+        "prompt_template": "prompts/translate_to_en.txt"
+      }
+    }
+  ]
+}
