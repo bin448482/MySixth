@@ -109,6 +109,7 @@ def collect_records(payload: Dict[str, object], root_locale: str) -> Tuple[List[
         raise ValueError("无法识别 JSON 结构：缺少 `items` 或 `records` 字段")
 
     entries = iter_entries()
+    default_dimension_id = parse_int(payload.get("dimension_id"))
     records: List[LocaleRecord] = []
 
     for index, entry in enumerate(entries, start=1):
@@ -117,7 +118,7 @@ def collect_records(payload: Dict[str, object], root_locale: str) -> Tuple[List[
             continue
 
         interpretation_id = entry.get("interpretation_id")
-        dimension_id = entry.get("dimension_id")
+        dimension_id = entry.get("dimension_id", default_dimension_id)
 
         if interpretation_id is None or dimension_id is None:
             errors.append(f"第 {index} 条记录缺少 interpretation_id 或 dimension_id")
@@ -130,9 +131,9 @@ def collect_records(payload: Dict[str, object], root_locale: str) -> Tuple[List[
             errors.append(f"第 {index} 条记录的 ID 无法转换为整数: {interpretation_id}, {dimension_id}")
             continue
 
-        dimensions = entry.get("dimensions") or {}
-        if not isinstance(dimensions, dict):
-            errors.append(f"第 {index} 条记录的 `dimensions` 字段不是对象")
+        dimension_meta = entry.get("dimension") or entry.get("dimensions") or {}
+        if not isinstance(dimension_meta, dict):
+            errors.append(f"第 {index} 条记录的 `dimension` 字段不是对象")
             continue
 
         results = entry.get("results") or {}
@@ -140,8 +141,11 @@ def collect_records(payload: Dict[str, object], root_locale: str) -> Tuple[List[
             errors.append(f"第 {index} 条记录的 `results` 字段不是对象")
             continue
 
-        root_dimension = dimensions.get(root_locale) or {}
+        root_dimension = dimension_meta.get(root_locale) or {}
         if not isinstance(root_dimension, dict):
+            root_dimension = {}
+
+        if not root_dimension:
             errors.append(f"第 {index} 条记录缺少根语言 {root_locale} 的维度信息")
             continue
 
@@ -176,7 +180,7 @@ def collect_records(payload: Dict[str, object], root_locale: str) -> Tuple[List[
             if not content:
                 continue  # skip empty outputs
 
-            dim_meta = dimensions.get(locale) or {}
+            dim_meta = dimension_meta.get(locale) or {}
             if not isinstance(dim_meta, dict):
                 dim_meta = {}
 

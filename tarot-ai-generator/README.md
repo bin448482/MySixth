@@ -100,6 +100,13 @@ python main.py question --text "我需要换工作吗？" --question-locale zh-C
 3. `question`（产品/内容终验）
 4. 视需要将内容写回数据库或后台系统
 
+## 📥 导入生成结果到 SQLite
+
+- **备份数据库**：`sqlite3 data/tarot_config.db ".backup 'backup/tarot_config_YYYYMMDD.db'"`
+- **导入前验证**：`python scripts/import_dimension_results.py --json output/dimensions/dimension_<id>.json --dry-run --locales zh-CN en-US`
+- **正式写入**：`python scripts/import_dimension_results.py --json output/dimensions/dimension_<id>.json --locales zh-CN en-US`
+- **说明**：`dimension_<id>.json` 为 `main.py` 生成的单维度结果；问题汇总文件 `output/questions/question_*.json` 仅用于记录，可按需保留。
+
 ## ❗ 常见问题
 
 | 症状 | 排查方向 |

@@ -279,10 +279,13 @@ class TarotDataRepository:
         self.dimension_by_name: Dict[str, int] = {
             record.name: record.dimension_id for record in root_dimensions
         }
-        self.dimension_by_description: Dict[str, int] = {
-            record.description: record.dimension_id for record in root_dimensions
-            if record.description
-        }
+        self.dimension_by_description: Dict[str, List[int]] = {}
+        for record in root_dimensions:
+            if not record.description:
+                continue
+            bucket = self.dimension_by_description.setdefault(record.description, [])
+            if record.dimension_id not in bucket:
+                bucket.append(record.dimension_id)
 
     # ------------------------------------------------------------------ #
     # Access helpers
@@ -314,8 +317,8 @@ class TarotDataRepository:
         locale = locale or self.root_locale
         locale = self.loader._normalize_locale(locale)
         if locale == self.root_locale:
-            result = self.dimension_by_description.get(description)
-            return [result] if result else []
+            matches = self.dimension_by_description.get(description, [])
+            return list(matches)
         return self.loader.find_dimensions_by_description(description, locale=locale)
 
     def get_card_id_by_name_direction(self, name: str, direction: str) -> Optional[int]:
