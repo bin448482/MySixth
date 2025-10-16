@@ -29,3 +29,10 @@
 - [ ] 为关键模块补充测试或演示脚本（数据加载、模板渲染、调度器）
 - [ ] 运行基础连通性测试并记录结果
 - [ ] 输出示例生成结果（样本/维度/问题）并存档
+
+## 阶段 5：结果导入
+- [ ] 复核最新样本/维度 JSON（如 `output/debug_samples/debug_samples_20251016T015426Z.json`）字段，确认包含 `interpretation_id`、`dimension_id`、`aspect`、`aspect_type`、`results[locale].content`
+- [ ] 设计并实现导入脚本（或扩展现有工具）将根语言写入 `card_interpretation_dimension`、其他语言写入 `card_interpretation_dimension_translation`
+- [ ] 执行导入前创建数据库备份（`sqlite3 data/tarot_config.db ".backup 'backup/tarot_config_YYYYMMDD.db'"`）
+- [ ] 使用导入脚本进行 `--dry-run` 验证并抽样比对字段
+- [ ] 完成正式导入后记录执行命令、源文件、校验结果于文档（如 `agents.md` 或专门日志）

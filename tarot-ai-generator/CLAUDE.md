@@ -184,5 +184,6 @@ python main.py question --text "我需要换工作吗？" --question-locale zh-C
 
 - 代码结构或 CLI 问题：查看 `main.py` 与 `services/generation_service.py` 的实现。
 - 模型调用与速率：参考 `services/model_router.py` 与 `config/settings.yaml`。
+- 数据写回：使用 `scripts/import_dimension_results.py` 批量落库，可先 `--dry-run` 验证再提交。
 
 保持对输出质量的人工审阅，确保生成内容符合产品要求。祝开发顺利！

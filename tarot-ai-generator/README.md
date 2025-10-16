@@ -117,5 +117,6 @@ python main.py question --text "我需要换工作吗？" --question-locale zh-C
 - 模型路由：`services/model_router.py`
 - 提示词构建：`services/prompt_builder.py`
 - 数据访问：`data_loader.py`
+- 结果写回：`scripts/import_dimension_results.py`（支持 `--dry-run`，根语言写入主表，其它语言写入翻译表）
 
 欢迎在执行前充分审阅提示词与配置，确保生成内容符合产品调性。祝使用顺利！

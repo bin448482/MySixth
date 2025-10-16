@@ -106,6 +106,13 @@ python main.py question --text "我需要换工作吗？" --question-locale zh-C
 
 维度 JSON 中的 `records` 按 `interpretation_id` 聚合，`failures` 记录未完成的 `(locale, interpretation_id, dimension_id)` 组合。
 
+## 📥 数据写回
+
+- 导入前先校对样本/维度 JSON 是否含 `interpretation_id`、`dimension_id`、`aspect`、`aspect_type` 与各语言 `content`。
+- 建议在 `scripts/` 目录创建导入脚本：根语言写入 `card_interpretation_dimension`，其他语言写入 `card_interpretation_dimension_translation`。
+- 执行前使用 `sqlite3 data/tarot_config.db ".backup 'backup/tarot_config_YYYYMMDD.db'"` 创建备份，并提供 `--dry-run` 选项与抽样校验。
+- 完成导入后将源文件、命令与校验结论记录在本手册或团队日志中。
+
 ## 🧪 流程建议
 
 1. `debug-sample` 验证提示词（每种语言 5–10 条）。
