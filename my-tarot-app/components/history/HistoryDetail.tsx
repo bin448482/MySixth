@@ -17,11 +17,32 @@ import Animated, {
   FadeInDown,
 } from 'react-native-reanimated';
 import { UserDatabaseService } from '../../lib/database/user-db';
-import { ConfigDatabaseService } from '../../lib/database/config-db';
+import { CardService } from '../../lib/services/CardService';
 import { CardImageLoader } from '../reading/CardImageLoader';
 import type { ParsedUserHistory } from '../../lib/types/user';
 import type { Card } from '../../lib/types/config';
 import { useTranslation } from '@/lib/hooks/useTranslation';
+
+const FALLBACK_CARD_IMAGE = 'major/00-fool.jpg';
+
+const cleanCardIdentifier = (value?: string): string => {
+  if (!value) {
+    return '';
+  }
+
+  let normalized = value;
+  try {
+    normalized = value.normalize('NFKC');
+  } catch {
+    normalized = value;
+  }
+
+  return normalized
+    .replace(/[(（][^()（）]*[)）]/g, '')
+    .replace(/\s+/g, '')
+    .replace(/[^\w\u4e00-\u9fff]/g, '')
+    .toLowerCase();
+};
 
 interface HistoryDetailProps {
   historyId: string;
@@ -42,28 +63,20 @@ export const HistoryDetail: React.FC<HistoryDetailProps> = ({
   const [cardsData, setCardsData] = useState<Card[]>([]);
 
   const userDbService = UserDatabaseService.getInstance();
-  const configDbService = ConfigDatabaseService.getInstance();
+  const cardService = CardService.getInstance();
   const opacity = useSharedValue(0);
   const headerScale = useSharedValue(0.9);
 
-  // 加载历史详情
-  useEffect(() => {
-    loadHistoryDetail();
-    loadCardsData();
-  }, [loadHistoryDetail, loadCardsData]);
-
   const loadCardsData = useCallback(async () => {
     try {
-      const response = await configDbService.getAllCards();
+      const response = await cardService.getAllCards();
       if (response.success && response.data) {
-        console.log('Cards data loaded, count:', response.data.length);
-        console.log('First few cards:', response.data.slice(0, 5).map(c => ({ name: c.name, image_url: c.image_url })));
         setCardsData(response.data);
       }
     } catch (error) {
       console.error('Error loading cards data:', error);
     }
-  }, [configDbService]);
+  }, [cardService]);
 
   const loadHistoryDetail = useCallback(async () => {
     try {
@@ -91,6 +104,14 @@ export const HistoryDetail: React.FC<HistoryDetailProps> = ({
       setLoading(false);
     }
   }, [historyId, opacity, headerScale, t, userDbService]);
+
+  useEffect(() => {
+    loadHistoryDetail();
+  }, [loadHistoryDetail]);
+
+  useEffect(() => {
+    loadCardsData();
+  }, [loadCardsData, locale]);
 
   // 格式化时间 - 显示完整的日期时间
   const formatDateTime = (timestamp: string) => {
@@ -157,31 +178,46 @@ export const HistoryDetail: React.FC<HistoryDetailProps> = ({
     );
   };
 
-  // 根据卡牌名称获取图片路径
-  const getCardImageByName = (cardName: string): string => {
-    console.log('Looking for card image for:', cardName);
+  const findCardByIdOrName = useCallback(
+    (cardId?: number, cardName?: string): Card | undefined => {
+      if (typeof cardId === 'number' && Number.isFinite(cardId)) {
+        const matchById = cardsData.find(card => card.id === cardId);
+        if (matchById) {
+          return matchById;
+        }
+      }
 
-    // 首先尝试完全匹配
-    let card = cardsData.find(c => c.name === cardName);
+      if (cardName) {
+        const targetKey = cleanCardIdentifier(cardName);
+        if (!targetKey || cardsData.length === 0) {
+          return undefined;
+        }
 
-    if (!card) {
-      // 尝试部分匹配（去除空格、标点符号等）
-      const normalizedSearchName = cardName.replace(/[^\w\u4e00-\u9fff]/g, '').toLowerCase();
-      card = cardsData.find(c => {
-        const normalizedCardName = c.name.replace(/[^\w\u4e00-\u9fff]/g, '').toLowerCase();
-        return normalizedCardName.includes(normalizedSearchName) || normalizedSearchName.includes(normalizedCardName);
-      });
-    }
+        return cardsData.find(card => {
+          const candidates = [card.name, card.localizedName].filter(
+            (value): value is string => Boolean(value)
+          );
+          return candidates.some(candidate => cleanCardIdentifier(candidate) === targetKey);
+        });
+      }
 
-    if (card) {
-      console.log('Found card:', card.name, 'with image:', card.image_url);
-      return card.image_url;
-    } else {
-      console.log('Card not found for:', cardName);
-      console.log('Available cards:', cardsData.slice(0, 10).map(c => c.name));
-      return 'major/00-fool.jpg';
-    }
-  };
+      return undefined;
+    },
+    [cardsData]
+  );
+
+  const resolveCardPresentation = useCallback(
+    (cardId?: number, cardName?: string) => {
+      const matchedCard = findCardByIdOrName(cardId, cardName);
+
+      return {
+        card: matchedCard,
+        imageUrl: matchedCard?.image_url ?? FALLBACK_CARD_IMAGE,
+        displayName: matchedCard?.localizedName ?? matchedCard?.name ?? cardName,
+      };
+    },
+    [findCardByIdOrName]
+  );
 
   const formatDirectionLabel = (direction?: string) => {
     if (!direction) return '';
@@ -203,7 +239,10 @@ export const HistoryDetail: React.FC<HistoryDetailProps> = ({
 
   // 渲染AI占卜的卡牌解读（样式与ai-result.tsx一致）
   const renderAICardInterpretation = (cardInterpretation: any, index: number) => {
-    const cardImageUrl = getCardImageByName(cardInterpretation.card_name);
+    const { imageUrl, displayName } = resolveCardPresentation(
+      cardInterpretation.card_id,
+      cardInterpretation.card_name
+    );
 
     return (
       <View key={index} style={styles.aiDimensionCard}>
@@ -212,7 +251,9 @@ export const HistoryDetail: React.FC<HistoryDetailProps> = ({
             <Text style={styles.aiPositionText}>{cardInterpretation.position || (index + 1)}</Text>
           </View>
           <View style={styles.aiCardInfoSection}>
-            <Text style={styles.aiCardName}>{cardInterpretation.card_name}</Text>
+            <Text style={styles.aiCardName}>
+              {displayName || t('detail.cardFallback', { index: index + 1 })}
+            </Text>
             <Text style={styles.aiCardDirection}>
               {formatDirectionLabel(cardInterpretation.direction)}
             </Text>
@@ -223,7 +264,7 @@ export const HistoryDetail: React.FC<HistoryDetailProps> = ({
           {/* 卡牌图片区域 */}
           <View style={styles.aiCardImageSection}>
             <CardImageLoader
-              imageUrl={cardImageUrl}
+              imageUrl={imageUrl}
               width={120}
               height={200}
               style={[
@@ -264,7 +305,7 @@ export const HistoryDetail: React.FC<HistoryDetailProps> = ({
 
   // 渲染基础占卜的卡牌解读（使用AI解读的样式）
   const renderBasicCardInterpretation = (cardData: any, index: number) => {
-    const cardImageUrl = cardData.cardName ? getCardImageByName(cardData.cardName) : 'major/00-fool.jpg';
+    const { imageUrl, displayName } = resolveCardPresentation(cardData.cardId, cardData.cardName);
 
     return (
       <View key={index} style={styles.aiDimensionCard}>
@@ -274,7 +315,7 @@ export const HistoryDetail: React.FC<HistoryDetailProps> = ({
           </View>
           <View style={styles.aiCardInfoSection}>
             <Text style={styles.aiCardName}>
-              {cardData.cardName || t('detail.cardFallback', { index: index + 1 })}
+              {displayName || t('detail.cardFallback', { index: index + 1 })}
             </Text>
             <Text style={styles.aiCardDirection}>
               {formatDirectionLabel(cardData.direction)}
@@ -286,7 +327,7 @@ export const HistoryDetail: React.FC<HistoryDetailProps> = ({
           {/* 卡牌图片区域 */}
           <View style={styles.aiCardImageSection}>
             <CardImageLoader
-              imageUrl={cardImageUrl}
+              imageUrl={imageUrl}
               width={120}
               height={200}
               style={[

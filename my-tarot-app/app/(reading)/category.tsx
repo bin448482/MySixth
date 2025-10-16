@@ -59,13 +59,19 @@ const normalizeCategoryLabel = (value?: string | null): string | undefined => {
 };
 
 const getLocalizedCategoryName = (dimension: DimensionData): string => {
+  const fromLocalizedName = normalizeCategoryLabel(dimension.localizedCategoryName);
+  if (fromLocalizedName) return fromLocalizedName;
+
+  const fromDescription = normalizeCategoryLabel(dimension.description);
+  if (fromDescription) return fromDescription;
+
   const fromName = normalizeCategoryLabel(dimension.name);
   if (fromName) return fromName;
 
   const fromCategory = normalizeCategoryLabel(dimension.category);
   if (fromCategory) return fromCategory;
 
-  return dimension.name || dimension.category || '';
+  return dimension.description || dimension.name || dimension.category || '';
 };
 
 export default function CategorySelectionScreen() {
