@@ -53,6 +53,7 @@
         "label": "拖我试试"
       },
       "cardFlip": {
+        "upright": "正位",
         "reversed": "逆位"
       }
     }

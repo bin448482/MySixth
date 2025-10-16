@@ -19,10 +19,54 @@ interface GroupItem {
   category: string;
   description: string;
   displayName: string;
+  localizedCategoryName: string;
   icon: string;
   color: string;
   dimensions: DimensionData[];
 }
+
+const normalizeCategoryLabel = (value?: string | null): string | undefined => {
+  if (!value) return undefined;
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+
+  const separators = ['-', '—', '：', ':', '–'];
+  let candidate = trimmed;
+  for (const separator of separators) {
+    if (trimmed.includes(separator)) {
+      const parts = trimmed
+        .split(separator)
+        .map((part) => part.trim())
+        .filter(Boolean);
+      if (parts.length > 0) {
+        candidate = parts[0];
+        break;
+      }
+    }
+  }
+
+  if (!candidate) return undefined;
+
+  if (/[A-Za-z]/.test(candidate)) {
+    return candidate
+      .split(/\s+/)
+      .filter(Boolean)
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  }
+
+  return candidate;
+};
+
+const getLocalizedCategoryName = (dimension: DimensionData): string => {
+  const fromName = normalizeCategoryLabel(dimension.name);
+  if (fromName) return fromName;
+
+  const fromCategory = normalizeCategoryLabel(dimension.category);
+  if (fromCategory) return fromCategory;
+
+  return dimension.name || dimension.category || '';
+};
 
 export default function CategorySelectionScreen() {
   const router = useRouter();
@@ -70,11 +114,13 @@ export default function CategorySelectionScreen() {
         // Fix: use description as the grouping key since id doesn't exist in JSON
         const key = `${d.category}-${d.description}`;
         if (!map.has(key)) {
+          const localizedCategoryName = getLocalizedCategoryName(d);
           map.set(key, {
-            id: d.id,
+            id: key,
             category: d.category,
             description: d.description || d.name || key,
             displayName: d.category,
+            localizedCategoryName,
             icon: dimensionService.getCategoryIcon(d.category),
             color: dimensionService.getCategoryColor(d.category),
             dimensions: [d],
@@ -95,6 +141,12 @@ export default function CategorySelectionScreen() {
         g.displayName = g.dimensions
           .map(d => d.localizedAspect ?? d.aspect)
           .join(' - ');
+        if (!g.localizedCategoryName) {
+          const fallbackSource = g.dimensions[0] ?? null;
+          const fallback = fallbackSource ? getLocalizedCategoryName(fallbackSource) : undefined;
+          g.localizedCategoryName =
+            fallback ?? normalizeCategoryLabel(g.displayName) ?? normalizeCategoryLabel(g.category) ?? g.category;
+        }
         result.push(g);
         // console.log('[Category] Group added:', g.id, 'with', g.dimensions.length, 'dimensions');
       }
@@ -111,7 +163,7 @@ export default function CategorySelectionScreen() {
 
   const handleSelect = (group: GroupItem) => {
     setSelectedGroup(group.id);
-    updateCategory(group.category);
+    updateCategory(group.category, group.localizedCategoryName);
     updateDimensions(group.dimensions.map((d) => ({
       id: d.id || 0,
       name: d.name,
@@ -120,6 +172,7 @@ export default function CategorySelectionScreen() {
       aspect: d.aspect,
       aspect_type: Number(d.aspect_type || 0),
       localizedAspect: d.localizedAspect ?? d.aspect,
+      localizedCategoryName: group.localizedCategoryName,
     })));
   };
 
@@ -168,7 +221,7 @@ export default function CategorySelectionScreen() {
               <Text style={[styles.icon, { color: group.color }]}>{group.icon}</Text>
             </View>
             <View style={styles.textContainer}>
-              <Text style={[styles.categoryName, { color: group.color }]}>{group.description}</Text>
+              <Text style={[styles.categoryName, { color: group.color }]}>{group.localizedCategoryName}</Text>
               <Text style={styles.categoryDescription}>{group.displayName}</Text>
             </View>
             <View style={[

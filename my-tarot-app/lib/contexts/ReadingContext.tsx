@@ -23,12 +23,61 @@ export interface DimensionData {
   aspect: string;
   aspect_type: number;
   localizedAspect?: string;
+  localizedCategoryName?: string;
 }
+
+const formatCategoryLabel = (value?: string | null): string | undefined => {
+  if (!value) return undefined;
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+
+  const separators = ['-', '—', '：', ':', '–'];
+  let candidate = trimmed;
+  for (const separator of separators) {
+    if (trimmed.includes(separator)) {
+      const parts = trimmed
+        .split(separator)
+        .map((part) => part.trim())
+        .filter(Boolean);
+      if (parts.length > 0) {
+        candidate = parts[0];
+        break;
+      }
+    }
+  }
+
+  if (!candidate) return undefined;
+
+  if (/[A-Za-z]/.test(candidate)) {
+    return candidate
+      .split(/\s+/)
+      .filter(Boolean)
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  }
+
+  return candidate;
+};
+
+const deriveCategoryDisplayName = (
+  dimension?: Partial<DimensionData> | null,
+  fallback?: string | null
+): string | undefined => {
+  if (!dimension) {
+    return formatCategoryLabel(fallback ?? undefined);
+  }
+
+  return dimension.localizedCategoryName
+    ?? formatCategoryLabel(dimension.name)
+    ?? formatCategoryLabel(dimension.category)
+    ?? formatCategoryLabel(fallback ?? undefined);
+};
 
 export interface ReadingFlowState {
   step: number;
   type: 'offline' | 'ai';
   category: string;
+  categoryDisplayName?: string;
   // 选中的维度列表（由步骤2选择的类别映射得到，用于后续匹配）
   dimensions: DimensionData[];
   // AI占卜专用字段
@@ -51,7 +100,7 @@ interface ReadingContextType {
   state: ReadingFlowState;
   updateStep: (step: number) => void;
   updateType: (type: 'offline' | 'ai') => void;
-  updateCategory: (category: string) => void;
+  updateCategory: (category: string, displayName?: string) => void;
   updateDimensions: (dimensions: DimensionData[]) => void;
   updateUserDescription: (description: string) => void;
   updateAIDimensions: (dimensions: DimensionData[]) => void;
@@ -67,6 +116,7 @@ const initialState: ReadingFlowState = {
   step: 1,
   type: 'offline',
   category: '',
+  categoryDisplayName: undefined,
   dimensions: [],
   userDescription: undefined,
   aiDimensions: undefined,
@@ -82,7 +132,7 @@ const initialState: ReadingFlowState = {
 type ReadingAction =
   | { type: 'UPDATE_STEP'; payload: number }
   | { type: 'UPDATE_TYPE'; payload: 'offline' | 'ai' }
-  | { type: 'UPDATE_CATEGORY'; payload: string }
+  | { type: 'UPDATE_CATEGORY'; payload: { value: string; displayName?: string } }
   | { type: 'UPDATE_DIMENSIONS'; payload: DimensionData[] }
   | { type: 'UPDATE_USER_DESCRIPTION'; payload: string }
   | { type: 'UPDATE_AI_DIMENSIONS'; payload: DimensionData[] }
@@ -102,7 +152,11 @@ function readingReducer(state: ReadingFlowState, action: ReadingAction): Reading
     case 'UPDATE_TYPE':
       return { ...state, type: action.payload };
     case 'UPDATE_CATEGORY':
-      return { ...state, category: action.payload };
+      return {
+        ...state,
+        category: action.payload.value,
+        categoryDisplayName: action.payload.displayName ?? action.payload.value,
+      };
     case 'UPDATE_CARDS':
       return { ...state, selectedCards: action.payload };
     case 'UPDATE_DIMENSIONS':
@@ -123,8 +177,21 @@ function readingReducer(state: ReadingFlowState, action: ReadingAction): Reading
       return { ...state, savedToHistory: action.payload };
     case 'RESET_STATE':
       return { ...initialState, createdAt: new Date() };
-    case 'RESTORE_STATE':
-      return { ...action.payload, createdAt: new Date(action.payload.createdAt) };
+    case 'RESTORE_STATE': {
+      const dimensionSource = action.payload.dimensions?.[0] ?? null;
+      const restored = {
+        ...state,
+        ...action.payload,
+        createdAt: new Date(action.payload.createdAt),
+      };
+      const derivedName = deriveCategoryDisplayName(
+        dimensionSource,
+        action.payload.category ?? restored.category
+      );
+      restored.categoryDisplayName =
+        restored.categoryDisplayName ?? derivedName ?? restored.category ?? '';
+      return restored;
+    }
     default:
       return state;
   }
@@ -146,9 +213,15 @@ export function ReadingProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: 'UPDATE_TYPE', payload: type });
   }, []);
 
-  const updateCategory = useCallback((category: string) => {
-    dispatch({ type: 'UPDATE_CATEGORY', payload: category });
-  }, []);
+  const updateCategory = useCallback((category: string, displayName?: string) => {
+    const resolvedDisplayName =
+      displayName ?? deriveCategoryDisplayName(state.dimensions?.[0], category) ?? category;
+
+    dispatch({
+      type: 'UPDATE_CATEGORY',
+      payload: { value: category, displayName: resolvedDisplayName },
+    });
+  }, [state.dimensions]);
 
   const updateCards = useCallback((cards: SelectedCard[]) => {
     dispatch({ type: 'UPDATE_CARDS', payload: cards });

@@ -97,7 +97,8 @@ export default function BasicReadingScreen() {
           selectedCard.name,
           selectedCard.direction === 'upright' ? '正位' : '逆位',
           selectedCard.dimension.name,
-          selectedCard.dimension.aspect_type.toString()
+          selectedCard.dimension.aspect_type.toString(),
+          selectedCard.dimension.id
         );
 
         // console.log(`[BasicReading] Card ${i + 1} interpretation result:`, interpretation);
@@ -185,9 +186,10 @@ export default function BasicReadingScreen() {
     router.replace('/(reading)/type');
   };
 
-  const getDirectionText = (direction: 'upright' | 'reversed') => {
-    return direction === 'upright' ? '正位' : '逆位';
-  };
+  const getDirectionText = (direction: 'upright' | 'reversed') =>
+    direction === 'upright'
+      ? t('shared.components.cardFlip.upright')
+      : t('shared.components.cardFlip.reversed');
 
   if (loading) {
     return (
@@ -206,7 +208,7 @@ export default function BasicReadingScreen() {
       <View style={styles.header}>
         <Text style={styles.title}>{t('basic.title')}</Text>
         <Text style={styles.subtitle}>
-          {t('basic.subtitle', { category: state.category })}
+          {t('basic.subtitle', { category: state.categoryDisplayName ?? state.category })}
         </Text>
       </View>
 

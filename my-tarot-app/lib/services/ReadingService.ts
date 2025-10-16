@@ -243,7 +243,7 @@ export class ReadingService implements IReadingService {
         // 获取主题信息（从第一个维度的description）
         const theme = state.selectedCards.length > 0 && state.selectedCards[0].dimension
           ? state.selectedCards[0].dimension.description
-          : state.category;
+          : (state.categoryDisplayName ?? state.category);
 
         const readingResult: ReadingResult = {
           spread: mockSpread,

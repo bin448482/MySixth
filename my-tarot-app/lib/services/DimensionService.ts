@@ -6,6 +6,7 @@ import type { DimensionData } from '../contexts/ReadingContext';
 
 interface DimensionTranslationRow {
   dimension_id: number;
+  locale: string;
   name?: string | null;
   description?: string | null;
   aspect?: string | null;
@@ -256,23 +257,37 @@ export class DimensionService {
 
     const translationsMap = new Map<number, DimensionTranslationRow>();
 
-    if (ids.length > 0) {
-      const placeholders = ids.map(() => '?').join(', ');
+    const candidateLocales = this.resolveTranslationLocales(locale);
+
+    if (ids.length > 0 && candidateLocales.length > 0) {
+      const localePlaceholders = candidateLocales.map(() => '?').join(', ');
+      const idPlaceholders = ids.map(() => '?').join(', ');
       const query = `
-        SELECT dimension_id, name, description, aspect
+        SELECT dimension_id, locale, name, description, aspect
         FROM dimension_translation
-        WHERE locale = ?
-          AND dimension_id IN (${placeholders})
+        WHERE locale IN (${localePlaceholders})
+          AND dimension_id IN (${idPlaceholders})
       `;
 
       const translationResult = await this.dbService.query<DimensionTranslationRow>(
         query,
-        [locale, ...ids]
+        [...candidateLocales, ...ids]
       );
 
       if (translationResult.success && translationResult.data) {
+        const priorityMap = this.createLocalePriorityMap(candidateLocales);
         translationResult.data.forEach(row => {
-          translationsMap.set(row.dimension_id, row);
+          const existing = translationsMap.get(row.dimension_id);
+          if (!existing) {
+            translationsMap.set(row.dimension_id, row);
+            return;
+          }
+
+          const existingPriority = priorityMap.get(existing.locale) ?? Number.MAX_VALUE;
+          const newPriority = priorityMap.get(row.locale) ?? Number.MAX_VALUE;
+          if (newPriority < existingPriority) {
+            translationsMap.set(row.dimension_id, row);
+          }
         });
       }
     }
@@ -293,5 +308,42 @@ export class DimensionService {
         localizedAspect,
       };
     });
+  }
+
+  private resolveTranslationLocales(locale: string): string[] {
+    const normalized = locale?.replace('_', '-') ?? '';
+    const candidates: string[] = [];
+    const pushCandidate = (value?: string) => {
+      if (!value) return;
+      if (!candidates.includes(value)) {
+        candidates.push(value);
+      }
+    };
+
+    pushCandidate(locale);
+    pushCandidate(normalized);
+    pushCandidate(normalized.toLowerCase());
+
+    if (normalized.includes('-')) {
+      const [lang, region] = normalized.split('-');
+      pushCandidate(`${lang}-${region.toUpperCase()}`);
+      pushCandidate(lang);
+    } else if (normalized) {
+      const lang = normalized;
+      pushCandidate(`${lang}-${lang.toUpperCase()}`);
+      if (lang === 'en') {
+        pushCandidate('en-US');
+      } else if (lang === 'zh') {
+        pushCandidate('zh-CN');
+      }
+    }
+
+    pushCandidate(DEFAULT_LOCALE);
+
+    return candidates;
+  }
+
+  private createLocalePriorityMap(locales: string[]): Map<string, number> {
+    return new Map(locales.map((value, index) => [value, index]));
   }
 }
