@@ -1,8 +1,0 @@
-{
-  "version": "1.0.0",
-  "data": [
-    {"name": "整体-过去", "category": "整体", "description": "回顾过去的总体影响。", "aspect": "过去", "aspect_type": 1},
-    {"name": "整体-现在", "category": "整体", "description": "审视当下的核心主题。", "aspect": "现在", "aspect_type": 2},
-    {"name": "整体-未来", "category": "整体", "description": "展望未来的潜在走向。", "aspect": "未来", "aspect_type": 3}
-  ]
-}

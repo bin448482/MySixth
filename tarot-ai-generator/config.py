@@ -28,6 +28,7 @@ class Config:
         self.MULTILINGUAL_CONFIG = self._load_yaml(self._multilingual_path)
 
         self._hydrate_general_settings()
+        self._hydrate_database_settings()
         self._hydrate_llm_settings()
         self._hydrate_paths()
 
@@ -62,6 +63,24 @@ class Config:
             general.get("multilingual_output_path", "./output/multilingual_dimensions.json")
         )
 
+    def _hydrate_database_settings(self) -> None:
+        database = self._settings.get("database", {})
+        self.DATABASE_PATH = self.resolve_path(database.get("path", "data/tarot_config.db"))
+
+        root_locale = database.get("root_locale") or database.get("default_locale") or "zh-CN"
+        locales = database.get("locales") or [root_locale]
+        normalized_locales = []
+        for locale in locales:
+            if not locale:
+                continue
+            if locale not in normalized_locales:
+                normalized_locales.append(locale)
+        if root_locale not in normalized_locales:
+            normalized_locales.insert(0, root_locale)
+
+        self.ROOT_LOCALE = root_locale
+        self.TARGET_LOCALES = normalized_locales
+
     def _hydrate_llm_settings(self) -> None:
         llm = self._settings.get("llm", {})
 
@@ -93,17 +112,41 @@ class Config:
         elif self.API_PROVIDER == "ollama":
             self.MODEL_NAME = self.OLLAMA_MODEL
 
+        language_providers = llm.get("language_providers", {})
+        self.LANGUAGE_PROVIDERS: Dict[str, Dict[str, Any]] = {}
+        for locale in self.TARGET_LOCALES:
+            lp_cfg = language_providers.get(locale, {})
+            provider = (lp_cfg.get("provider") or self.API_PROVIDER).lower()
+            model = lp_cfg.get("model") or self.MODEL_NAME
+            self.LANGUAGE_PROVIDERS[locale] = {
+                "provider": provider,
+                "model": model,
+                "temperature": float(lp_cfg.get("temperature", self.TEMPERATURE)),
+                "max_tokens": int(lp_cfg.get("max_tokens", self.MAX_TOKENS)),
+                "rate_limit_per_minute": int(lp_cfg.get("rate_limit_per_minute", self.RATE_LIMIT_PER_MINUTE)),
+                "batch_size": int(lp_cfg.get("batch_size", self.BATCH_SIZE)),
+            }
+
     def _hydrate_paths(self) -> None:
         paths = self._settings.get("paths", {})
-        self.CARD_INTERPRETATIONS_PATH = self.resolve_path(
-            paths.get("card_interpretations", "data/config_jsons/card_interpretations.json")
-        )
-        self.DIMENSIONS_PATH = self.resolve_path(
-            paths.get("dimensions", "data/config_jsons/dimensions.json")
-        )
-        self.PROMPT_TEMPLATE_PATH = self.resolve_path(
-            paths.get("prompt_template", "prompt_template.txt")
-        )
+        prompt_templates = paths.get("prompt_templates", {})
+        self.PROMPT_TEMPLATES: Dict[str, str] = {}
+        for locale, path in prompt_templates.items():
+            if not path:
+                continue
+            resolved = self.resolve_path(path)
+            self.PROMPT_TEMPLATES[locale] = resolved
+
+        # Ensure root locale has a template fallback
+        if self.ROOT_LOCALE not in self.PROMPT_TEMPLATES:
+            fallback = paths.get("prompt_template", "prompt_template.txt")
+            self.PROMPT_TEMPLATES[self.ROOT_LOCALE] = self.resolve_path(fallback)
+
+        # Carry over single template path for backward compatibility if needed elsewhere
+        self.PROMPT_TEMPLATE_PATH = self.PROMPT_TEMPLATES[self.ROOT_LOCALE]
+
+        logs_dir = paths.get("logs_dir", "./output/logs")
+        self.LOGS_DIR = self.resolve_path(logs_dir)
 
     # --------------------------------------------------------------------- #
     # Validation helpers
@@ -124,14 +167,33 @@ class Config:
         else:
             raise ValueError(f"不支持的API提供商: {provider}，请设置为 'zhipu'、'openai' 或 'ollama'")
 
-        for path_attr in ("CARD_INTERPRETATIONS_PATH", "DIMENSIONS_PATH", "PROMPT_TEMPLATE_PATH"):
-            path = getattr(self, path_attr, None)
-            if not path or not Path(path).exists():
-                raise ValueError(f"必需的文件不存在: {path_attr} -> {path}")
+        db_path = Path(self.DATABASE_PATH)
+        if not db_path.exists():
+            raise ValueError(f"数据库文件不存在: {db_path}")
+
+        missing_templates = [
+            (locale, path)
+            for locale, path in self.PROMPT_TEMPLATES.items()
+            if not Path(path).exists()
+        ]
+        if missing_templates:
+            missing_desc = ", ".join(f"{locale} -> {path}" for locale, path in missing_templates)
+            raise ValueError(f"以下提示词模板不存在: {missing_desc}")
+
+        # Validate provider credentials per language
+        for locale, meta in self.LANGUAGE_PROVIDERS.items():
+            provider = meta["provider"]
+            if provider == "zhipu" and not self.ZHIPUAI_API_KEY:
+                raise ValueError(f"语言 {locale} 使用智谱模型，但未配置 ZHIPUAI_API_KEY。")
+            if provider == "openai" and not self.OPENAI_API_KEY:
+                raise ValueError(f"语言 {locale} 使用 OpenAI 模型，但未配置 OPENAI_API_KEY。")
+            if provider == "ollama" and not self.OLLAMA_MODEL:
+                raise ValueError(f"语言 {locale} 使用 Ollama 模型，但未配置 OLLAMA_MODEL。")
 
         # 输出目录
         Path(self.OUTPUT_PATH).parent.mkdir(parents=True, exist_ok=True)
         Path(self.MULTILINGUAL_OUTPUT_PATH).parent.mkdir(parents=True, exist_ok=True)
+        Path(self.LOGS_DIR).mkdir(parents=True, exist_ok=True)
 
         return True
 

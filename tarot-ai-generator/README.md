@@ -1,309 +1,121 @@
 # 塔罗牌维度解读生成工具
 
-一个支持多种AI模型的Python工具，用于生成详细的塔罗牌维度解读内容，支持断点续传和批量生成。
+`tarot-ai-generator` 是一套面向多语言塔罗解读的批量生成工具。系统读取 SQLite 配置库（卡牌/维度/翻译），按语言路由到不同的大模型，并通过协程并发输出结构化 JSON。当前聚焦三类场景：
 
-## 🎯 功能特性
+1. 调试提示词模板（随机样本）
+2. 维度全量生成（156 张卡牌 × 指定维度）
+3. 基于问题描述的多维度生成（自动匹配 3 个维度）
 
-- **多模型支持**: 智谱AI、OpenAI、Ollama本地模型
-- **批量生成**: 一键生成完整的1,872条维度解读记录
-- **断点续传**: 自动检测并恢复未完成的生成任务
-- **并发处理**: 异步批处理提高生成效率
-- **成本控制**: 预估API调用成本，支持用户确认
-- **进度跟踪**: 实时显示生成进度和状态
-- **错误处理**: 自动重试机制和详细错误日志
-- **多语言维度生成**: 一次输入问题，自动翻译并输出 `dimension` / `dimension_translation` 数据草稿
+## 🎯 功能亮点
 
-## 📋 数据概览
+- **多语言调试样本**：`debug-sample` 随机抽取卡牌 × 维度组合，快速评估不同语言的提示词效果。
+- **维度全量生成**：`dimension` 一次性生成指定维度的所有卡牌解读，支持断点续传与失败补齐。
+- **问题驱动生成**：`question` 根据问题描述匹配维度并批量生成多语言解读。
+- **模型路由**：按语言映射到智谱、OpenAI 或 Ollama，配置单独的温度、速率限制、批大小。
+- **结构化输出**：结果写入 `output/` 目录，包含生成内容、提示词上下文、模型信息与失败列表。
 
-- **塔罗牌**: 78张 × 2个方向 = 156条记录
-- **解读维度**: 12个维度（情感、决策、财富等类别）
-- **总生成量**: 156 × 12 = 1,872条解读记录
-
-## 🚀 快速开始
-
-### 环境配置
+## ⚡ 快速开始
 
 ```bash
-# 进入项目目录
 cd tarot-ai-generator
-
-# 激活虚拟环境
-venv\Scripts\activate  # Windows
+venv\Scripts\activate          # Windows
 # 或
-source venv/bin/activate  # Linux/Mac
-
-# 安装依赖
+source venv/bin/activate       # Linux / macOS
 pip install -r requirements.txt
+cp .env.example .env           # 仅填写敏感 API Key
+python - <<'PY'                # 验证配置是否完整
+from config import Config
+Config().validate()
+PY
 ```
 
-### API配置
+核心配置位于 `config/settings.yaml`：
 
-复制环境变量模板并配置：
+- `database.path`：`data/tarot_config.db`
+- `database.locales`：例如 `["zh-CN", "en-US"]`
+- `paths.prompt_templates`：语言 → 提示词模板路径
+- `llm.language_providers`：语言 → 模型提供商 / 模型名 / 温度 / 速率 / 并发
+- `llm.<provider>.api_key`：模型密钥（可被 `.env` 覆盖）
 
-```bash
-cp .env.example .env
-```
-
-编辑 `.env` 文件（仅保留敏感信息），其余配置统一写入 YAML：
-
-```env
-# 智谱AI API Key
-ZHIPUAI_API_KEY=your_zhipu_key
-
-# OpenAI API Key 与可选的自定义 Base URL
-OPENAI_API_KEY=your_openai_key
-OPENAI_BASE_URL=https://api.openai.com/v1
-
-# Ollama 可选覆盖
-OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_MODEL=qwen2.5:7b
-```
-
-### 结构化配置
-
-- 非敏感配置以及默认参数集中在 `config/settings.yaml` 与 `config/multilingual_dimension.yaml`。
-- `settings.yaml` 中的 `llm.openai.api_key`、`llm.zhipu.api_key` 字段保存模型密钥；`.env` 只在需要临时覆盖时填写。
-- `settings.yaml` 还管理默认模型、温度、速率限制、数据路径等。
-- `multilingual_dimension.yaml` 定义翻译/分析流程、提示词模板和 Guardrails。
-- 如需覆盖 YAML，可在环境变量中设置同名字段（例如 `OPENAI_API_KEY`、`OPENAI_BASE_URL`）。
-
-## 📖 使用指南
-
-### 基本命令
+## 🛠️ 命令示例
 
 ```bash
 # 查看帮助
 python main.py --help
+python main.py debug-sample --help
+python main.py dimension --help
+python main.py question --help
 
-# 查看当前生成状态
-python main.py --check-status
+# 随机 10 条中英样本
+python main.py debug-sample --count 10 --locales zh-CN en-US
 
-# 列出所有塔罗牌
-python main.py --list-cards
+# “情感-时间线-过去”维度全量生成（断点续传）
+python main.py dimension --name "情感-时间线-过去" --locales zh-CN en-US
 
-# 列出所有维度
-python main.py --list-dimensions
+# 根据问题描述匹配维度并生成
+python main.py question --text "我需要换工作吗？" --question-locale zh-CN --locales zh-CN en-US
 ```
 
-### 生成功能
+输出目录约定：
 
-```bash
-# 生成样本数据（测试用）
-python main.py --sample 5
+- `output/debug_samples/`：调试样本
+- `output/dimensions/dimension_<id>.json`：单维度全量结果
+- `output/questions/question_<timestamp>.json`：问题驱动聚合结果
+- `output/logs/`：失败任务/运行日志（可选）
 
-# 为指定卡牌生成所有维度解读
-python main.py --card "愚者" --direction "正位"
-
-# 为指定维度生成所有卡牌解读
-python main.py --dimension "时间之流牌阵-过去"
-
-# 🎯 批量生成完整数据集（支持断点续传）
-python main.py --generate-all
-
-# 跳过确认直接生成
-python main.py --generate-all --force
-
-# 多语言维度解析（输出 dimension/dimension_translation 草稿）
-python main.py --multilingual-question "我下个月的运势如何？"
-python main.py --multilingual-question "我需要换工作吗？" --spread-type three-card --multilingual-output ./output/job_switch_multilingual.json
-```
-
-## 🔄 断点续传机制
-
-系统会自动：
-
-1. **检测状态**: 分析现有数据，识别不完整的维度
-2. **清理数据**: 移除不完整维度的所有记录（避免数据不一致）
-3. **恢复生成**: 只生成缺失的维度，保留完整的维度
-4. **实时保存**: 每完成一个维度立即保存进度
-
-### 状态示例
-
-```
-生成状态总览
-期望总记录数: 1872 (12 维度 × 156 卡牌)
-当前记录数: 468
-完成维度数: 3/12
-不完整维度数: 9
-
-需要生成的维度:
-  - 时间之流牌阵-过去 (2/156)     # 不完整，将重新生成
-  - 时间之流牌阵-现在 (0/156)     # 未开始
-  - 恋人金字塔牌阵-自己 (156/156) # 已完成，跳过
-```
-
-## 📊 输出格式
-
-生成的JSON文件结构：
+维度输出示例（简化）：
 
 ```json
 {
-  "version": "1.0.0",
-  "generated_at": "2025-09-24T21:00:00",
-  "model": "glm-4",
-  "count": 1872,
-  "data": [
+  "dimension_id": 5,
+  "locales": ["zh-CN", "en-US"],
+  "records": [
     {
-      "card_name": "愚者",
+      "interpretation_id": 12,
+      "card_id": 6,
       "direction": "正位",
-      "dimension_name": "时间之流牌阵-过去",
-      "dimension_category": "情感",
-      "aspect": "过去",
-      "aspect_type": 1,
-      "content": "AI生成的详细解读内容..."
+      "cards": {"zh-CN": {...}, "en-US": {...}},
+      "results": {
+        "zh-CN": {"content": "...", "provider": "zhipu"},
+        "en-US": {"content": "...", "provider": "openai"}
+      }
     }
-  ]
+  ],
+  "failures": []
 }
 ```
 
-## ⚙️ 配置说明
+## 📊 数据依赖
 
-### 关键配置项
+- `card_interpretation` + `card_interpretation_translation`
+- `dimension` + `dimension_translation`
+- `dimension_translation.description`（问题描述 → 维度映射）
 
-| 配置项 | 说明 | 默认值 |
-|--------|------|--------|
-| `API_PROVIDER` | AI服务提供商 | `zhipu` |
-| `TEMPERATURE` | 生成温度 | `0.7` |
-| `MAX_TOKENS` | 最大Token数 | `1000` |
-| `RATE_LIMIT_PER_MINUTE` | 每分钟API调用限制 | `60` |
-| `BATCH_SIZE` | 并发批处理大小 | `10` |
+确保 `data/tarot_config.db` 保持最新：新增维度或翻译后需重新导入。
 
-### 支持的AI模型
+## 💡 推荐流程
 
-| 提供商 | 模型 | 优势 | 成本 |
-|--------|------|------|------|
-| **智谱AI** | glm-4 | 中文理解能力强 | 低 |
-| **OpenAI** | gpt-4 | 生成质量高 | 高 |
-| **Ollama** | qwen2.5:7b | 本地运行，免费 | 无 |
+1. `debug-sample`（每种语言 5–10 条，调提示词）
+2. `dimension`（批量生成，确认 `failures`）
+3. `question`（产品/内容终验）
+4. 视需要将内容写回数据库或后台系统
 
-## 💰 成本预估
+## ❗ 常见问题
 
-### 完整生成成本（1,872条记录）
+| 症状 | 排查方向 |
+|------|----------|
+| 数据库缺失 | 检查 `data/tarot_config.db` 是否存在 / 路径正确 |
+| 提示词模板缺失 | 校验 `paths.prompt_templates` 中的文件是否存在 |
+| 模型调用失败 | 检查 API Key、速率限制或网络连通性 |
+| 语言混乱 | 确认数据库翻译完备、提示词模板是否匹配目标语言 |
+| question 找不到维度 | 检查问题描述是否与 `dimension_translation.description` 完全一致 |
+| 英文输出仍含中文牌名 | 数据访问层会自动将 `en-US`→`en` 等区域代码回退到基础语言，请确认数据库中的英文翻译（`card_translation.locale = 'en'`）已填充 |
 
-- **智谱AI**: ~$15-20
-- **OpenAI GPT-4**: ~$150-200
-- **Ollama**: 免费（需本地计算资源）
+## 📞 参考文件
 
-### 推荐策略
+- 业务逻辑：`services/generation_service.py`
+- 模型路由：`services/model_router.py`
+- 提示词构建：`services/prompt_builder.py`
+- 数据访问：`data_loader.py`
 
-1. **测试阶段**: 使用 `--sample 10` 验证效果
-2. **小规模**: 按维度分批生成 `--dimension`
-3. **大规模**: 使用智谱AI或Ollama降低成本
-
-## 🛠️ 故障排除
-
-### 常见问题
-
-**1. API密钥错误**
-```bash
-错误: 请在 .env 文件中设置 ZHIPUAI_API_KEY
-解决: 检查 .env 文件中的API密钥配置
-```
-
-**2. 数据文件路径错误**
-```bash
-错误: 卡牌解读文件不存在
-解决: 确保 data/config_jsons/ 目录下有必要的JSON文件
-```
-
-**3. 生成中断**
-```bash
-情况: 生成过程中断（网络/电脑重启等）
-解决: 重新运行 python main.py --generate-all
-系统会自动从中断点继续
-```
-
-### 调试模式
-
-```bash
-# 生成单条记录用于调试
-python main.py --sample 1 --force
-
-# 检查具体维度状态
-python main.py --check-status
-```
-
-## 📁 项目结构
-
-```
-tarot-ai-generator/
-├── main.py                    # 主程序
-├── config.py                  # 配置管理
-├── config/                    # 结构化配置
-│   ├── settings.yaml
-│   └── multilingual_dimension.yaml
-├── multilingual.py            # 多语言翻译与解析逻辑
-├── prompts/                   # 翻译/分析提示词模板
-│   ├── translate_to_en.txt
-│   ├── translate_to_ja.txt
-│   ├── analyze_three_card.zh.txt
-│   └── ...
-├── prompt_template.txt        # 卡牌 × 维度生成提示词
-├── requirements.txt           # 依赖包
-├── .env.example              # 环境变量模板
-├── README.md                 # 本文档
-├── data/config_jsons/        # 数据文件
-│   ├── card_interpretations.json      # 塔罗牌数据(156条)
-│   ├── dimensions.json                # 维度定义(12个)
-│   └── card_interpretation_dimensions.json # 生成结果
-├── output/                   # 输出文件
-│   ├── card_interpretation_dimensions.json
-│   └── multilingual_dimensions.json
-└── venv/                    # Python虚拟环境
-```
-
-## 🔧 开发指南
-
-### 自定义提示词
-
-编辑 `prompt_template.txt` 可调整卡牌 × 维度的解读风格；若要调整多语言流程，请修改 `prompts/` 下对应的翻译与分析模板：
-
-```text
-请为塔罗牌 "{card_name}" ({direction}) 在 "{dimension_name}" 维度下生成详细解读。
-
-卡牌信息：
-- 基础牌意：{summary}
-- 详细说明：{detail}
-
-维度信息：
-- 维度类别：{category}
-- 维度描述：{description}
-- 具体方面：{aspect}
-
-请生成200-300字的详细解读内容...
-```
-
-### 批处理脚本
-
-创建自动化脚本：
-
-```bash
-#!/bin/bash
-# 分维度生成
-python main.py --dimension "时间之流牌阵-过去"
-python main.py --dimension "时间之流牌阵-现在"
-python main.py --dimension "时间之流牌阵-将来"
-```
-
-### 扩展新模型
-
-在 `config.py` 和 `main.py` 中添加新的AI服务支持。
-
-## 📞 支持与反馈
-
-### 最佳实践
-
-1. **渐进式生成**: 从样本开始，逐步扩大规模
-2. **质量检查**: 定期检查生成内容质量
-3. **备份数据**: 及时备份生成的重要数据
-4. **监控成本**: 使用智谱AI等低成本方案进行大批量生成
-
-### 性能优化
-
-- 调整 `BATCH_SIZE` 控制并发数量
-- 设置合理的 `RATE_LIMIT_PER_MINUTE` 避免API限制
-- 使用本地Ollama模型避免网络开销
-
----
-
-**注意**: 本工具专门为塔罗牌应用的维度解读内容生成而设计，与主项目的CLAUDE.md配合使用。
+欢迎在执行前充分审阅提示词与配置，确保生成内容符合产品调性。祝使用顺利！
