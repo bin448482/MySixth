@@ -168,7 +168,8 @@ export const RechargeSection: React.FC<RechargeSectionProps> = ({
           </View>
         </TouchableOpacity>
 
-        {/* 充值记录 */}
+        {/* 充值记录（按需求暂时隐藏最近交易记录内容） */}
+        {/*
         {rechargeHistory.length > 0 && (
           <View style={styles.historyContainer}>
             <Text style={styles.subsectionTitle}>{t('recharge.history.title')}</Text>
@@ -185,6 +186,7 @@ export const RechargeSection: React.FC<RechargeSectionProps> = ({
             )}
           </View>
         )}
+        */}
       </BlurView>
     </View>
   );
