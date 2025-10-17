@@ -1,14 +1,16 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   Dimensions,
+  Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { CardFlipAnimation } from './CardFlipAnimation';
 import { useTranslation } from 'react-i18next';
 import type { DimensionData } from '@/lib/contexts/ReadingContext';
+import { useAppContext } from '@/lib/contexts/AppContext';
 
 interface DrawnCard {
   cardId: number;
@@ -45,6 +47,30 @@ export function CardSlot({
   canTriggerStars = false, // 新增：默认值为false
 }: CardSlotProps) {
   const { t } = useTranslation('reading');
+  const {
+    state: { locale },
+  } = useAppContext();
+  const isEnglishLocale = locale?.toLowerCase().startsWith('en') ?? false;
+  const englishTextProps = useMemo(() => {
+    if (!isEnglishLocale) {
+      return {};
+    }
+
+    if (Platform.OS === 'android') {
+      return {
+        android_hyphenationFrequency: 'none' as const,
+        textBreakStrategy: 'simple' as const,
+      };
+    }
+
+    if (Platform.OS === 'ios') {
+      return {
+        lineBreakStrategyIOS: 'hangul-word' as const,
+      };
+    }
+
+    return {};
+  }, [isEnglishLocale]);
 
   const renderEmptySlot = () => (
     <LinearGradient
@@ -59,10 +85,29 @@ export function CardSlot({
     >
       <View style={styles.slotInfo}>
         {/* 移除维度名称，只显示aspect */}
-        <Text style={[styles.dimensionAspect, isHighlighted && styles.highlightedAspect]}>
+        <Text
+          {...englishTextProps}
+          style={[
+            styles.dimensionAspect,
+            isHighlighted && styles.highlightedAspect,
+            isEnglishLocale && styles.dimensionAspectEnglish,
+          ]}
+          numberOfLines={2}
+          ellipsizeMode="tail"
+          adjustsFontSizeToFit
+          minimumFontScale={0.85}
+        >
           {dimension.localizedAspect ?? dimension.aspect}
         </Text>
-        <Text style={[styles.dragHint, isHighlighted && styles.highlightedHint]}>
+        <Text
+          {...englishTextProps}
+          style={[
+            styles.dragHint,
+            isHighlighted && styles.highlightedHint,
+            isEnglishLocale && styles.dragHintEnglish,
+          ]}
+          numberOfLines={2}
+        >
           {isHighlighted
             ? t('shared.components.cardSlot.dropHintActive')
             : t('shared.components.cardSlot.dropHint')}
@@ -88,7 +133,17 @@ export function CardSlot({
         canTriggerStars={canTriggerStars} // 传递特效触发状态
       />
       <View style={styles.slotLabel}>
-        <Text style={styles.slotLabelText}>
+        <Text
+          {...englishTextProps}
+          style={[
+            styles.slotLabelText,
+            isEnglishLocale && styles.slotLabelTextEnglish,
+          ]}
+          numberOfLines={2}
+          ellipsizeMode="tail"
+          adjustsFontSizeToFit
+          minimumFontScale={0.8}
+        >
           {dimension.localizedAspect ?? dimension.aspect}
         </Text>
       </View>
@@ -159,6 +214,10 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     lineHeight: 12,
   },
+  dragHintEnglish: {
+    letterSpacing: 0,
+    lineHeight: 14,
+  },
   filledSlotContainer: {
     flex: 1,
     alignItems: 'center',
@@ -186,6 +245,10 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 2, // 稍小的阴影半径
   },
+  slotLabelTextEnglish: {
+    letterSpacing: 0.15,
+    lineHeight: 14,
+  },
   highlightedText: {
     color: '#FFFFFF',
     textShadowColor: '#FFD700',
@@ -200,5 +263,9 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: 'bold',
     fontSize: 9,
+  },
+  dimensionAspectEnglish: {
+    letterSpacing: 0,
+    lineHeight: 20,
   },
 });

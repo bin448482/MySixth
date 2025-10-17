@@ -4,6 +4,7 @@ import AIReadingService from '../services/AIReadingService';
 import { DatabaseConnectionManager } from '../database/connection';
 import { UserDatabaseService } from '../database/user-db';
 import { initializeI18n, changeLanguage, getAvailableLocales, DEFAULT_LOCALE, type AppLocale } from '../i18n';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 interface AppState {
   locale: AppLocale;
@@ -67,10 +68,6 @@ const defaultState: AppState = {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-void initializeI18n().catch(error => {
-  console.warn('[AppContext] Initial i18n bootstrap failed', error);
-});
-
 export const useAppContext = (): AppContextType => {
   const context = useContext(AppContext);
   if (!context) {
@@ -85,6 +82,49 @@ interface AppProviderProps {
 
 export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   const [state, setState] = useState<AppState>(defaultState);
+  const [hasBootstrapCompleted, setHasBootstrapCompleted] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const bootstrapLocale = async () => {
+      try {
+        const locale = await initializeI18n();
+        if (!isMounted) {
+          return;
+        }
+
+        setState(prev => ({
+          ...prev,
+          locale,
+          isLocaleLoading: false,
+          localeError: null,
+        }));
+      } catch (error) {
+        if (!isMounted) {
+          return;
+        }
+
+        const message = error instanceof Error ? error.message : 'Localization initialization failed';
+        console.warn('[AppContext] Locale bootstrap failed', error);
+        setState(prev => ({
+          ...prev,
+          isLocaleLoading: false,
+          localeError: message,
+        }));
+      } finally {
+        if (isMounted) {
+          setHasBootstrapCompleted(true);
+        }
+      }
+    };
+
+    bootstrapLocale();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const initializeApp = async () => {
     console.log('🚀 Starting app initialization...');
@@ -359,7 +399,24 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     },
   };
 
-  return <AppContext.Provider value={contextValue}>{children}</AppContext.Provider>;
+  return (
+    <AppContext.Provider value={contextValue}>
+      {hasBootstrapCompleted ? children : (
+        <View style={styles.bootstrapContainer}>
+          <ActivityIndicator size="small" color="#FFD700" />
+        </View>
+      )}
+    </AppContext.Provider>
+  );
 };
 
 export default AppContext;
+
+const styles = StyleSheet.create({
+  bootstrapContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#0F0F1A',
+  },
+});
