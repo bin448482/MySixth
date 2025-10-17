@@ -5,15 +5,45 @@ import sqlite3
 import json
 import random
 
+DEFAULT_CARD_POOL = [
+    ("愚者", "Major", 0),
+    ("魔术师", "Major", 1),
+    ("女祭司", "Major", 2),
+    ("女皇", "Major", 3),
+    ("皇帝", "Major", 4),
+    ("教皇", "Major", 5),
+    ("恋人", "Major", 6),
+    ("战车", "Major", 7),
+    ("力量", "Major", 8),
+    ("隐士", "Major", 9),
+    ("命运之轮", "Major", 10),
+    ("正义", "Major", 11),
+    ("圣杯王牌", "Minor", 1),
+    ("圣杯二", "Minor", 2),
+    ("星币侍从", "Minor", 11),
+    ("宝剑骑士", "Minor", 12),
+]
+
+
+def _fetch_cards(cursor):
+    """Fetch card definitions from DB, fallback to built-in pool if table is absent."""
+    try:
+        cursor.execute('SELECT name, arcana, number FROM card ORDER BY number')
+        rows = cursor.fetchall()
+        if rows:
+            return rows
+    except sqlite3.OperationalError:
+        # card table has been removed – use the in-request card payloads instead
+        pass
+    return DEFAULT_CARD_POOL.copy()
+
 def generate_multiple_test_data():
     """Generate multiple test data sets with different categories and scenarios"""
     # Connect to database
     conn = sqlite3.connect('backend_tarot.db')
     cursor = conn.cursor()
 
-    # Get all cards data
-    cursor.execute('SELECT name, arcana, number FROM card ORDER BY number')
-    all_cards = cursor.fetchall()
+    all_cards = _fetch_cards(cursor)
 
     # Get different categories of dimensions
     cursor.execute('SELECT DISTINCT category FROM dimension')
@@ -34,7 +64,7 @@ def generate_multiple_test_data():
 
         if len(category_dims) >= 3:
             # Select 3 random cards for this reading
-            selected_cards = random.sample(all_cards, 3)
+            selected_cards = random.sample(all_cards, k=3)
 
             # Generate test data
             test_data = {
@@ -74,9 +104,7 @@ def generate_test_data():
     conn = sqlite3.connect('backend_tarot.db')
     cursor = conn.cursor()
 
-    # Get all cards data
-    cursor.execute('SELECT name, arcana, number FROM card ORDER BY number')
-    all_cards = cursor.fetchall()
+    all_cards = _fetch_cards(cursor)
 
     # Get dimensions data - try to get a set with aspect_type 1,2,3
     cursor.execute('''
@@ -96,7 +124,7 @@ def generate_test_data():
     conn.close()
 
     # Select 3 random cards for the reading
-    selected_cards = random.sample(all_cards, 3)
+    selected_cards = random.sample(all_cards, k=3)
 
     # Generate test data
     test_data = {

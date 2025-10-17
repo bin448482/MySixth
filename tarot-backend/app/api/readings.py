@@ -70,9 +70,8 @@ async def analyze_user_description(
     """
     第一步：分析用户描述，返回推荐维度。
 
-    支持不同牌阵类型的分析：
+    支持的牌阵类型：
     - three-card: 三牌阵，基于因果率和发展趋势分析出3个维度
-    - celtic-cross: 凯尔特十字，返回固定的10个牌位维度
 
     Args:
         request: 包含用户描述和牌阵类型的请求
@@ -120,10 +119,10 @@ async def analyze_user_description(
         reading_service = get_reading_service()
 
         # 验证牌阵类型
-        if request.spread_type not in ["three-card", "celtic-cross"]:
+        if request.spread_type != "three-card":
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="无效的牌阵类型，支持 three-card 或 celtic-cross"
+                detail="无效的牌阵类型，当前仅支持 three-card"
             )
 
         # 分析用户描述 - 在这里也可以设置断点
@@ -170,6 +169,12 @@ async def analyze_user_description(
             metadata={"locale": locale}
         )
 
+    except ValueError as e:
+        logger.warning("Invalid analyze request: %s", e)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
     except HTTPException:
         raise
     except Exception as e:
@@ -240,15 +245,16 @@ async def generate_reading(
             )
 
         # 验证维度数量与牌阵类型的匹配
-        if request.spread_type == "three-card" and len(request.dimensions) != 3:
+        if request.spread_type != "three-card":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="无效的牌阵类型，当前仅支持 three-card"
+            )
+
+        if len(request.dimensions) != 3:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="三牌阵必须选择3个维度"
-            )
-        elif request.spread_type == "celtic-cross" and len(request.dimensions) != 10:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="凯尔特十字必须选择10个维度"
             )
 
         # 转换为服务层需要的格式
@@ -263,7 +269,9 @@ async def generate_reading(
                 "direction": card.direction,
                 "position": card.position,
                 "image_url": card.image_url,
-                "deck": card.deck
+                "deck": card.deck,
+                "summary": card.summary,
+                "detail": card.detail
             })
 
         dimensions_data = []
@@ -283,8 +291,7 @@ async def generate_reading(
             dimensions=dimensions_data,
             user_description=request.description,
             spread_type=request.spread_type,
-            locale=locale,
-            db=db
+            locale=locale
         )
 
         # LLM调用成功后扣除积分

@@ -9,7 +9,7 @@ from datetime import datetime
 class AnalyzeRequest(BaseModel):
     """分析用户描述的请求"""
     description: str = Field(..., max_length=200, description="用户描述，最多200字")
-    spread_type: str = Field(default="three-card", description="牌阵类型：three-card（三牌阵）、celtic-cross（凯尔特十字）")
+    spread_type: str = Field(default="three-card", description="牌阵类型：当前仅支持 three-card（三牌阵）")
     locale: Optional[str] = Field(default=None, description="首选语言区域标识，例如 zh-CN、en-US")
 
 
@@ -41,6 +41,8 @@ class CardInfo(BaseModel):
     position: int = Field(..., ge=1, le=10, description="在牌阵中的位置")
     image_url: Optional[str] = Field(None, description="图片URL")
     deck: Optional[str] = Field("default", description="牌组类型")
+    summary: Optional[str] = Field(None, description="卡牌基础解读摘要（可选）")
+    detail: Optional[str] = Field(None, description="卡牌基础解读详情（可选）")
 
     class Config:
         json_schema_extra = {
@@ -61,7 +63,7 @@ class GenerateRequest(BaseModel):
     cards: List[CardInfo] = Field(..., min_items=1, max_items=10, description="抽到的卡牌信息列表")
     dimensions: List[DimensionInfo] = Field(..., min_items=1, max_items=3, description="用户选择的维度列表")
     description: str = Field(..., max_length=200, description="用户原始描述")
-    spread_type: str = Field(default="three-card", description="牌阵类型")
+    spread_type: str = Field(default="three-card", description="牌阵类型（当前仅支持 three-card）")
     locale: Optional[str] = Field(default=None, description="首选语言区域标识，例如 zh-CN、en-US")
 
 
