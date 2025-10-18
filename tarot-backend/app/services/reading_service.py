@@ -19,7 +19,7 @@ CATEGORY_DEFINITIONS = [
     ("决策", "Decision", {"决策", "decision", "decisions", "choice", "choices", "action"}),
     ("健康", "Health", {"健康", "health", "wellness"}),
     ("财富", "Wealth", {"财富", "wealth", "finance", "financial", "money", "resources"}),
-    ("人际关系", "Relationships", {"人际关系", "relationships", "relationship", "social", "communication", "cooperation"}),
+    ("人际关系", "Interpersonal Relationships", {"人际关系", "relationships", "relationship", "social", "communication", "cooperation"}),
     ("学业", "Study", {"学业", "study", "learning", "education", "academics"}),
     ("运势", "Fortune", {"运势", "fortune", "luck", "trend", "fate"}),
     ("灵性", "Spirituality", {"灵性", "spirituality", "spiritual", "faith"}),

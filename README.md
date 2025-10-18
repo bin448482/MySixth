@@ -206,3 +206,33 @@ services:
   - `docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build backend`
 - 全套（nginx/admin + 后端热重载）：
   - `docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build`
+
+
+阿里云打包部署步骤：
+1.打包压缩文件到release目录下，数据库文件直接上传。上传路径/srv/my-tarot。
+2.把宿主机的文件 /srv/my-tarot/data/backend_tarot.db 复制到容器内的路径 /data/backend_tarot.db，
+  即 替换容器中的数据库文件。
+  命令：
+  docker cp /srv/my-tarot/data/backend_tarot.db my-tarot-backend-1:/data/backend_tarot.db
+  建议先备份容器内原文件：
+  docker exec my-tarot-backend-1 cp /data/backend_tarot.db /data/backend_tarot.db.bak
+
+  一键命令：
+  docker exec my-tarot-backend-1 sh -c 'ts=$(date +%Y%m%d_%H%M%S); if [ -f /data/backend_tarot.db ]; then cp /data/backend_tarot.db /data/backend_tarot.db.bak_$ts && echo "✅ 已备份为 /data/backend_tarot.db.bak_$ts"; else echo "⚠️ 未找到原数据库文件，跳过备份"; fi' && \
+  docker cp /srv/my-tarot/data/backend_tarot.db my-tarot-backend-1:/data/backend_tarot.db && \
+  docker exec my-tarot-backend-1 ls -lh /data/backend_tarot.db
+
+  （可选）如果容器中 /bin/bash 存在，你可以用更强一点的版本：
+  docker exec my-tarot-backend-1 bash -c 'ts=$(date +%Y%m%d_%H%M%S); if [ -f /data/backend_tarot.db ]; then cp /data/backend_tarot.db /data/backend_tarot.db.bak_$ts && echo "✅ 已备份为 /data/backend_tarot.db.bak_$ts"; else echo "⚠️ 未找到原数据库文件，跳过备份"; fi' && \
+  docker cp /srv/my-tarot/data/backend_tarot.db my-tarot-backend-1:/data/backend_tarot.db && \
+  docker exec my-tarot-backend-1 ls -lh /data/backend_tarot.db
+
+3.如果改动了后代代码，需要重新构建镜像. 把当前 tarot-backend 目录里的源码打包进去。我们的 docker-compose.yml 只挂载了 /data（数据库卷）和 static 目录，应用代码是在镜像构建时 COPY 进容器的，不会自动与本地文件保持同步。你在仓库里改了 Python 文件，正在运行的容器依然用旧镜像里的代码，所以请求还是走旧逻辑。要让容器加载新代码，必须：
+  - 先 docker compose build backend 生成包含最新源码的新镜像；
+  - 再 docker compose up -d backend（或 up --build）让容器基于新镜像重建。
+
+
+
+
+
+
