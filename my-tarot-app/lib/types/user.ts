@@ -38,6 +38,8 @@ export interface SelectedCard {
   position: 'past' | 'present' | 'future' | number; // 支持数字位置或预设位置
   direction: 'upright' | 'reversed';
   revealed: boolean;
+  placementIndex?: number;
+  positionLabel?: string;
 }
 
 // 抽牌结果
@@ -66,6 +68,8 @@ export interface CardInterpretationData {
   summary: string;
   detail?: string;
   dimensionInterpretations?: DimensionInterpretation[];
+  placementIndex?: number;
+  positionLabel?: string;
 }
 
 // 完整的解读结果

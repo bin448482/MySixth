@@ -62,8 +62,8 @@
         }
       },
       "router": {},
-      // "API_BASE_URL": "http://192.168.71.16:8001",
-      "API_BASE_URL": "http://47.100.96.180",
+      "API_BASE_URL": "http://192.168.71.16:8000",
+      // "API_BASE_URL": "http://47.100.96.180",
       "PUBLIC_API_BASE_URL": "http://47.100.96.180",
       "eas": {
         "projectId": "0d19ed54-5efd-4fe1-ae51-23a1b6602215"

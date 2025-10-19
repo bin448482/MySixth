@@ -240,6 +240,104 @@ export class ReadingService implements IReadingService {
           isReversed: selectedCard.direction === 'reversed'
         }));
 
+        const aspectTypeMap = new Map<number, (typeof state.selectedCards)[number]>();
+        const positionIndexMap = new Map<number, (typeof state.selectedCards)[number]>();
+
+        state.selectedCards.forEach((card, index) => {
+          if (typeof card.dimension?.aspect_type === 'number') {
+            aspectTypeMap.set(card.dimension.aspect_type, card);
+          }
+          // 保存 1-based 的位置映射，便于兼容 position 字段
+          positionIndexMap.set(index + 1, card);
+        });
+
+        const resolveCardByPosition = (position: unknown, index: number) => {
+          const numericPosition =
+            typeof position === 'number'
+              ? position
+              : typeof position === 'string'
+                ? Number.parseInt(position, 10)
+                : Number.NaN;
+
+          if (Number.isFinite(numericPosition)) {
+            const fromAspect = aspectTypeMap.get(numericPosition);
+            if (fromAspect) {
+              return fromAspect;
+            }
+            const fromIndex = positionIndexMap.get(numericPosition);
+            if (fromIndex) {
+              return fromIndex;
+            }
+          }
+
+          return state.selectedCards[index];
+        };
+
+        const normalizedInterpretations = Array.isArray(state.interpretations)
+          ? state.interpretations.map((interpretation, index) => {
+              const matchedCard = resolveCardByPosition(interpretation.position, index);
+              if (!matchedCard) {
+                return interpretation;
+              }
+
+              const normalizedDirection =
+                interpretation.direction ?? (matchedCard.direction === 'reversed' ? '逆位' : '正位');
+
+              const normalizedDimensionName =
+                interpretation.dimensionName
+                ?? matchedCard.dimension?.localizedAspect
+                ?? matchedCard.dimension?.aspect
+                ?? matchedCard.dimension?.name;
+
+              return {
+                ...interpretation,
+                cardId: matchedCard.cardId,
+                cardName: matchedCard.displayName ?? matchedCard.name,
+                direction: normalizedDirection,
+                dimensionName: normalizedDimensionName,
+              };
+            })
+          : state.interpretations;
+
+        const normalizedAICardInterpretations = Array.isArray(state.aiResult?.card_interpretations)
+          ? state.aiResult.card_interpretations.map((interpretation: any, index: number) => {
+              const matchedCard = resolveCardByPosition(interpretation.position, index);
+              if (!matchedCard) {
+                return interpretation;
+              }
+
+              const normalizedDirection =
+                interpretation.direction ?? (matchedCard.direction === 'reversed' ? '逆位' : '正位');
+
+              const normalizedDimensionName =
+                matchedCard.dimension?.localizedAspect
+                ?? matchedCard.dimension?.aspect
+                ?? matchedCard.dimension?.name
+                ?? interpretation.dimension_aspect?.dimension_name;
+
+              return {
+                ...interpretation,
+                card_id: matchedCard.cardId,
+                card_name: matchedCard.displayName ?? matchedCard.name,
+                direction: normalizedDirection,
+                image_url: matchedCard.imageUrl ?? interpretation.image_url,
+                dimension_aspect: normalizedDimensionName
+                  ? {
+                      ...(interpretation.dimension_aspect ?? {}),
+                      dimension_name: normalizedDimensionName,
+                    }
+                  : interpretation.dimension_aspect,
+              };
+            })
+          : state.aiResult?.card_interpretations;
+
+        const normalizedAiResult = state.type === 'ai' && state.aiResult
+          ? {
+              ...state.aiResult,
+              card_interpretations: normalizedAICardInterpretations ?? state.aiResult.card_interpretations,
+            }
+          : state.aiResult;
+
         // 获取主题信息（从第一个维度的description）
         const theme = state.selectedCards.length > 0 && state.selectedCards[0].dimension
           ? state.selectedCards[0].dimension.description
@@ -249,15 +347,15 @@ export class ReadingService implements IReadingService {
           spread: mockSpread,
           cards: cardDraws,
           interpretation: {
-            cards: state.interpretations,
+            cards: normalizedInterpretations,
             // AI占卜专用字段
             ...(state.type === 'ai' && {
-              dimension_summaries: state.aiResult?.dimension_summaries,
-              insights: state.aiResult?.insights,
+              dimension_summaries: normalizedAiResult?.dimension_summaries,
+              insights: normalizedAiResult?.insights,
               user_description: state.userDescription,
-              overall: state.aiResult?.overall_summary,
-              card_interpretations: state.aiResult?.card_interpretations,
-              dimensions: state.aiResult?.dimensions
+              overall: normalizedAiResult?.overall_summary,
+              card_interpretations: normalizedAiResult?.card_interpretations,
+              dimensions: normalizedAiResult?.dimensions
             })
           },
           metadata: {
