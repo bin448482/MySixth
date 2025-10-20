@@ -344,6 +344,7 @@ DESCRIPTION:
             else:
                 card_data = dict(card)
 
+            card_id = card_data.get("card_id") or card_data.get("id")
             name = card_data.get("name") or ""
             direction = card_data.get("direction") or ""
             position = card_data.get("position") or 0
@@ -352,6 +353,7 @@ DESCRIPTION:
 
             prepared.append(
                 {
+                    "card_id": card_id,
                     "name": name,
                     "direction": direction,
                     "direction_localized": self._direction_to_locale(direction, locale),
@@ -390,15 +392,25 @@ DESCRIPTION:
         is_english = is_english_locale(locale)
         sorted_dimensions = sorted(dimensions, key=lambda item: item.get("aspect_type", 0) or 0)
 
+        card_ids: List[str] = []
+        example_card_id_value: Optional[str] = None
         cards_lines: List[str] = []
         for card in cards_info:
+            card_id_value = card.get("card_id") or card.get("id")
+            if card_id_value is not None:
+                card_ids.append(str(card_id_value))
+                if example_card_id_value is None:
+                    example_card_id_value = str(card_id_value)
+            card_id = card_id_value
             position_label = self._format_position_label(card.get("position") or 0, locale)
             direction_label = card.get("direction_localized") or card.get("direction") or ""
             summary = card.get("summary") or ""
+            identifier = f"[Card ID {card_id}]" if is_english and card_id is not None else ""
+            identifier = identifier or (f"[卡牌ID {card_id}]" if card_id is not None else "")
             if is_english:
-                line = f"{position_label}: {card.get('name', '')} ({direction_label}) - Traditional summary (Chinese): {summary}"
+                line = f"{position_label}: {identifier} {card.get('name', '')} ({direction_label}) - Traditional summary (Chinese): {summary}"
             else:
-                line = f"{position_label}: {card.get('name', '')}({direction_label}) - {summary}"
+                line = f"{position_label}: {identifier} {card.get('name', '')}({direction_label}) - {summary}"
             cards_lines.append(line.strip())
         cards_section = "\n".join(cards_lines) if cards_lines else ""
 
@@ -424,6 +436,13 @@ DESCRIPTION:
             mapping_lines.append(line)
         position_mapping = "\n".join(mapping_lines)
 
+        card_ids_en = ", ".join(card_ids) if card_ids else "the provided card IDs"
+        card_ids_zh = "、".join(card_ids) if card_ids else "输入提供的编号"
+        try:
+            example_card_id = int(example_card_id_value) if example_card_id_value is not None else 1
+        except ValueError:
+            example_card_id = 1
+
         if is_english:
             return f"""You are a professional tarot reader. Craft a complete interpretation for the following three-card spread.
 
@@ -446,7 +465,7 @@ Return a JSON document that matches this structure:
 {{
     "card_interpretations": [
         {{
-            "card_id": 1,
+            "card_id": {example_card_id},
             "card_name": "Card Name (Upright/Reversed)",
             "direction": "Upright or Reversed",
             "position": 1,
@@ -467,6 +486,7 @@ Guidelines:
 1. Each card must map to exactly one dimension.
 2. Keep the narrative coherent across the three cards and their dimensions.
 3. Insights must be specific and actionable, not vague platitudes.
+4. Use the exact card_id values from the drawn cards ({card_ids_en}); do not renumber or invent new IDs.
 Always respond in English."""
 
         return f"""你是一位专业的塔罗牌解读师，请为以下三牌阵抽牌结果生成完整的解读。
@@ -490,7 +510,7 @@ Always respond in English."""
 {{
     "card_interpretations": [
         {{
-            "card_id": 1,
+            "card_id": {example_card_id},
             "card_name": "卡牌名称(正位/逆位)",
             "direction": "正位或逆位",
             "position": 1,
@@ -511,6 +531,7 @@ Always respond in English."""
 1. 每张卡牌只能对应一个维度。
 2. 解读要体现维度之间的关联与发展脉络。
 3. 洞察要具体可执行，避免空泛表达。
+4. card_id 必须严格使用抽牌列表中的编号（{card_ids_zh}），不要改成 1、2、3。
 请使用简体中文输出。"""
 
     def _direction_to_locale(self, direction: str, locale: str) -> str:
