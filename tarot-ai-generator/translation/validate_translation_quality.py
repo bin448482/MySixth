@@ -146,7 +146,6 @@ class TranslationValidator:
         """获取必填字段"""
         field_map = {
             "card": ["id", "name_en"],
-            "dimension": ["id", "name_en", "category_en"],
             "spread": ["id", "name_en", "description_en"],
             "card_interpretation": ["id", "summary_en"]
         }
@@ -183,22 +182,6 @@ class TranslationValidator:
             if unexpected_suits:
                 self._add_issue("inconsistent_suit_names",
                               f"不一致的牌组名称: {', '.join(unexpected_suits)}",
-                              table_name)
-                is_valid = False
-
-        elif table_name == "dimension":
-            # 验证维度类别一致性
-            categories = set()
-            for record in data:
-                category_en = record.get("category_en")
-                if category_en:
-                    categories.add(category_en)
-
-            expected_categories = {"Emotional", "Career", "Spiritual", "Decision Making", "Health", "Relationships"}
-            unexpected_categories = categories - expected_categories
-            if unexpected_categories:
-                self._add_issue("inconsistent_dimension_categories",
-                              f"不一致的维度类别: {', '.join(unexpected_categories)}",
                               table_name)
                 is_valid = False
 

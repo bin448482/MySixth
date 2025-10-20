@@ -53,6 +53,7 @@
         "label": "Try to drag me"
       },
       "cardFlip": {
+        "upright": "Upright",
         "reversed": "Reversed"
       }
     }

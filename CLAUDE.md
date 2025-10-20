@@ -247,5 +247,7 @@ MySixth/
 
 - When creating deployment archives on Windows, use a Python `zipfile` script (or another tool that normalizes paths) so entries always contain POSIX `/` separators; otherwise Linux `unzip` may stop, waiting for overwrite confirmation because of `\` paths.
 - Before compressing, remove transient folders such as `.next`, `node_modules`, `venv`, logs, and `__pycache__` to keep the bundle minimal.
+- Exclude `docker-compose.prod.yml` from release bundles; keep it for internal deployment only.
+- Exclude `tarot-backend/backend_tarot.db` from release bundles; keep production data in the Docker volume.
 - On the target server, clean any previous extraction (for example `rm -rf /srv/my-tarot/MySixth-docker-20251010`) before running `unzip -o MySixth-docker-20251010.zip -d /srv/my-tarot` to avoid the non-interactive overwrite issue.
 

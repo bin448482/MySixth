@@ -2,10 +2,13 @@
 LLM integration service for tarot reading generation.
 """
 import asyncio
-from typing import Dict, List, Optional, Any
-from ..utils.logger import api_logger  # 添加日志导入
-from pathlib import Path
+import json
+import logging
+import re
+from typing import Any, Dict, List, Optional
 
+from ..utils.locale import is_english_locale
+from ..utils.logger import api_logger  # 添加日志导入
 try:
     from zhipuai import ZhipuAI
 except ImportError:
@@ -27,7 +30,6 @@ class LLMService:
         self.clients: Dict[str, Any] = {}
         self.default_provider = self.config.API_PROVIDER or "zhipu"
         self._initialize_clients()
-        self.prompt_template = self._load_prompt_template()
 
     def _initialize_clients(self):
         """初始化可用的 LLM 客户端"""
@@ -46,39 +48,6 @@ class LLMService:
         if self.default_provider not in self.clients:
             # 回退到第一个可用的提供方
             self.default_provider = next(iter(self.clients.keys()))
-
-    def _load_prompt_template(self) -> str:
-        """加载提示词模板"""
-        template_path = Path("../tarot-ai-generator/prompt_template.txt")
-        if template_path.exists():
-            return template_path.read_text(encoding='utf-8')
-
-        # 默认模板
-        return """你是一位专业的塔罗牌解读师，拥有丰富的塔罗牌解读经验。现在需要你为塔罗牌在特定维度下生成详细的解读内容。
-## 塔罗牌信息
-- 卡牌名称：{card_name}
-- 牌位方向：{direction}
-- 基础牌意：{summary}
-- 详细说明：{detail}
-
-## 解读维度
-- 维度类别：{category}
-- 维度描述：{description}
-- 维度子项：{aspect}
-- 子项类型：{aspect_type}
-
-## 要求
-1. 基于给定的塔罗牌信息和解读维度，生成一段150-300字的详细解读
-2. 解读内容要结合传统塔罗牌象征意义和牌意与现代生活实际应用
-3. 语言风格要专业且易懂，适合普通用户理解
-4. 内容要具体实用，能给用户提供明确的指导建议
-5. 可以抽象或模糊的表述
-6. 考虑牌位方向（正位/逆位）的影响
-7. 考虑维度子项的影响
-8. 紧扣维度描述的主题，不要偏离核心内容
-
-## 输出格式
-请直接输出解读内容，不要包含任何格式化标记或前言后语。"""
 
     async def call_ai_api(
         self,
@@ -154,7 +123,7 @@ class LLMService:
         """根据 locale 和配置决定使用的模型和服务商"""
         resolved_provider = provider
         if not resolved_provider:
-            if self._is_english_locale(locale) and 'openai' in self.clients:
+            if is_english_locale(locale) and 'openai' in self.clients:
                 resolved_provider = 'openai'
             else:
                 resolved_provider = self.default_provider if self.default_provider in self.clients else next(iter(self.clients))
@@ -167,11 +136,6 @@ class LLMService:
             resolved_model = model or self.config.MODEL_NAME
 
         return resolved_provider, resolved_model
-
-    @staticmethod
-    def _is_english_locale(locale: Optional[str]) -> bool:
-        """判断 locale 是否为英文环境"""
-        return bool(locale and locale.lower().startswith("en"))
 
     @staticmethod
     def _clean_dimension_name(line: str) -> str:
@@ -200,22 +164,20 @@ class LLMService:
         """
         分析用户描述，返回推荐的维度名称列表和统一的描述。
         """
+        if spread_type != "three-card":
+            raise ValueError(f"Unsupported spread type: {spread_type}")
+
         try:
-            if spread_type == "celtic-cross":
-                dimensions = await self._analyze_for_celtic_cross(locale)
-                return dimensions, self._default_celtic_summary(locale)
             return await self._analyze_for_three_card(description, locale)
         except Exception as e:
             api_logger.log_error("analyze_user_description", e, {"description_length": len(description)})
-            if spread_type == "celtic-cross":
-                return self._get_celtic_default(locale), self._default_celtic_summary(locale)
-            return self._get_default_three_card_dimensions_with_description(locale)
+            raise
 
     async def _analyze_for_three_card(self, description: str, locale: str) -> tuple[List[str], str]:
         """
         三牌阵专用分析：基于因果率和发展趋势动态确定三个维度
         """
-        is_english = self._is_english_locale(locale)
+        is_english = is_english_locale(locale)
         if is_english:
             analysis_prompt = f"""You are a seasoned tarot reader. Based on the client's question, determine the most aligned three-card dimensions and produce a unified summary (30-50 words).
 
@@ -229,15 +191,18 @@ Instructions:
 4. Provide a concise summary (30-50 words) capturing the overall theme.
 
 Available categories:
-- Time: past, present, future dynamics
-- Emotion: relationships, feelings, inner state
-- Career: work, vocation, achievements
-- Decision: choices, judgement, action plans
-- Health: mind-body wellness, lifestyle
-- Finance: money, investment, economic outlook
-- Relationship: social interaction, communication
-- Study: learning, exams, knowledge growth
-- Family: household matters, family ties
+- Time : Explores how the past, present, and future influence your current situation.
+- Emotion : Reflects your emotional landscape, relationships, and inner feelings.
+- Career : Relates to your work path, ambitions, and sense of achievement.
+- Decision : Illuminates your choices, judgments, and direction of action.
+- Health : Concerns your physical and mental balance, and daily life rhythm.
+- Wealth : Focuses on finances, material stability, and resource flow.
+- Interpersonal Relationships : Highlights social interactions, communication, and collaboration.
+- Study : Represents learning progress, academic focus, and personal growth in knowledge or skills.
+- Fortune : Reveals overall trends, opportunities, and the flow of luck around you.
+- Spirituality : Connects to awareness, beliefs, and personal inner growth.
+- Analogy : Interprets symbolic meanings, metaphors, and subconscious messages.
+- Spirit : Expresses willpower, purpose, and inner drive that moves you forward.
 
 Output format:
 DIMENSIONS:
@@ -264,12 +229,15 @@ Respond in English and keep the category names consistent."""
 - 时间：关注过去、现在与未来
 - 情感：关注关系、情绪与内在状态
 - 事业：关注工作、职涯与成就
-- 决策：关注选择、判断与行动计划
+- 决策：关注选择、判断与行动方向
 - 健康：关注身心状态与生活节律
-- 财务：关注资金、投资与经济状况
-- 人际：关注社交、沟通与合作
+- 财富：关注资金、资源与物质基础
+- 人际关系：关注社交、沟通与合作
 - 学业：关注学习、考试与技能成长
-- 家庭：关注家庭关系与事务处理
+- 运势：关注整体趋势、外部机缘与运气流动
+- 灵性：关注觉察、信念与内在成长
+- 类比：关注象征意义、隐喻与潜意识联结
+- 精神：关注意志力、目标感与内在驱动力
 
 输出格式：
 DIMENSIONS:
@@ -288,10 +256,10 @@ DESCRIPTION:
                 dimensions, summary = self._parse_combined_result(result)
                 if dimensions:
                     return dimensions[:3], summary
-            return self._get_default_three_card_dimensions_with_description(locale)
+            raise ValueError("LLM returned empty analysis result")
         except Exception as e:
             api_logger.log_error("analyze_three_card_question", e, {"description_length": len(description)})
-            return self._get_default_three_card_dimensions_with_description(locale)
+            raise
 
     def _parse_combined_result(self, result: str) -> tuple[List[str], str]:
         """解析合并的LLM结果，提取维度和描述"""
@@ -333,47 +301,341 @@ DESCRIPTION:
             api_logger.log_error("parse_combined_result", e, {"result_length": len(result)})
             return [], ""
 
-    def _get_default_three_card_dimensions_with_description(self, locale: str) -> tuple[List[str], str]:
-        """获取默认的三牌阵维度和描述"""
-        if self._is_english_locale(locale):
-            return (
-                ["General-Past", "General-Present", "General-Future"],
-                "A foundational three-card storyline that examines how the situation evolved from past influences to its emerging outcome."
-            )
-        return (
-            ["整体-过去", "整体-现在", "整体-将来"],
-            "三牌阵综合分析，探索问题从过去到未来的发展脉络。"
+    async def generate_three_card_interpretation(
+        self,
+        cards: List[Dict[str, Any]],
+        dimensions: List[Dict[str, Any]],
+        user_description: str,
+        spread_type: str,
+        locale: str
+    ) -> Dict[str, Any]:
+        """构建三牌阵完整解读并解析结果。"""
+        if spread_type != "three-card":
+            raise ValueError(f"Unsupported spread type: {spread_type}")
+
+        cards_payload = self._prepare_cards_for_prompt(cards, locale)
+        dimensions_payload = self._prepare_dimensions_for_prompt(dimensions)
+        prompt = self._build_three_card_prompt(
+            cards_info=cards_payload,
+            dimensions=dimensions_payload,
+            user_description=user_description,
+            spread_type=spread_type,
+            locale=locale
         )
 
-    async def _analyze_for_celtic_cross(self, locale: str) -> List[str]:
-        """
-        凯尔特十字专用分析：使用固定的十个牌位维度（语言适配）
-        """
-        return self._get_celtic_default(locale)
+        raw_result = await self.call_ai_api(
+            prompt=prompt,
+            locale=locale,
+            force_json=True
+        )
+        if not raw_result:
+            raise ValueError("LLM调用失败，未返回解读内容")
 
-    def _get_celtic_default(self, locale: str) -> List[str]:
-        if self._is_english_locale(locale):
-            return [
-                "Celtic Cross-Current Situation",
-                "Celtic Cross-Challenge",
-                "Celtic Cross-Subconscious",
-                "Celtic Cross-Conscious Mind",
-                "Celtic Cross-Past",
-                "Celtic Cross-Future",
-                "Celtic Cross-Self",
-                "Celtic Cross-External Influence",
-                "Celtic Cross-Hopes and Fears",
-                "Celtic Cross-Outcome",
-            ]
-        return [
-            "凯尔特十字-现状", "凯尔特十字-挑战", "凯尔特十字-潜意识", "凯尔特十字-显意识", "凯尔特十字-过去",
-            "凯尔特十字-未来", "凯尔特十字-自我态度", "凯尔特十字-外部影响", "凯尔特十字-希望恐惧", "凯尔特十字-结果"
-        ]
+        return self._parse_three_card_interpretation(raw_result)
 
-    def _default_celtic_summary(self, locale: str) -> str:
-        if self._is_english_locale(locale):
-            return "A comprehensive Celtic Cross overview that examines ten critical perspectives influencing the issue."
-        return "凯尔特十字牌阵将从十个关键角度展开分析，全面洞察问题的发展走向。"
+    def _prepare_cards_for_prompt(self, cards: List[Dict[str, Any]], locale: str) -> List[Dict[str, Any]]:
+        """规范化卡牌数据以用于提示词构建。"""
+        prepared: List[Dict[str, Any]] = []
+        for card in cards:
+            if hasattr(card, "model_dump"):
+                card_data = card.model_dump()
+            elif isinstance(card, dict):
+                card_data = {**card}
+            else:
+                card_data = dict(card)
+
+            card_id = card_data.get("card_id") or card_data.get("id")
+            name = card_data.get("name") or ""
+            direction = card_data.get("direction") or ""
+            position = card_data.get("position") or 0
+            summary = card_data.get("summary") or card_data.get("basic_summary") or ""
+            detail = card_data.get("detail") or ""
+
+            prepared.append(
+                {
+                    "card_id": card_id,
+                    "name": name,
+                    "direction": direction,
+                    "direction_localized": self._direction_to_locale(direction, locale),
+                    "position": position,
+                    "summary": summary,
+                    "detail": detail,
+                }
+            )
+        return prepared
+
+    def _prepare_dimensions_for_prompt(self, dimensions: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """规范化维度数据以用于提示词构建。"""
+        prepared: List[Dict[str, Any]] = []
+        for index, dim in enumerate(dimensions, start=1):
+            if hasattr(dim, "model_dump"):
+                dim_dict = dim.model_dump()
+            elif isinstance(dim, dict):
+                dim_dict = {**dim}
+            else:
+                dim_dict = dict(dim)
+
+            if not dim_dict.get("aspect_type"):
+                dim_dict["aspect_type"] = index
+            prepared.append(dim_dict)
+        return prepared
+
+    def _build_three_card_prompt(
+        self,
+        cards_info: List[Dict[str, Any]],
+        dimensions: List[Dict[str, Any]],
+        user_description: str,
+        spread_type: str,
+        locale: str
+    ) -> str:
+        """构建一次性完整解读的提示词。"""
+        is_english = is_english_locale(locale)
+        sorted_dimensions = sorted(dimensions, key=lambda item: item.get("aspect_type", 0) or 0)
+
+        card_ids: List[str] = []
+        example_card_id_value: Optional[str] = None
+        cards_lines: List[str] = []
+        for card in cards_info:
+            card_id_value = card.get("card_id") or card.get("id")
+            if card_id_value is not None:
+                card_ids.append(str(card_id_value))
+                if example_card_id_value is None:
+                    example_card_id_value = str(card_id_value)
+            card_id = card_id_value
+            position_label = self._format_position_label(card.get("position") or 0, locale)
+            direction_label = card.get("direction_localized") or card.get("direction") or ""
+            summary = card.get("summary") or ""
+            identifier = f"[Card ID {card_id}]" if is_english and card_id is not None else ""
+            identifier = identifier or (f"[卡牌ID {card_id}]" if card_id is not None else "")
+            if is_english:
+                line = f"{position_label}: {identifier} {card.get('name', '')} ({direction_label}) - Traditional summary (Chinese): {summary}"
+            else:
+                line = f"{position_label}: {identifier} {card.get('name', '')}({direction_label}) - {summary}"
+            cards_lines.append(line.strip())
+        cards_section = "\n".join(cards_lines) if cards_lines else ""
+
+        dimensions_lines: List[str] = []
+        for idx, dim in enumerate(sorted_dimensions):
+            order = dim.get("aspect_type", idx + 1)
+            description = dim.get("description") or ""
+            if is_english:
+                line = f"Dimension {order}: {dim.get('name', '')} - {description}"
+            else:
+                line = f"维度{order}: {dim.get('name', '')} - {description}"
+            dimensions_lines.append(line.strip())
+        dimensions_section = "\n".join(dimensions_lines)
+
+        mapping_lines: List[str] = []
+        for idx, dim in enumerate(sorted_dimensions):
+            order = dim.get("aspect_type", idx + 1)
+            position_label = self._format_position_label(idx + 1, locale)
+            if is_english:
+                line = f"{position_label} corresponds to Dimension {order} ({dim.get('name', '')})"
+            else:
+                line = f"{position_label}的卡牌对应维度{order}({dim.get('name', '')})"
+            mapping_lines.append(line)
+        position_mapping = "\n".join(mapping_lines)
+
+        card_ids_en = ", ".join(card_ids) if card_ids else "the provided card IDs"
+        card_ids_zh = "、".join(card_ids) if card_ids else "输入提供的编号"
+        try:
+            example_card_id = int(example_card_id_value) if example_card_id_value is not None else 1
+        except ValueError:
+            example_card_id = 1
+
+        if is_english:
+            return f"""You are a professional tarot reader. Craft a complete interpretation for the following three-card spread.
+
+## Client Question
+{user_description}
+
+## Drawn Cards
+{cards_section}
+
+## Interpretation Dimensions
+{dimensions_section}
+
+## Card-to-Dimension Mapping
+{position_mapping}
+
+## Output Requirements
+Return a JSON document that matches this structure:
+
+```json
+{{
+    "card_interpretations": [
+        {{
+            "card_id": {example_card_id},
+            "card_name": "Card Name (Upright/Reversed)",
+            "direction": "Upright or Reversed",
+            "position": 1,
+            "basic_summary": "Short traditional meaning translated into English",
+            "ai_interpretation": "150-300 word detailed guidance in English for the assigned dimension",
+            "dimension_aspect": {{
+                "dimension_name": "Dimension label",
+                "interpretation": "150-300 word explanation in English describing how this card expresses the dimension"
+            }}
+        }}
+    ],
+    "overall_summary": "200-300 word overall synthesis in English",
+    "insights": ["Actionable insight 1", "Actionable insight 2", "Actionable insight 3"]
+}}
+```
+
+Guidelines:
+1. Each card must map to exactly one dimension.
+2. Keep the narrative coherent across the three cards and their dimensions.
+3. Insights must be specific and actionable, not vague platitudes.
+4. Use the exact card_id values from the drawn cards ({card_ids_en}); do not renumber or invent new IDs.
+Always respond in English."""
+
+        return f"""你是一位专业的塔罗牌解读师，请为以下三牌阵抽牌结果生成完整的解读。
+
+## 用户问题
+{user_description}
+
+## 抽到的卡牌
+{cards_section}
+
+## 解读维度
+{dimensions_section}
+
+## 位置-维度对应关系
+{position_mapping}
+
+## 输出要求
+请按照以下 JSON 结构返回结果：
+
+```json
+{{
+    "card_interpretations": [
+        {{
+            "card_id": {example_card_id},
+            "card_name": "卡牌名称(正位/逆位)",
+            "direction": "正位或逆位",
+            "position": 1,
+            "basic_summary": "基础牌意概述（简体中文）",
+            "ai_interpretation": "150-300字的详细解读（简体中文），说明该卡牌在对应维度下的含义与指导",
+            "dimension_aspect": {{
+                "dimension_name": "维度名称",
+                "interpretation": "150-300字的详细说明（简体中文），描述该卡牌如何体现该维度"
+            }}
+        }}
+    ],
+    "overall_summary": "200-300字的整体总结（简体中文）",
+    "insights": ["关键洞察1", "关键洞察2", "关键洞察3"]
+}}
+```
+
+注意事项：
+1. 每张卡牌只能对应一个维度。
+2. 解读要体现维度之间的关联与发展脉络。
+3. 洞察要具体可执行，避免空泛表达。
+4. card_id 必须严格使用抽牌列表中的编号（{card_ids_zh}），不要改成 1、2、3。
+请使用简体中文输出。"""
+
+    def _direction_to_locale(self, direction: str, locale: str) -> str:
+        """根据语言返回牌位方向描述。"""
+        if not direction:
+            return ""
+        if is_english_locale(locale):
+            normalized = direction.strip().lower()
+            if normalized in {"正位", "upright"}:
+                return "Upright"
+            if normalized in {"逆位", "reversed"}:
+                return "Reversed"
+        return direction
+
+    def _format_position_label(self, position: int, locale: str) -> str:
+        """构建位置描述。"""
+        if is_english_locale(locale):
+            return f"Position {position}"
+        return f"位置{position}"
+
+    def _parse_three_card_interpretation(self, raw_result: str) -> Dict[str, Any]:
+        """解析LLM返回的完整解读结果。"""
+        try:
+            json_match = re.search(r'```json\s*(.*?)\s*```', raw_result, re.DOTALL)
+            if json_match:
+                json_str = json_match.group(1)
+            else:
+                json_str = raw_result.strip()
+
+            payload = self._parse_json_payload(json_str, raw_result)
+
+            card_interpretations = payload.get("card_interpretations", [])
+            if not isinstance(card_interpretations, list):
+                card_interpretations = []
+
+            insights = payload.get("insights", [])
+            if isinstance(insights, str):
+                insights = [insights]
+            elif not isinstance(insights, list):
+                insights = []
+
+            return {
+                "card_interpretations": card_interpretations,
+                "overall_summary": payload.get("overall_summary", ""),
+                "insights": insights,
+            }
+        except Exception as exc:
+            api_logger.log_error(
+                "parse_three_card_interpretation",
+                exc,
+                {
+                    "result_length": len(raw_result),
+                    "result_preview": raw_result[:600],
+                }
+            )
+            raise ValueError(f"解析LLM返回结果失败: {exc}") from exc
+
+    def _parse_json_payload(self, json_str: str, raw_result: str) -> Dict[str, Any]:
+        """尝试以多种方式从LLM结果中解析JSON。"""
+        candidates: List[str] = []
+
+        if json_str:
+            candidates.append(json_str.strip())
+
+        if json_str:
+            first_brace = json_str.find('{')
+            last_brace = json_str.rfind('}')
+            if first_brace != -1 and last_brace != -1 and last_brace > first_brace:
+                candidates.append(json_str[first_brace:last_brace + 1].strip())
+
+        if raw_result and raw_result not in candidates:
+            trimmed = raw_result.strip()
+            if trimmed:
+                candidates.append(trimmed)
+            first_brace = raw_result.find('{')
+            last_brace = raw_result.rfind('}')
+            if first_brace != -1 and last_brace != -1 and last_brace > first_brace:
+                brace_candidate = raw_result[first_brace:last_brace + 1].strip()
+                if brace_candidate and brace_candidate not in candidates:
+                    candidates.append(brace_candidate)
+
+        decoder = json.JSONDecoder()
+        errors: List[str] = []
+        api_debug_logger = logging.getLogger("api")
+
+        for candidate in candidates:
+            if not candidate:
+                continue
+            candidate_clean = candidate.lstrip('\ufeff').strip()
+            if not candidate_clean:
+                continue
+            try:
+                parsed, _ = decoder.raw_decode(candidate_clean)
+                return parsed
+            except json.JSONDecodeError as error:
+                errors.append(str(error))
+                api_debug_logger.debug(
+                    "LLM JSON parsing attempt failed | error=%s | preview=%s",
+                    str(error),
+                    candidate_clean[:400]
+                )
+                continue
+
+        raise ValueError(f"无法解析LLM返回的JSON内容: {'; '.join(errors[:2])}")
 
 
 # 全局LLM服务实例

@@ -4,3 +4,8 @@ set_anthropic_env.ps1
 /tarot-ai-generator/bk
 set_codex_env.ps1
 /release
+tarot-ai-generator/.env
+tarot-ai-generator/.env.example
+tarot-ai-generator/.env.example
+tarot-ai-generator/.env
+/tarot-ai-generator/config

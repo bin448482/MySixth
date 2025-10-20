@@ -38,23 +38,17 @@ class ReadingValidator:
         """验证维度配置是否适合指定牌阵"""
         errors = []
 
-        if spread_type == "three-card":
-            if len(dimensions) != 3:
-                errors.append("三牌阵需要且仅需要3个维度")
+        if spread_type != "three-card":
+            errors.append("当前仅支持三牌阵解读")
+            return errors
 
-            # 检查aspect_type是否为1,2,3
-            aspect_types = [d.aspect_type for d in dimensions if d.aspect_type]
-            if len(aspect_types) == 3 and sorted(aspect_types) != [1, 2, 3]:
-                errors.append("三牌阵的维度aspect_type应为1,2,3")
+        if len(dimensions) != 3:
+            errors.append("三牌阵需要且仅需要3个维度")
 
-        elif spread_type == "celtic-cross":
-            if len(dimensions) != 10:
-                errors.append("凯尔特十字需要且仅需要10个维度")
-
-            # 检查aspect_type是否为1-10
-            aspect_types = [d.aspect_type for d in dimensions if d.aspect_type]
-            if len(aspect_types) == 10 and sorted(aspect_types) != list(range(1, 11)):
-                errors.append("凯尔特十字的维度aspect_type应为1-10")
+        # 检查aspect_type是否为1,2,3
+        aspect_types = [d.aspect_type for d in dimensions if d.aspect_type]
+        if len(aspect_types) == 3 and sorted(aspect_types) != [1, 2, 3]:
+            errors.append("三牌阵的维度aspect_type应为1,2,3")
 
         return errors
 

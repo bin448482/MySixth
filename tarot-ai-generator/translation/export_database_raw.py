@@ -65,12 +65,6 @@ class DatabaseExporter:
                     FROM card
                     ORDER BY id
                 """
-            elif table_name == "dimension":
-                query = """
-                    SELECT id, name, category, description, aspect, aspect_type
-                    FROM dimension
-                    ORDER BY id
-                """
             elif table_name == "spread":
                 query = """
                     SELECT id, name, description, card_count
@@ -124,7 +118,6 @@ class DatabaseExporter:
         """获取表的描述信息"""
         descriptions = {
             "card": "塔罗牌基础信息，包括78张大阿卡纳和小阿卡纳牌",
-            "dimension": "解读维度定义，包括情感、事业、精神等占卜维度",
             "spread": "牌阵定义，包括三牌阵等经典塔罗牌阵",
             "card_interpretation": "卡牌解读信息，包括每张牌的正位和逆位解读"
         }
@@ -263,8 +256,6 @@ class DatabaseExporter:
             # 检查必填字段
             if table_name == "card":
                 required_fields = ["id", "name"]
-            elif table_name == "dimension":
-                required_fields = ["id", "name", "category"]
             elif table_name == "spread":
                 required_fields = ["id", "name", "description"]
             elif table_name == "card_interpretation":

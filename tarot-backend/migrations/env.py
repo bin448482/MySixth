@@ -14,8 +14,12 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 from app.config import settings
 from app.database import Base
 from app.models import (
-    Card, Dimension, CardInterpretation,
-    User, UserBalance, RedeemCode, Purchase, CreditTransaction
+    ReadingAnalyzeLog,
+    User,
+    UserBalance,
+    RedeemCode,
+    Purchase,
+    CreditTransaction,
 )
 
 # this is the Alembic Config object, which provides

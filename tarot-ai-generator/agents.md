@@ -1,310 +1,154 @@
-# 塔罗牌维度解读生成工具 (CLAUDE.md)
+# 塔罗牌维度解读生成工具 · 协作手册 (agents.md)
 
-## 📖 项目简介
+## 🎯 目标
 
-**塔罗牌维度解读生成工具** 是一个支持多种AI模型的Python工具，用于生成详细的塔罗牌维度解读内容。该工具可以根据现有的塔罗牌基础解读数据和维度定义，调用AI模型（智谱AI、OpenAI或Ollama本地模型）生成更加详细和个性化的解读文本。
+- 统一对多语言解读生成的理解与操作流程。
+- 明确涉及角色（Prompt 调优、数据管理、模型调用）的协作边界。
+- 确保任何成员都能快速复现“调试 → 批量 → 校验”流程。
 
-## 📌 重要说明
+## 🤝 角色分工
 
-**本项目为独立工具**，所有文件修改和更新均在 `tarot-ai-generator/` 目录下进行，除非特别说明需要访问其他项目目录（如读取 `../my-tarot-app/` 的数据文件）。开发时请确保：
-- 所有代码文件位于当前目录
-- 配置文件（.env）在当前目录
-- 输出文件默认保存到 `./output/` 目录
-- 仅在需要读取源数据时访问其他项目目录
+| 角色 | 关键职责 | 交付物 |
+|------|----------|--------|
+| Prompt/内容工程师 | 维护多语言提示词模板、验证输出质量 | `prompt_template*.txt`、调试样本审阅记录 |
+| 数据工程师 | 维护 `tarot_config.db`、维度描述映射、输出写回脚本 | SQLite 数据、导入/导出脚本、维度-问题映射表 |
+| LLM 工程师 | 维护 `config/settings.yaml`、模型路由、速率限制 | 模型配置、API 密钥管理、失败补齐日志 |
+| QA / 审校 | 抽查 `output/dimensions/` 与 `output/questions/` | 质量反馈、重新生成清单 |
 
-## 🎯 核心功能
+> 若团队规模较小，可合并角色，但请显式写明由谁负责对应工单。
 
-- **单卡牌生成**: 为指定塔罗牌生成所有维度的解读内容
-- **单维度生成**: 为指定维度生成所有塔罗牌的解读内容
-- **样本生成**: 生成少量样本数据用于测试和验证
-- **数据查看**: 列出所有可用的塔罗牌和解读维度
-- **成本控制**: 预估API调用成本，支持用户确认后执行
-- **进度跟踪**: 实时显示生成进度和预估完成时间
-- **多模型支持**: 支持智谱AI、OpenAI和Ollama本地模型
+## 🧭 核心能力概览
 
-## 📁 项目结构
+- 多语言调试样本：验证提示词与翻译质量（`debug-sample`）。
+- 维度全量生成：批量输出 156 张卡牌的指定维度解读（`dimension`）。
+- 问题驱动输出：根据问题描述自动找出 3 个维度并批量生成（`question`）。
+- 断点续传：重复执行命令会跳过已完成组合，仅补齐缺失项。
+- 失败追踪：输出 JSON 中附带 `failures` 列表，便于二次执行或人工介入。
+
+## 📁 代码结构
 
 ```
 tarot-ai-generator/
-├── main.py                    # 主程序文件
-├── config.py                  # 配置管理
-├── prompt_template.txt        # AI提示词模板
-├── requirements.txt           # Python依赖
-├── .env.example              # 环境变量示例
-├── .env                      # 环境变量配置（需创建）
-├── venv/                     # Python虚拟环境
-├── output/                   # 生成结果输出目录
-└── CLAUDE.md                 # 本文档
+├── main.py                    # CLI 入口
+├── data_loader.py             # SQLite 多语言数据访问层
+├── services/                  # 业务核心（调度 / 模型路由 / 提示词构建）
+├── config.py                  # 配置解析与校验
+├── config/settings.yaml       # 主配置（数据库、模板、模型映射）
+├── prompt_template.txt        # 中文提示词模板
+├── prompt_template.en.txt     # 英文提示词模板
+├── output/                    # 输出与失败记录
+└── translation/               # 翻译子系统（独立）
 ```
 
-## 🚀 快速开始
+## ⚙️ 配置重点
 
-### 1. 环境配置
+```yaml
+database:
+  path: data/tarot_config.db
+  root_locale: zh-CN
+  locales:
+    - zh-CN
+    - en-US
 
-#### 激活虚拟环境
-```bash
-# Windows
-cd tarot-ai-generator
-venv\Scripts\activate
+paths:
+  prompt_templates:
+    zh-CN: prompt_template.txt
+    en-US: prompt_template.en.txt
 
-# Linux/Mac
-cd tarot-ai-generator
-source venv/bin/activate
+llm:
+  language_providers:
+    zh-CN:
+      provider: zhipu
+      model: glm-4-Flash
+      temperature: 0.1
+      rate_limit_per_minute: 60
+      batch_size: 8
+    en-US:
+      provider: openai
+      model: gpt-4o-mini
+      temperature: 0.2
+      rate_limit_per_minute: 40
+      batch_size: 4
 ```
 
-#### 安装依赖
-```bash
-pip install -r requirements.txt
-```
+- 密钥建议写在 `settings.yaml` 中的 `llm.<provider>.api_key`，`.env` 仅在临时覆盖时使用。
+- 新增语言时同步维护：`database.locales`、提示词模板文件、`llm.language_providers` 条目。
+- 模型切换时同步通知内容团队，确认提示词是否需要调整语气或结构。
+- 数据加载层会自动将 `en-US`→`en` 等区域化代码回退到基础语言，确保当数据库仅存 `en` 翻译时英文模板依旧获取正确字段。
 
-#### 配置环境变量
-```bash
-# 复制环境变量模板
-cp .env.example .env
-
-# 编辑 .env 文件，配置API提供商
-# 方式1: 使用智谱AI
-# API_PROVIDER=zhipu
-# ZHIPUAI_API_KEY=your_api_key_here
-
-# 方式2: 使用OpenAI
-# API_PROVIDER=openai
-# OPENAI_API_KEY=your_api_key_here
-# OPENAI_BASE_URL=https://api.openai.com/v1
-
-# 方式3: 使用Ollama本地模型
-# API_PROVIDER=ollama
-# OLLAMA_BASE_URL=http://localhost:11434
-# OLLAMA_MODEL=llama3
-```
-
-### 2. 使用方法
-
-#### 查看可用数据
-```bash
-# 列出所有塔罗牌
-python main.py --list-cards
-
-# 列出所有解读维度
-python main.py --list-dimensions
-```
-
-#### 生成解读内容
-```bash
-# 为指定卡牌生成所有维度解读（21条）
-python main.py --card "魔术师" --direction "正位"
-
-# 为指定维度生成所有卡牌解读（156条）
-python main.py --dimension "情感-时间线-过去"
-
-# 生成样本数据（用于测试）
-python main.py --sample 5
-```
-
-## 📊 数据源
-
-### 塔罗牌数据
-- **来源**: `../my-tarot-app/assets/data/card_interpretations.json`
-- **内容**: 78张塔罗牌的正位和逆位解读（共156条记录）
-- **格式**: 每条记录包含卡牌名称、方向、基础牌意和详细说明
-
-### 维度数据
-- **来源**: `../my-tarot-app/assets/data/dimensions.json`
-- **内容**: 21个解读维度的定义
-- **类别**: 包含情感、事业、精神、决策、健康、人际关系、类比-生命周期等维度
-
-## 🔧 配置说明
-
-### 支持的AI模型提供商
-
-| 提供商 | 说明 | 优势 | 配置要求 |
-|--------|------|------|----------|
-| **智谱AI** | 智谱AI的GLM系列模型 | 中文理解能力强，性价比高 | ZHIPUAI_API_KEY |
-| **OpenAI** | OpenAI的GPT系列模型 | 生成质量高，功能强大 | OPENAI_API_KEY, OPENAI_BASE_URL |
-| **Ollama** | 本地部署的开源模型 | 免费使用，数据隐私，无网络依赖 | OLLAMA_BASE_URL, OLLAMA_MODEL |
-
-### 环境变量配置 (.env)
-
-#### 通用配置
-| 变量名 | 说明 | 默认值 |
-|--------|------|--------|
-| `API_PROVIDER` | API提供商选择 (zhipu/openai/ollama) | `zhipu` |
-| `CARD_INTERPRETATIONS_PATH` | 塔罗牌数据文件路径 | `data/config_jsons/card_interpretations.json` |
-| `DIMENSIONS_PATH` | 维度数据文件路径 | `data/config_jsons/dimensions.json` |
-| `OUTPUT_PATH` | 输出文件路径 | `./output/card_interpretation_dimensions.json` |
-| `TEMPERATURE` | AI生成温度参数 | `0.7` |
-| `MAX_TOKENS` | 最大token数量 | `1000` |
-| `RATE_LIMIT_PER_MINUTE` | API调用频率限制 | `60` |
-| `BATCH_SIZE` | 并发批处理大小 | `10` |
-
-#### 智谱AI配置
-| 变量名 | 说明 | 默认值 |
-|--------|------|--------|
-| `ZHIPUAI_API_KEY` | 智谱AI的API密钥 | 必填（当API_PROVIDER=zhipu） |
-| `MODEL_NAME` | 使用的模型名称 | `glm-4` |
-
-#### OpenAI配置
-| 变量名 | 说明 | 默认值 |
-|--------|------|--------|
-| `OPENAI_API_KEY` | OpenAI的API密钥 | 必填（当API_PROVIDER=openai） |
-| `OPENAI_BASE_URL` | OpenAI API基础URL | `https://api.openai.com/v1` |
-| `MODEL_NAME` | 使用的模型名称 | `gpt-4` |
-
-#### Ollama配置
-| 变量名 | 说明 | 默认值 |
-|--------|------|--------|
-| `OLLAMA_BASE_URL` | Ollama服务地址 | `http://localhost:11434` |
-| `OLLAMA_MODEL` | Ollama模型名称 | `llama3` |
-
-### 提示词模板
-
-工具使用 `prompt_template.txt` 中的模板来构建发送给AI的提示词。模板包含：
-
-- 塔罗牌基础信息（名称、方向、牌意）
-- 解读维度信息（名称、类别、描述）
-- 生成要求和格式说明
-
-## 📝 输出格式
-
-生成的JSON文件格式如下：
-
-```json
-{
-  "version": "1.0.0",
-  "generated_at": "2025-09-12T10:00:00",
-  "model": "glm-4",
-  "count": 21,
-  "data": [
-    {
-      "card_name": "魔术师",
-      "direction": "正位",
-      "dimension_name": "情感-时间线-过去",
-      "dimension_category": "情感",
-      "aspect": "过去",
-      "aspect_type": "1",
-      "content": "AI生成的详细解读内容..."
-    }
-  ]
-}
-```
-
-## 💰 成本预估
-
-### 单次生成成本
-- **单卡牌全维度**: 21个维度 × ~500 tokens = ~10,500 tokens
-- **单维度全卡牌**: 156张卡牌 × ~500 tokens = ~78,000 tokens
-- **全量生成**: 3,276条解读 × ~500 tokens = ~1,638,000 tokens
-
-### 推荐使用策略
-1. **先测试**: 使用 `--sample` 生成少量数据验证效果
-2. **分批生成**: 按维度或卡牌类型分批处理
-3. **质量优先**: 调优提示词模板后再批量生成
-
-## 🔍 使用示例
-
-### 例1: 测试工具效果
-```bash
-# 生成5条样本数据
-python main.py --sample 5
-
-# 检查输出结果
-# 输出文件: ./output/card_interpretation_dimensions_sample.json
-```
-
-### 例2: 为特定卡牌生成全维度解读
-```bash
-# 为"愚者"正位生成21个维度解读
-python main.py --card "愚者" --direction "正位"
-
-# 输出文件: ./output/card_interpretation_dimensions_card_愚者_正位.json
-```
-
-### 例3: 为特定维度生成全卡牌解读
-```bash
-# 为"情感-时间线-过去"维度生成156张卡牌解读
-python main.py --dimension "情感-时间线-过去"
-
-# 输出文件: ./output/card_interpretation_dimensions_dimension_情感-时间线-过去.json
-```
-
-## ⚠️ 注意事项
-
-### API使用限制
-- 工具内置了API调用频率控制（默认每分钟60次）
-- 每次调用前会预估成本并要求用户确认
-- 支持暂停和恢复功能
-
-### 数据质量
-- 生成的内容质量取决于提示词模板的设计
-- 建议先用样本数据测试，调优后再批量生成
-- 可能需要人工审核和调整生成的内容
-
-### 文件路径
-- 确保数据源文件路径正确
-- 输出目录会自动创建
-- 建议定期备份生成的结果
-
-## 🛠️ 故障排除
-
-### 常见问题
-
-1. **API密钥错误**
-   ```
-   解决: 检查 .env 文件中的 ZHIPUAI_API_KEY 是否正确
-   ```
-
-2. **数据文件未找到**
-   ```
-   解决: 检查 CARD_INTERPRETATIONS_PATH 和 DIMENSIONS_PATH 路径是否正确
-   ```
-
-3. **API调用失败**
-   ```
-   解决: 检查网络连接，确认API密钥有效且有足够额度
-   ```
-
-### 调试模式
-```bash
-# 查看详细错误信息
-python main.py --sample 1
-```
-
-## 🔄 扩展功能
-
-### 自定义提示词
-编辑 `prompt_template.txt` 文件来调整AI生成的内容风格和质量。
-
-### 批处理脚本
-可以创建批处理脚本来自动化大量数据的生成：
+## 🛠️ CLI 操作
 
 ```bash
-#!/bin/bash
-# batch_generate.sh
-
-# 生成所有情感维度
-python main.py --dimension "情感-时间线-过去"
-python main.py --dimension "情感-时间线-现在"
-python main.py --dimension "情感-时间线-将来"
-
-# 生成重要卡牌
-python main.py --card "愚者" --direction "正位"
-python main.py --card "魔术师" --direction "正位"
+python main.py debug-sample --count 10 --locales zh-CN en-US
+python main.py dimension --name "情感-时间线-过去" --locales zh-CN en-US
+python main.py question --text "我需要换工作吗？" --question-locale zh-CN --locales zh-CN en-US
 ```
 
-## 📞 技术支持
+- `debug-sample`：输出 `output/debug_samples/debug_samples_<timestamp>.json`。
+- `dimension`：输出 `output/dimensions/dimension_<id>.json`，包含 `records` 与 `failures`。
+- `question`：输出 `output/questions/question_<timestamp>.json`，聚合多维度结果。
+- `--no-persist`：仅返回结果，不落地文件（适合快速验证）。
 
-### 开发指导原则
-1. **质量优先**: 确保生成内容的准确性和实用性
-2. **成本控制**: 避免不必要的大量API调用
-3. **用户友好**: 提供清晰的进度反馈和错误提示
-4. **数据安全**: 保护API密钥和生成的内容
+## 📊 数据来源
 
-### 最佳实践
-- 在正式使用前先用样本数据测试
-- 定期检查生成内容的质量
-- 合理设置API调用频率限制
-- 备份重要的生成结果
+- 卡牌解读：`card_interpretation` + `card_interpretation_translation`
+- 维度定义：`dimension` + `dimension_translation`
+- 问题映射：依赖 `dimension_translation.description`（按多语言描述匹配）
 
----
+请确认数据库保持最新：如新增维度或翻译，需要重新导入后再执行生成任务。
 
-*此工具专门用于塔罗牌应用的维度解读内容生成，与主项目的CLAUDE.md配合使用。*
+## 📁 输出约定
+
+- `output/debug_samples/`：调试样本（人审重点）。
+- `output/dimensions/`：单维度全量结果（用于写回数据库或导入后台）。
+- `output/questions/`：问题驱动汇总（产品评审常用）。
+- `output/logs/`：可写入失败任务快照或运行元数据（可选）。
+
+维度 JSON 中的 `records` 按 `interpretation_id` 聚合，`failures` 记录未完成的 `(locale, interpretation_id, dimension_id)` 组合。
+
+## 📥 数据写回
+
+- 导入前先校对样本/维度 JSON 是否含 `interpretation_id`、`dimension_id`、`aspect`、`aspect_type` 与各语言 `content`。
+- 建议在 `scripts/` 目录创建导入脚本：根语言写入 `card_interpretation_dimension`，其他语言写入 `card_interpretation_dimension_translation`。
+- 执行前使用 `sqlite3 data/tarot_config.db ".backup 'backup/tarot_config_YYYYMMDD.db'"` 创建备份，并提供 `--dry-run` 选项与抽样校验。
+- 完成导入后将源文件、命令与校验结论记录在本手册或团队日志中。
+
+## 🧪 流程建议
+
+1. `debug-sample` 验证提示词（每种语言 5–10 条）。
+2. 根据审阅结果微调 `prompt_template*.txt`。
+3. 执行 `dimension` 生成完整结果，确保 `failures` 为空或可控。
+4. 如需整套体验，执行 `question` 命令，并安排产品/内容团队审阅。
+5. 通过 `import_multilingual_dimensions.py` 或自定义脚本将合格内容写回数据库。
+
+## 🧯 失败补齐
+
+- 重复执行同一命令即可自动跳过已完成组合，仅补齐缺失。
+- 如需针对特定语言补齐，可限定 `--locales en-US` 等参数。
+- 若多次失败，考虑：降低温度、延长速率限制、改用备用模型或人工编辑。
+
+## 🧩 常见问题排查
+
+| 症状 | 排查项 |
+|------|--------|
+| `数据库不存在` | 检查 `data/tarot_config.db` 是否存在 / 权限是否正确 |
+| `提示词模板缺失` | 确认 `paths.prompt_templates` 中的文件路径 |
+| `模型调用失败` | 检查 API 密钥是否过期、速率限制是否被触发 |
+| `输出语言混乱` | 检查对应语言的数据库翻译是否齐备、模板是否引用正确变量 |
+| `question 无匹配维度` | 检查问题描述是否与 `dimension_translation.description` 完全一致 |
+| 英文结果仍出现中文牌名 | 确认数据库中的英文翻译是否存在（`card_translation.locale in ('en', 'en-US')`），或更新翻译后重新运行 |
+
+## ✅ 交付清单
+
+- 更新提示词模板后，提交调试样本及审阅结论。
+- 批量生成维度后，提交维度 JSON 与失败清单（如有）。
+- 问题驱动输出供产品确认后，再安排数据写回或发布。
+- 重要调整（模型切换、新增语言）需同步更新本手册与 `config/settings.yaml`。
+
+## 📞 联系方式
+
+- 代码实现：`main.py` / `services/generation_service.py`
+- 模型与速率配置：`services/model_router.py` / `config/settings.yaml`
+- 数据导入导出：`database_importer.py` / `import_multilingual_dimensions.py`
+
+保持良好的沟通频次，确保 Prompt、模型、数据库三方信息同步更新。祝大家协作顺利！

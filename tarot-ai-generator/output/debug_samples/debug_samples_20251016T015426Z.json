@@ -1,0 +1,162 @@
+{
+  "type": "debug-sample",
+  "generated_at": "2025-10-16T01:54:26.276622",
+  "locales": [
+    "zh-CN",
+    "en-US"
+  ],
+  "count": 3,
+  "items": [
+    {
+      "interpretation_id": 91,
+      "dimension_id": 75,
+      "cards": {
+        "zh-CN": {
+          "card_name": "倒吊人",
+          "direction": "逆位",
+          "summary": "抵抗或停滞。",
+          "detail": "不愿放下或视角受限，建议尝试转换思路。",
+          "deck": "Rider-Waite",
+          "suit": ""
+        },
+        "en-US": {
+          "card_name": "The Hanged Man",
+          "direction": "reversed",
+          "summary": "Resistance or stagnation.",
+          "detail": "Unwilling to let go or feeling restricted, suggest trying to change perspective.",
+          "deck": "Rider-Waite",
+          "suit": "None"
+        }
+      },
+      "dimensions": {
+        "zh-CN": {
+          "dimension_name": "运势-近期机遇",
+          "category": "运势",
+          "description": "下个月的运势如何？",
+          "aspect": "具体机遇分析",
+          "aspect_type": "2"
+        },
+        "en-US": {
+          "dimension_name": "fortune-overall trend",
+          "category": "Fortune",
+          "description": "How will my luck be next month?",
+          "aspect": "overall trend",
+          "aspect_type": "2"
+        }
+      },
+      "results": {
+        "zh-CN": {
+          "content": "在近期机遇的运势分析中，倒吊人牌逆位显现，暗示着你在面对机遇时，可能正经历着一种暂时的停滞或抵抗。这并非意味着机遇本身不存在，而是你可能在某些方面过于固执，不愿放下旧有的观念或视角，导致机遇无法顺利展开。此时，不妨尝试转换思路，以更开放的心态去接纳新的可能性。或许，一个全新的视角将为你带来意想不到的机遇。记住，逆境中往往孕育着转机，关键在于你是否愿意放下过去的束缚，勇敢地迎接挑战。",
+          "provider": "zhipu",
+          "model": "glm-4-Flash"
+        },
+        "en-US": {
+          "content": "In the realm of overall trend fortune, The Hanged Man reversed suggests a period of resistance or stagnation in your luck next month. You may find yourself feeling unwilling to let go of old patterns or beliefs that are holding you back from progress. This card urges you to examine where you may be feeling restricted and to consider trying to change your perspective.\n\nIt is essential to understand that sometimes, embracing a different viewpoint can lead to breakthroughs in fortune. By being open to new ways of thinking and letting go of what no longer serves you, you can invite positive shifts in your luck. Embrace the idea of surrendering control and allowing the universe to guide you towards better outcomes.\n\nRemember that resistance often stems from fear or attachment to the familiar. By releasing these barriers, you can create space for new opportunities and blessings to flow into your life. Trust in the process and have faith that the universe has a plan for you, even if it may not be immediately clear. Embrace the unknown with a sense of curiosity and openness, and watch as your fortune begins to transform.",
+          "provider": "openai",
+          "model": "gpt-3.5-turbo"
+        }
+      }
+    },
+    {
+      "interpretation_id": 83,
+      "dimension_id": 76,
+      "cards": {
+        "zh-CN": {
+          "card_name": "皇帝",
+          "direction": "逆位",
+          "summary": "过度控制與僵化。",
+          "detail": "权力或规则失衡，建议放下强制並恢复弹性。",
+          "deck": "Rider-Waite",
+          "suit": ""
+        },
+        "en-US": {
+          "card_name": "The Emperor",
+          "direction": "reversed",
+          "summary": "Excessive control and rigidity.",
+          "detail": "Imbalance of power or rules, suggested to let go of coercion and restore flexibility.",
+          "deck": "Rider-Waite",
+          "suit": "None"
+        }
+      },
+      "dimensions": {
+        "zh-CN": {
+          "dimension_name": "运势-潜在挑战",
+          "category": "运势",
+          "description": "下个月的运势如何？",
+          "aspect": "潜在挑战预判",
+          "aspect_type": "3"
+        },
+        "en-US": {
+          "dimension_name": "fortune-luck manifestation",
+          "category": "Fortune",
+          "description": "How will my luck be next month?",
+          "aspect": "luck manifestation",
+          "aspect_type": "3"
+        }
+      },
+      "results": {
+        "zh-CN": {
+          "content": "在即将到来的下个月，皇帝牌逆位预示着你在运势上可能面临权力或规则的失衡。这或许意味着你将遭遇过度控制或僵化的局面，让你感到束缚。在这样的挑战面前，建议你放下强制，恢复内心的弹性。或许，通过灵活变通，你将发现新的解决之道，让生活重回和谐。记住，顺应自然，而非逆流而上，方能化解困境，迎接运势的转机。",
+          "provider": "zhipu",
+          "model": "glm-4-Flash"
+        },
+        "en-US": {
+          "content": "In the realm of luck manifestation, The Emperor reversed suggests that your luck next month may be influenced by a sense of excessive control and rigidity in your approach. This card indicates that there may be an imbalance of power or rules at play, leading to a stifling of opportunities for luck to flow freely into your life.\n\nTo improve your luck during this period, it is advised to let go of any tendencies towards coercion or strict adherence to a fixed plan. Instead, embrace flexibility and openness to new possibilities. By releasing the need for total control, you allow room for serendipity and unexpected blessings to enter your life.\n\nRemember that luck often thrives in the spaces where rigidity fades away, so be willing to adapt and go with the flow. Trust in the universe's ability to guide you towards fortunate outcomes, even if they may not align with your initial expectations. Embrace the unknown with a sense of curiosity and optimism, and watch as your luck begins to manifest in ways you never imagined.",
+          "provider": "openai",
+          "model": "gpt-3.5-turbo"
+        }
+      }
+    },
+    {
+      "interpretation_id": 29,
+      "dimension_id": 76,
+      "cards": {
+        "zh-CN": {
+          "card_name": "权杖七",
+          "direction": "正位",
+          "summary": "防守与坚持。",
+          "detail": "需要捍卫立场并在压力下保持韧性。",
+          "deck": "Rider-Waite",
+          "suit": "权杖"
+        },
+        "en-US": {
+          "card_name": "Seven of Wands",
+          "direction": "upright",
+          "summary": "Defense and persistence.",
+          "detail": "It is necessary to defend your position and maintain resilience under pressure.",
+          "deck": "Rider-Waite",
+          "suit": "Wands"
+        }
+      },
+      "dimensions": {
+        "zh-CN": {
+          "dimension_name": "运势-潜在挑战",
+          "category": "运势",
+          "description": "下个月的运势如何？",
+          "aspect": "潜在挑战预判",
+          "aspect_type": "3"
+        },
+        "en-US": {
+          "dimension_name": "fortune-luck manifestation",
+          "category": "Fortune",
+          "description": "How will my luck be next month?",
+          "aspect": "luck manifestation",
+          "aspect_type": "3"
+        }
+      },
+      "results": {
+        "zh-CN": {
+          "content": "在即将到来的下个月，权杖七正位预示着你在运势上可能面临一系列的挑战。这张牌象征着防守与坚持，意味着你将需要在压力之下保持韧性，捍卫自己的立场。在未来的日子里，你可能会遇到一些需要你付出额外努力和耐心的情境，这要求你不仅要坚守自己的信念，还要学会灵活应对。在这个过程中，耐心和毅力将成为你的关键。记住，每一次的挑战都是成长的机会，勇敢面对，你将收获意想不到的果实。",
+          "provider": "zhipu",
+          "model": "glm-4-Flash"
+        },
+        "en-US": {
+          "content": "In the realm of fortune-luck manifestation, the Seven of Wands signifies a period where your luck may be tested, requiring you to defend your position with unwavering persistence. This card suggests that challenges may arise that threaten to shake your foundation, but by standing firm and asserting your boundaries, you can overcome any obstacles that come your way.\n\nIn terms of luck manifestation, the Seven of Wands urges you to trust in your abilities and remain steadfast in your pursuits. Luck is not always about smooth sailing; sometimes, it is about how you navigate rough waters with determination and resilience. Embrace the spirit of perseverance and know that your efforts will ultimately lead to success.\n\nThis card reminds you to stay focused on your goals and not be swayed by external pressures or doubts. By maintaining a strong sense of self-belief and standing up for what you believe in, you can influence the course of your luck in a positive direction. Remember, fortune favors the bold and the persistent. Trust in your inner strength and keep pushing forward, no matter what challenges may come your way.",
+          "provider": "openai",
+          "model": "gpt-3.5-turbo"
+        }
+      }
+    }
+  ],
+  "failed": []
+}

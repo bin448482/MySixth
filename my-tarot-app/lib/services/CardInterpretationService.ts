@@ -1,4 +1,6 @@
+import i18n from 'i18next';
 import { ConfigDatabaseService } from '../database/config-db';
+import { DEFAULT_LOCALE } from '../i18n';
 import type { ServiceResponse } from '../types/database';
 
 export interface CardInterpretationData {
@@ -16,6 +18,18 @@ export interface CardInterpretationDimensionData {
   aspect?: string;
   aspect_type?: string;
   content: string;
+}
+
+interface CardInterpretationTranslationRow {
+  locale: string;
+  summary?: string | null;
+  detail?: string | null;
+}
+
+interface CardInterpretationDimensionTranslationRow {
+  locale: string;
+  aspect?: string | null;
+  content?: string | null;
 }
 
 export class CardInterpretationService {
@@ -47,7 +61,8 @@ export class CardInterpretationService {
       );
 
       if (result.success && result.data) {
-        return { success: true, data: result.data };
+        const localized = await this.localizeInterpretation(result.data);
+        return { success: true, data: localized };
       }
 
       return { success: false, error: result.error || 'Card interpretation not found' };
@@ -88,7 +103,8 @@ export class CardInterpretationService {
       );
 
       if (result.success && result.data) {
-        return { success: true, data: result.data };
+        const localized = await this.localizeDimensionInterpretation(result.data);
+        return { success: true, data: localized };
       }
 
       return { success: false, error: result.error || 'Card dimension interpretation not found' };
@@ -117,7 +133,10 @@ export class CardInterpretationService {
       `, [cardId, direction]);
 
       if (result.success && result.data) {
-        return { success: true, data: result.data };
+        const localized = await Promise.all(
+          result.data.map(item => this.localizeDimensionInterpretation(item))
+        );
+        return { success: true, data: localized };
       }
 
       return { success: false, error: result.error || 'No dimension interpretations found' };
@@ -136,7 +155,8 @@ export class CardInterpretationService {
     cardName: string,
     direction: string,
     dimensionName: string,
-    aspectType?: string
+    aspectType?: string,
+    dimensionId?: number
   ): Promise<ServiceResponse<CardInterpretationDimensionData>> {
     try {
       // console.log('[CardInterpretationService] getCardInterpretationForDimension called with:');
@@ -151,9 +171,17 @@ export class CardInterpretationService {
         JOIN card_interpretation ci ON cid.interpretation_id = ci.id
         JOIN card c ON ci.card_id = c.id
         JOIN dimension d ON cid.dimension_id = d.id
-        WHERE c.name = ? AND ci.direction = ? AND d.name = ?
+        WHERE c.name = ? AND ci.direction = ?
       `;
-      let params = [cardName, direction, dimensionName];
+      const params: (string | number)[] = [cardName, direction];
+
+      if (dimensionId) {
+        query += ' AND cid.dimension_id = ?';
+        params.push(dimensionId);
+      } else {
+        query += ' AND d.name = ?';
+        params.push(dimensionName);
+      }
 
       if (aspectType) {
         query += ' AND cid.aspect_type = ?';
@@ -172,7 +200,8 @@ export class CardInterpretationService {
 
       if (result.success && result.data) {
         // console.log('[CardInterpretationService] Found interpretation:', result.data);
-        return { success: true, data: result.data };
+        const localized = await this.localizeDimensionInterpretation(result.data);
+        return { success: true, data: localized };
       }
 
       // console.log('[CardInterpretationService] No interpretation found');
@@ -184,5 +213,140 @@ export class CardInterpretationService {
         error: error instanceof Error ? error.message : 'Unknown error getting card interpretation for dimension'
       };
     }
+  }
+
+  private async localizeInterpretation(
+    interpretation: CardInterpretationData
+  ): Promise<CardInterpretationData> {
+    const locale = this.getActiveLocale();
+    const candidates = this.resolveTranslationLocales(locale);
+
+    if (!candidates.length) {
+      return interpretation;
+    }
+
+    const localePlaceholders = candidates.map(() => '?').join(', ');
+    const query = `
+      SELECT locale, summary, detail
+      FROM card_interpretation_translation
+      WHERE interpretation_id = ?
+        AND locale IN (${localePlaceholders})
+    `;
+
+    const translationResult = await this.dbService.query<CardInterpretationTranslationRow>(
+      query,
+      [interpretation.id, ...candidates]
+    );
+
+    if (!translationResult.success || !translationResult.data?.length) {
+      return interpretation;
+    }
+
+    const priorityMap = this.createLocalePriorityMap(candidates);
+    const best = translationResult.data.reduce<CardInterpretationTranslationRow | null>((selected, current) => {
+      if (!selected) return current;
+      const currentPriority = priorityMap.get(current.locale) ?? Number.MAX_VALUE;
+      const selectedPriority = priorityMap.get(selected.locale) ?? Number.MAX_VALUE;
+      return currentPriority < selectedPriority ? current : selected;
+    }, null);
+
+    if (!best) {
+      return interpretation;
+    }
+
+    return {
+      ...interpretation,
+      summary: best.summary ?? interpretation.summary,
+      detail: best.detail ?? interpretation.detail,
+    };
+  }
+
+  private async localizeDimensionInterpretation(
+    interpretation: CardInterpretationDimensionData
+  ): Promise<CardInterpretationDimensionData> {
+    const locale = this.getActiveLocale();
+    const candidates = this.resolveTranslationLocales(locale);
+
+    if (!candidates.length) {
+      return interpretation;
+    }
+
+    const localePlaceholders = candidates.map(() => '?').join(', ');
+    const query = `
+      SELECT locale, aspect, content
+      FROM card_interpretation_dimension_translation
+      WHERE dimension_interpretation_id = ?
+        AND locale IN (${localePlaceholders})
+    `;
+
+    const translationResult = await this.dbService.query<CardInterpretationDimensionTranslationRow>(
+      query,
+      [interpretation.id, ...candidates]
+    );
+
+    if (!translationResult.success || !translationResult.data?.length) {
+      return interpretation;
+    }
+
+    const priorityMap = this.createLocalePriorityMap(candidates);
+    const best = translationResult.data.reduce<CardInterpretationDimensionTranslationRow | null>((selected, current) => {
+      if (!selected) return current;
+      const currentPriority = priorityMap.get(current.locale) ?? Number.MAX_VALUE;
+      const selectedPriority = priorityMap.get(selected.locale) ?? Number.MAX_VALUE;
+      return currentPriority < selectedPriority ? current : selected;
+    }, null);
+
+    if (!best) {
+      return interpretation;
+    }
+
+    return {
+      ...interpretation,
+      aspect: best.aspect ?? interpretation.aspect,
+      content: best.content ?? interpretation.content,
+    };
+  }
+
+  private getActiveLocale(): string {
+    const active = (i18n?.language as string | undefined) ?? DEFAULT_LOCALE;
+    return active || DEFAULT_LOCALE;
+  }
+
+  private resolveTranslationLocales(locale: string): string[] {
+    const normalized = locale?.replace('_', '-') ?? '';
+    const candidates: string[] = [];
+
+    const pushCandidate = (value?: string) => {
+      if (!value) return;
+      if (!candidates.includes(value)) {
+        candidates.push(value);
+      }
+    };
+
+    pushCandidate(locale);
+    pushCandidate(normalized);
+    pushCandidate(normalized.toLowerCase());
+
+    if (normalized.includes('-')) {
+      const [lang, region] = normalized.split('-');
+      pushCandidate(`${lang}-${region.toUpperCase()}`);
+      pushCandidate(lang);
+    } else if (normalized) {
+      const lang = normalized;
+      pushCandidate(`${lang}-${lang.toUpperCase()}`);
+      if (lang === 'en') {
+        pushCandidate('en-US');
+      } else if (lang === 'zh') {
+        pushCandidate('zh-CN');
+      }
+    }
+
+    pushCandidate(DEFAULT_LOCALE);
+
+    return candidates;
+  }
+
+  private createLocalePriorityMap(locales: string[]): Map<string, number> {
+    return new Map(locales.map((value, index) => [value, index]));
   }
 }

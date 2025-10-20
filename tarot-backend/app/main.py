@@ -141,11 +141,10 @@ async def health_check():
 
 
 # TODO: 注册API路由
-from app.api import auth, readings, cards, dimensions, spreads, users, payments, admin
+from app.api import auth, readings, dimensions, spreads, users, payments, admin
 
 app.include_router(auth.router, prefix="/api/v1")
 app.include_router(readings.router, prefix="/api/v1")
-app.include_router(cards.router, prefix="/api/v1")
 app.include_router(dimensions.router, prefix="/api/v1")
 app.include_router(spreads.router, prefix="/api/v1")
 app.include_router(users.router)  # Users router already includes /api/v1 prefix

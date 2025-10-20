@@ -396,11 +396,6 @@ export function CardFlipAnimation({
                 {card.displayName ?? card.name}
               </Text>
             )}
-            {card.direction === 'reversed' && (
-          <Text style={styles.directionLabel}>
-            {t('shared.components.cardFlip.reversed')}
-          </Text>
-            )}
           </LinearGradient>
         </Animated.View>
       </View>
@@ -497,14 +492,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     textAlign: 'center',
     marginTop: 4,
-  },
-  directionLabel: {
-    fontSize: 8,
-    color: '#FF6B6B',
-    fontWeight: 'bold',
-    position: 'absolute',
-    bottom: 4,
-    right: 4,
   },
   // 星星特效样式
   starsContainer: {
