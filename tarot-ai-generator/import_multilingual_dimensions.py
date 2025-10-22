@@ -12,7 +12,7 @@ import argparse
 import json
 import sqlite3
 from pathlib import Path
-from typing import Any, Dict, Iterable, Tuple
+from typing import Any, Dict, Iterable, Tuple, Union
 
 
 def load_multilingual_payload(path: Path) -> Dict[str, Any]:
@@ -135,10 +135,14 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def main() -> None:
-    args = parse_args()
-
-    payload = load_multilingual_payload(Path(args.json))
+def import_multilingual_dimensions(  # type: ignore[override]
+    json_path: Union[str, Path],
+    *,
+    db_path: Union[str, Path] = "data/tarot_config.db",
+    dry_run: bool = False,
+    verbose: bool = False,
+) -> Dict[str, Any]:
+    payload = load_multilingual_payload(Path(json_path))
     root_locale = payload["root_dimension_locale"]
     source_locale = payload.get("source_locale") or root_locale
     source_question = payload.get("source_question") or ""
@@ -156,10 +160,15 @@ def main() -> None:
             locale_questions[loc] = question_text
 
     if not dimensions:
-        print("没有可导入的维度记录。")
-        return
+        return {
+            "inserted": 0,
+            "updated": 0,
+            "translations": 0,
+            "dry_run": dry_run,
+            "message": "没有可导入的维度记录。",
+        }
 
-    conn = sqlite3.connect(args.db)
+    conn = sqlite3.connect(str(db_path))
     cursor = conn.cursor()
 
     inserted_dimensions = 0
@@ -217,19 +226,40 @@ def main() -> None:
                 if translation_written:
                     upserted_translations += 1
 
-        if args.dry_run:
+        if dry_run:
             conn.rollback()
-            print("Dry run 完成，未对数据库进行修改。")
+            message = "Dry run 完成，未对数据库进行修改。"
         else:
             conn.commit()
+            message = "导入已提交。"
 
     finally:
         conn.close()
 
-    print(f"维度新增: {inserted_dimensions}")
-    print(f"维度更新: {updated_dimensions}")
-    print(f"翻译写入/更新: {upserted_translations}")
-    print("提示: JSON 中的 `summary` 字段当前未写入数据库，如需保留请扩展 schema 或额外处理。")
+    if verbose:
+        print(message)
+        print(f"维度新增: {inserted_dimensions}")
+        print(f"维度更新: {updated_dimensions}")
+        print(f"翻译写入/更新: {upserted_translations}")
+        print("提示: JSON 中的 `summary` 字段当前未写入数据库，如需保留请扩展 schema 或额外处理。")
+
+    return {
+        "inserted": inserted_dimensions,
+        "updated": updated_dimensions,
+        "translations": upserted_translations,
+        "dry_run": dry_run,
+        "message": message,
+    }
+
+
+def main() -> None:
+    args = parse_args()
+    import_multilingual_dimensions(
+        json_path=Path(args.json),
+        db_path=Path(args.db),
+        dry_run=args.dry_run,
+        verbose=True,
+    )
 
 
 if __name__ == "__main__":

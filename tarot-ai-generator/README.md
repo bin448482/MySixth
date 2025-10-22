@@ -52,6 +52,10 @@ python main.py debug-sample --count 10 --locales zh-CN en-US
 # “情感-时间线-过去”维度全量生成（断点续传）
 python main.py dimension --name "情感-时间线-过去" --locales zh-CN en-US
 
+# 生成并导入多语言维度定义（默认写入 dimension 表）
+python main.py multilingual --text "她是否喜欢我？" --spread-type three-card
+# 若仅想生成 JSON，可追加 --no-import；若想先预览导入效果，可追加 --dry-run。
+
 # 根据问题描述匹配维度并生成
 python main.py question --text "我需要换工作吗？" --question-locale zh-CN --locales zh-CN en-US
 ```
@@ -99,6 +103,15 @@ python main.py question --text "我需要换工作吗？" --question-locale zh-C
 2. `dimension`（批量生成，确认 `failures`）
 3. `question`（产品/内容终验）
 4. 视需要将内容写回数据库或后台系统
+
+## 🧭 问题→维度→数据库工作流
+
+- **准备**：激活虚拟环境（`venv\Scripts\activate` 或 `source venv/bin/activate`）后执行 `pip install -r requirements.txt`；复制 `.env.example` 为 `.env` 并补齐与 `config/settings.yaml` 对应的 API Key；最后运行 `python -c "from config import Config; Config().validate()"` 确认配置无误。
+- **维度定义**：执行 `python main.py multilingual --text "她是否喜欢我？" --spread-type three-card`（可选 `--output` 指定 JSON 文件）；命令会默认写入 `dimension` / `dimension_translation` 表，若仅需生成文件请追加 `--no-import`，若想先确认导入内容请追加 `--dry-run`。
+- **生成**：使用 `python main.py question --text "<问题描述>" --question-locale zh-CN --locales zh-CN en-US` 让系统按问题描述匹配维度，并自动触发对应的 `dimension` 生成；检查生成后的 `output/questions/question_*.json` 以及 `output/dimensions/dimension_<id>.json`，确认 `failures` 列为空。
+- **补齐**：如需针对单个维度重跑，可执行 `python main.py dimension --name "<维度名称或ID>" --locales zh-CN en-US`；该命令会跳过已存在的语言组合，仅补齐缺失结果。
+- **导入**：执行 `python scripts/import_dimension_results.py --json output/dimensions/dimension_<id>.json --locales zh-CN en-US --dry-run` 预览写入内容，确认无误后去掉 `--dry-run` 正式写入；必要时先备份数据库。
+- **校验与记录**：使用 `sqlite3 data/tarot_config.db "SELECT interpretation_id, dimension_id, locale FROM card_interpretation_dimension_translation ORDER BY RANDOM() LIMIT 5;"` 抽查导入结果，并记录本次执行的命令、JSON 文件与发现问题，便于团队复现。
 
 ## 📥 导入生成结果到 SQLite
 
