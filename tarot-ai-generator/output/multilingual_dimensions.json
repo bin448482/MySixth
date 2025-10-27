@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
-  "generated_at": "2025-10-27T02:13:29Z",
-  "source_question": "我如何改善自己跟他（她）的关系？",
+  "generated_at": "2025-10-27T07:32:27Z",
+  "source_question": "考试或面试的结果可能会怎样？",
   "spread_type": "three-card",
   "source_locale": "zh-CN",
   "root_dimension_locale": "zh-CN",
@@ -13,82 +13,82 @@
   "dimensions": [
     {
       "dimension_key": {
-        "category": "情感",
-        "aspect": "当前情感状态",
+        "category": "学业",
+        "aspect": "知识掌握",
         "aspect_type": 1
       },
       "localizations": [
         {
           "locale": "zh-CN",
-          "name": "情感-当前状态",
-          "category": "情感",
-          "aspect": "当前情感状态",
+          "name": "学业-考试准备",
+          "category": "学业",
+          "aspect": "知识掌握",
           "aspect_type": 1,
-          "description": "分析当前您与对方的关系中，双方的情感状态如何，是否存在误解或矛盾。",
-          "summary": "了解当前情感状态，为改善关系提供基础。"
+          "description": "分析考生在考试前对相关知识的掌握程度，包括对考试内容的熟悉度和理解深度。",
+          "summary": "知识掌握程度直接影响考试表现，良好的准备是成功的关键。"
         },
         {
           "locale": "en-US",
-          "name": "Relationship-communication style",
-          "category": "Relationship",
-          "aspect": "communication style",
+          "name": "Fortune-potential outcome",
+          "category": "Fortune",
+          "aspect": "potential outcome",
           "aspect_type": 1,
-          "description": "Evaluate how you communicate with your partner, including listening skills and expressing emotions.",
-          "summary": "Improving communication can enhance understanding and connection in the relationship."
+          "description": "This dimension explores the external factors and opportunities that may influence the outcome of the exam or interview.",
+          "summary": "The cards suggest that external circumstances play a significant role in determining the final result."
         }
       ]
     },
     {
       "dimension_key": {
-        "category": "情感",
-        "aspect": "潜在的情感问题",
+        "category": "学业",
+        "aspect": "心理素质",
         "aspect_type": 2
       },
       "localizations": [
         {
           "locale": "zh-CN",
-          "name": "情感-潜在问题",
-          "category": "情感",
-          "aspect": "潜在的情感问题",
+          "name": "学业-心理状态",
+          "category": "学业",
+          "aspect": "心理素质",
           "aspect_type": 2,
-          "description": "探索可能导致关系紧张或冲突的潜在情感问题，如信任、沟通等。",
-          "summary": "识别潜在问题，为解决关系中的障碍做准备。"
+          "description": "考察考生在考试前的心理状态，包括焦虑、紧张等情绪对考试的影响。",
+          "summary": "良好的心理素质有助于应对考试压力，保持最佳状态。"
         },
         {
           "locale": "en-US",
-          "name": "Relationship-trust building",
-          "category": "Relationship",
-          "aspect": "trust building",
+          "name": "Fortune-inner preparation",
+          "category": "Fortune",
+          "aspect": "inner preparation",
           "aspect_type": 2,
-          "description": "Focus on building trust through honesty, reliability, and transparency in your interactions.",
-          "summary": "Trust is the foundation of a strong and lasting relationship."
+          "description": "This dimension delves into the internal readiness, mindset, and emotional state of the individual facing the exam or interview.",
+          "summary": "Internal preparation and mental readiness are crucial factors that can impact the final outcome."
         }
       ]
     },
     {
       "dimension_key": {
-        "category": "情感",
-        "aspect": "改善关系的策略",
+        "category": "学业",
+        "aspect": "环境与机遇",
         "aspect_type": 3
       },
       "localizations": [
         {
           "locale": "zh-CN",
-          "name": "情感-改善策略",
-          "category": "情感",
-          "aspect": "改善关系的策略",
+          "name": "学业-外部因素",
+          "category": "学业",
+          "aspect": "环境与机遇",
           "aspect_type": 3,
-          "description": "提供具体的改善关系的方法和建议，如增进沟通、共同活动等。",
-          "summary": "制定改善关系的具体行动计划，促进双方关系的和谐发展。"
+          "description": "分析考试当天的外部环境以及可能出现的机遇或挑战。",
+          "summary": "外部环境的变化可能会影响考试结果，合理应对外部因素是成功的一部分。"
         },
         {
           "locale": "en-US",
-          "name": "Relationship-quality time",
-          "category": "Relationship",
-          "aspect": "quality time",
+          "name": "Fortune-advice from the cards",
+          "category": "Fortune",
+          "aspect": "advice from the cards",
           "aspect_type": 3,
-          "description": "Allocate dedicated time for meaningful interactions, shared activities, and creating memories together.",
-          "summary": "Spending quality time together strengthens the bond and fosters intimacy."
+          "description": "This dimension provides insights and guidance from the Tarot cards on how to navigate the exam or interview successfully.",
+          "summary": "The cards advise focusing on both external opportunities and internal preparation to achieve a favorable outcome."
         }
       ]
     }
@@ -96,16 +96,16 @@
   "locales": [
     {
       "locale": "zh-CN",
-      "question": "我如何改善自己跟他（她）的关系？",
-      "overall_summary": "通过分析情感状态、识别潜在问题以及制定改善策略，全面审视并提升与对方的关系。",
+      "question": "考试或面试的结果可能会怎样？",
+      "overall_summary": "学业三维度分析揭示了考试成功的关键因素，包括知识准备、心理素质和外部环境，三者相互关联，共同影响考试结果。",
       "provider": "zhipu",
-      "model": "glm-4-Flash",
+      "model": "glm-4-flash",
       "prompt_template": "prompts/analyze_three_card.zh.txt"
     },
     {
       "locale": "en-US",
-      "question": "How can I improve my relationship with him (her)?",
-      "overall_summary": "To improve your relationship with your partner, focus on enhancing communication, building trust, and spending quality time together. These aspects form the pillars of a healthy and fulfilling relationship.",
+      "question": "What might be the outcome of the exam or interview?",
+      "overall_summary": "The three-card spread indicates that success in the exam or interview is influenced by a combination of external circumstances, internal readiness, and guidance from the Tarot cards. Balancing these factors can lead to a positive outcome.",
       "provider": "openai",
       "model": "gpt-3.5-turbo",
       "prompt_template": "prompts/analyze_three_card.en.txt",

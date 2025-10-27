@@ -42,7 +42,8 @@ def test_zhipu(config: Config) -> Tuple[bool, str]:
             max_tokens=32,
         )
         content = response.choices[0].message.content.strip()
-        return content == "连接正常", f"返回: {content}"
+        normalized = content.rstrip("。.!！").strip()
+        return normalized == "连接正常", f"返回: {content}"
     except Exception as exc:  # pylint: disable=broad-except
         return False, f"调用失败: {exc}"
 
