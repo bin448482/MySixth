@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
-  "generated_at": "2025-10-22T08:33:36Z",
-  "source_question": "他或她是否喜欢我？",
+  "generated_at": "2025-10-27T02:13:29Z",
+  "source_question": "我如何改善自己跟他（她）的关系？",
   "spread_type": "three-card",
   "source_locale": "zh-CN",
   "root_dimension_locale": "zh-CN",
@@ -14,18 +14,18 @@
     {
       "dimension_key": {
         "category": "情感",
-        "aspect": "他或她当前对我有何感受",
+        "aspect": "当前情感状态",
         "aspect_type": 1
       },
       "localizations": [
         {
           "locale": "zh-CN",
-          "name": "情感-当前感受",
+          "name": "情感-当前状态",
           "category": "情感",
-          "aspect": "他或她当前对我有何感受",
+          "aspect": "当前情感状态",
           "aspect_type": 1,
-          "description": "分析当前阶段，对方内心对我产生的情感反应，包括好感、兴趣或排斥等。",
-          "summary": "了解对方当前的情感状态，为后续分析提供基础。"
+          "description": "分析当前您与对方的关系中，双方的情感状态如何，是否存在误解或矛盾。",
+          "summary": "了解当前情感状态，为改善关系提供基础。"
         },
         {
           "locale": "en-US",
@@ -33,62 +33,62 @@
           "category": "Relationship",
           "aspect": "communication style",
           "aspect_type": 1,
-          "description": "Explore how the person communicates and expresses their feelings towards you.",
-          "summary": "Understanding their communication style can provide insights into their feelings."
+          "description": "Evaluate how you communicate with your partner, including listening skills and expressing emotions.",
+          "summary": "Improving communication can enhance understanding and connection in the relationship."
         }
       ]
     },
     {
       "dimension_key": {
         "category": "情感",
-        "aspect": "他或我过去是否有相似的情感经历",
+        "aspect": "潜在的情感问题",
         "aspect_type": 2
       },
       "localizations": [
         {
           "locale": "zh-CN",
-          "name": "情感-过去经历",
+          "name": "情感-潜在问题",
           "category": "情感",
-          "aspect": "他或我过去是否有相似的情感经历",
+          "aspect": "潜在的情感问题",
           "aspect_type": 2,
-          "description": "回顾双方过去的互动，是否有共同的情感基础或相似的经历，这可能影响当前的情感状态。",
-          "summary": "通过过去经历了解双方的情感联系，有助于理解当前的情感动态。"
+          "description": "探索可能导致关系紧张或冲突的潜在情感问题，如信任、沟通等。",
+          "summary": "识别潜在问题，为解决关系中的障碍做准备。"
         },
         {
           "locale": "en-US",
-          "name": "Relationship-body language",
+          "name": "Relationship-trust building",
           "category": "Relationship",
-          "aspect": "body language",
+          "aspect": "trust building",
           "aspect_type": 2,
-          "description": "Observe their non-verbal cues and gestures when interacting with you.",
-          "summary": "Body language can reveal hidden emotions and attraction."
+          "description": "Focus on building trust through honesty, reliability, and transparency in your interactions.",
+          "summary": "Trust is the foundation of a strong and lasting relationship."
         }
       ]
     },
     {
       "dimension_key": {
         "category": "情感",
-        "aspect": "他或她对我未来的情感走向",
+        "aspect": "改善关系的策略",
         "aspect_type": 3
       },
       "localizations": [
         {
           "locale": "zh-CN",
-          "name": "情感-未来趋势",
+          "name": "情感-改善策略",
           "category": "情感",
-          "aspect": "他或她对我未来的情感走向",
+          "aspect": "改善关系的策略",
           "aspect_type": 3,
-          "description": "预测未来双方情感的发展趋势，包括可能的发展方向和潜在的问题。",
-          "summary": "对未来情感走向的预测，为双方关系的发展提供参考。"
+          "description": "提供具体的改善关系的方法和建议，如增进沟通、共同活动等。",
+          "summary": "制定改善关系的具体行动计划，促进双方关系的和谐发展。"
         },
         {
           "locale": "en-US",
-          "name": "Relationship-reciprocity",
+          "name": "Relationship-quality time",
           "category": "Relationship",
-          "aspect": "reciprocity",
+          "aspect": "quality time",
           "aspect_type": 3,
-          "description": "Evaluate if there is mutual interest and effort in the relationship.",
-          "summary": "Reciprocity is key to a healthy and balanced connection."
+          "description": "Allocate dedicated time for meaningful interactions, shared activities, and creating memories together.",
+          "summary": "Spending quality time together strengthens the bond and fosters intimacy."
         }
       ]
     }
@@ -96,16 +96,16 @@
   "locales": [
     {
       "locale": "zh-CN",
-      "question": "他或她是否喜欢我？",
-      "overall_summary": "通过分析情感维度，从当前感受、过去经历和未来趋势三个角度，全面了解他或她是否喜欢我。",
+      "question": "我如何改善自己跟他（她）的关系？",
+      "overall_summary": "通过分析情感状态、识别潜在问题以及制定改善策略，全面审视并提升与对方的关系。",
       "provider": "zhipu",
       "model": "glm-4-Flash",
       "prompt_template": "prompts/analyze_three_card.zh.txt"
     },
     {
       "locale": "en-US",
-      "question": "Does he or she like me?",
-      "overall_summary": "By analyzing the communication style, body language, and reciprocity in your interactions, you can gain a deeper understanding of whether the person likes you or not.",
+      "question": "How can I improve my relationship with him (her)?",
+      "overall_summary": "To improve your relationship with your partner, focus on enhancing communication, building trust, and spending quality time together. These aspects form the pillars of a healthy and fulfilling relationship.",
       "provider": "openai",
       "model": "gpt-3.5-turbo",
       "prompt_template": "prompts/analyze_three_card.en.txt",
