@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
-  "generated_at": "2025-10-27T07:32:27Z",
-  "source_question": "考试或面试的结果可能会怎样？",
+  "generated_at": "2025-10-27T08:36:25Z",
+  "source_question": "这件事揭示哪些隐喻，对未来有什么影响？",
   "spread_type": "three-card",
   "source_locale": "zh-CN",
   "root_dimension_locale": "zh-CN",
@@ -13,82 +13,82 @@
   "dimensions": [
     {
       "dimension_key": {
-        "category": "学业",
-        "aspect": "知识掌握",
+        "category": "情感",
+        "aspect": "心理隐喻",
         "aspect_type": 1
       },
       "localizations": [
         {
           "locale": "zh-CN",
-          "name": "学业-考试准备",
-          "category": "学业",
-          "aspect": "知识掌握",
+          "name": "情感-当前状态",
+          "category": "情感",
+          "aspect": "心理隐喻",
           "aspect_type": 1,
-          "description": "分析考生在考试前对相关知识的掌握程度，包括对考试内容的熟悉度和理解深度。",
-          "summary": "知识掌握程度直接影响考试表现，良好的准备是成功的关键。"
+          "description": "分析当前事件对个人情感和心理状态的影响，揭示其中的隐喻。",
+          "summary": "了解事件对情感层面的影响，识别心理隐喻。"
         },
         {
           "locale": "en-US",
-          "name": "Fortune-potential outcome",
-          "category": "Fortune",
-          "aspect": "potential outcome",
+          "name": "Analogy-symbolic interpretation",
+          "category": "Analogy",
+          "aspect": "symbolic interpretation",
           "aspect_type": 1,
-          "description": "This dimension explores the external factors and opportunities that may influence the outcome of the exam or interview.",
-          "summary": "The cards suggest that external circumstances play a significant role in determining the final result."
+          "description": "Uncover the hidden meanings and symbols within the cards to reveal deeper insights.",
+          "summary": "Exploring the symbolic language of the Tarot cards can provide profound insights into the user's question."
         }
       ]
     },
     {
       "dimension_key": {
-        "category": "学业",
-        "aspect": "心理素质",
+        "category": "运势",
+        "aspect": "影响预测",
         "aspect_type": 2
       },
       "localizations": [
         {
           "locale": "zh-CN",
-          "name": "学业-心理状态",
-          "category": "学业",
-          "aspect": "心理素质",
+          "name": "运势-未来趋势",
+          "category": "运势",
+          "aspect": "影响预测",
           "aspect_type": 2,
-          "description": "考察考生在考试前的心理状态，包括焦虑、紧张等情绪对考试的影响。",
-          "summary": "良好的心理素质有助于应对考试压力，保持最佳状态。"
+          "description": "从事件中分析未来可能的发展趋势，预测其对个人运势的影响。",
+          "summary": "预测事件对未来运势的可能影响。"
         },
         {
           "locale": "en-US",
-          "name": "Fortune-inner preparation",
-          "category": "Fortune",
-          "aspect": "inner preparation",
+          "name": "Analogy-metaphorical connections",
+          "category": "Analogy",
+          "aspect": "metaphorical connections",
           "aspect_type": 2,
-          "description": "This dimension delves into the internal readiness, mindset, and emotional state of the individual facing the exam or interview.",
-          "summary": "Internal preparation and mental readiness are crucial factors that can impact the final outcome."
+          "description": "Analyze the metaphors present in the cards to understand their relevance to the user's query.",
+          "summary": "Interpreting the metaphors in the Tarot spread can offer a unique perspective on the user's question."
         }
       ]
     },
     {
       "dimension_key": {
-        "category": "学业",
-        "aspect": "环境与机遇",
+        "category": "决策",
+        "aspect": "应对策略",
         "aspect_type": 3
       },
       "localizations": [
         {
           "locale": "zh-CN",
-          "name": "学业-外部因素",
-          "category": "学业",
-          "aspect": "环境与机遇",
+          "name": "决策-行动建议",
+          "category": "决策",
+          "aspect": "应对策略",
           "aspect_type": 3,
-          "description": "分析考试当天的外部环境以及可能出现的机遇或挑战。",
-          "summary": "外部环境的变化可能会影响考试结果，合理应对外部因素是成功的一部分。"
+          "description": "基于前两个维度的分析，提出应对当前事件和未来趋势的具体行动建议。",
+          "summary": "提供基于分析的应对策略，指导行动方向。"
         },
         {
           "locale": "en-US",
-          "name": "Fortune-advice from the cards",
-          "category": "Fortune",
-          "aspect": "advice from the cards",
+          "name": "Analogy-subconscious insights",
+          "category": "Analogy",
+          "aspect": "subconscious insights",
           "aspect_type": 3,
-          "description": "This dimension provides insights and guidance from the Tarot cards on how to navigate the exam or interview successfully.",
-          "summary": "The cards advise focusing on both external opportunities and internal preparation to achieve a favorable outcome."
+          "description": "Delve into the subconscious messages conveyed by the cards to uncover hidden truths and revelations.",
+          "summary": "Exploring the subconscious insights of the Tarot cards can provide profound revelations about the user's query."
         }
       ]
     }
@@ -96,16 +96,16 @@
   "locales": [
     {
       "locale": "zh-CN",
-      "question": "考试或面试的结果可能会怎样？",
-      "overall_summary": "学业三维度分析揭示了考试成功的关键因素，包括知识准备、心理素质和外部环境，三者相互关联，共同影响考试结果。",
+      "question": "这件事揭示哪些隐喻，对未来有什么影响？",
+      "overall_summary": "通过分析情感、运势和决策三个维度，全面解读事件隐喻，预测未来影响，并给出行动建议。",
       "provider": "zhipu",
       "model": "glm-4-flash",
       "prompt_template": "prompts/analyze_three_card.zh.txt"
     },
     {
       "locale": "en-US",
-      "question": "What might be the outcome of the exam or interview?",
-      "overall_summary": "The three-card spread indicates that success in the exam or interview is influenced by a combination of external circumstances, internal readiness, and guidance from the Tarot cards. Balancing these factors can lead to a positive outcome.",
+      "question": "What metaphors does this reveal and what impact will it have on the future?",
+      "overall_summary": "By analyzing the symbolic interpretation, metaphorical connections, and subconscious insights of the Tarot cards, a deeper understanding of the user's question and its impact on the future can be revealed through the lens of analogy.",
       "provider": "openai",
       "model": "gpt-3.5-turbo",
       "prompt_template": "prompts/analyze_three_card.en.txt",

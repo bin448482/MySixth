@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import json
 import sqlite3
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Iterable, Tuple, Union
 
@@ -175,6 +176,8 @@ def import_multilingual_dimensions(  # type: ignore[override]
     updated_dimensions = 0
     upserted_translations = 0
 
+    timestamp_suffix = datetime.utcnow().strftime("_%Y%m%d%H%M%S")
+
     try:
         for idx, record in enumerate(dimensions, start=1):
             localizations = list(iter_localizations(record))
@@ -194,9 +197,11 @@ def import_multilingual_dimensions(  # type: ignore[override]
             if not name:
                 raise ValueError(f"第 {idx} 条记录的根语言名称为空。")
 
+            unique_name = f"{name}{timestamp_suffix}"
+
             dim_id, created, changed = upsert_dimension(
                 cursor,
-                name=name,
+                name=unique_name,
                 category=category or "",
                 description=description,
                 aspect=aspect,
@@ -213,11 +218,15 @@ def import_multilingual_dimensions(  # type: ignore[override]
                 if locale == root_locale:
                     continue
 
+                translation_name = entry.get("name", "")
+                if translation_name:
+                    translation_name = f"{translation_name}{timestamp_suffix}"
+
                 translation_written = upsert_dimension_translation(
                     cursor,
                     dimension_id=dim_id,
                     locale=locale,
-                    name=entry.get("name", ""),
+                    name=translation_name,
                     description=locale_questions.get(locale),
                     aspect=entry.get("aspect"),
                     category=entry.get("category"),

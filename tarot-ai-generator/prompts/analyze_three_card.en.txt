@@ -4,13 +4,13 @@ User description: {question}
 
 ### Requirements:
 
-1. Identify **one main category** that best fits the user’s question (choose from the list below).
+1. Choose **exactly one main category** that best fits the user’s question (from the list below) and treat it as `selected_category`. All three dimensions must belong to `selected_category`; if an aspect seems to fall outside the category, adjust its wording so it still fits.
 2. Generate **three detailed analytical aspects (category-aspect)** that reflect the question **following the logical progression of development**.
-3. All three dimensions must share the **same category prefix**.
+3. Before returning the result, perform a self-check to ensure every dimension’s `category` field exactly matches `selected_category`.
 4. For each dimension, provide:
 
-   * **name**: Combine "category name" and "analysis angle" using a hyphen "-", for example, "fortune-recent opportunities". Do not output placeholders or underscores.
-   * **category**: the main category (chosen from the list)
+   * **name**: Combine `selected_category` and the analysis angle with a hyphen "-", for example, "fortune-recent opportunities". Do not output placeholders or underscores.
+   * **category**: the main category (must equal `selected_category`)
    * **aspect**: the specific analytical focus of this dimension
    * **aspect_type**: number 1, 2, or 3, representing the sequence of analysis
    * **description**: a brief explanation of what this dimension represents (1–2 sentences)
