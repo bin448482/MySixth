@@ -8,7 +8,7 @@
 2. 生成三个细化的分析角度（类别-aspect），体现问题**按照发展的逻辑递进**。
 3. 输出前进行自检：保证三个维度的 `category` 字段都与 selected_category 完全一致。
 4. 为每个维度提供：
-   * **name**：用 selected_category 与分析角度组成，格式为“{selected_category}-{分析角度}”，不得输出占位符或下划线形式。
+   * **name**：用 selected_category 对应的实际类别词与分析角度组成，格式为“类别词-分析角度”。例如当 selected_category=<类别词>、分析角度=<分析角度>时，请输出“<类别词>-<分析角度>”；必须替换为模型选定的真实类别词和分析角度，不得保留占位符或使用固定示例。
    * **category**：所属类别（必须等于 selected_category）
    * **aspect**：该维度的具体分析角度
    * **aspect_type**：数字1、2、3，依次对应分析顺序

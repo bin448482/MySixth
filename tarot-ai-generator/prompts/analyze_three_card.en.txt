@@ -9,7 +9,7 @@ User description: {question}
 3. Before returning the result, perform a self-check to ensure every dimension’s `category` field exactly matches `selected_category`.
 4. For each dimension, provide:
 
-   * **name**: Combine `selected_category` and the analysis angle with a hyphen "-", for example, "fortune-recent opportunities". Do not output placeholders or underscores.
+   * **name**: Combine the real category term that `selected_category` resolves to with the analysis angle, joined by a hyphen "-". For example, if selected_category=<category> and aspect=<angle>, output "<category>-<angle>". Always substitute the actual category and angle; never leave placeholders or reuse a fixed example.
    * **category**: the main category (must equal `selected_category`)
    * **aspect**: the specific analytical focus of this dimension
    * **aspect_type**: number 1, 2, or 3, representing the sequence of analysis
