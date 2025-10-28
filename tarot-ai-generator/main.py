@@ -20,6 +20,8 @@ from rich.traceback import install as install_rich_traceback
 
 from config import Config
 from services.generation_service import GenerationService
+from multilingual import MultilingualDimensionGenerator
+from import_multilingual_dimensions import import_multilingual_dimensions as import_multilingual_dimensions_into_db
 
 install_rich_traceback(show_locals=False)
 
@@ -79,6 +81,43 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     # ------------------------------------------------------------------ #
+    # multilingual
+    # ------------------------------------------------------------------ #
+    multilingual_parser = subparsers.add_parser(
+        "multilingual",
+        help="根据单个问题生成多语言维度定义（dimension 表描述数据）。",
+    )
+    multilingual_parser.add_argument(
+        "--text",
+        required=True,
+        help="问题描述文本，会写入维度 description 以供 question 流程匹配。",
+    )
+    multilingual_parser.add_argument(
+        "--spread-type",
+        help="可选牌阵类型，默认读取配置文件。",
+    )
+    multilingual_parser.add_argument(
+        "--output",
+        type=Path,
+        help="自定义输出文件路径（默认 config.general.multilingual_output_path）。",
+    )
+    multilingual_parser.add_argument(
+        "--db",
+        type=Path,
+        help="自定义数据库路径，默认读取 config.database.path。",
+    )
+    multilingual_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="仅生成并预览导入效果，不写入数据库。",
+    )
+    multilingual_parser.add_argument(
+        "--no-import",
+        action="store_true",
+        help="只生成 JSON，不执行数据库导入。",
+    )
+
+    # ------------------------------------------------------------------ #
     # question
     # ------------------------------------------------------------------ #
     question_parser = subparsers.add_parser(
@@ -126,6 +165,35 @@ async def async_main(args: argparse.Namespace, console: Console) -> None:
             args.name,
             locales=args.locales,
             persist=persist,
+        )
+        return
+
+    if args.command == "multilingual":
+        generator = MultilingualDimensionGenerator(config, console)
+        output_path = await asyncio.to_thread(
+            generator.generate,
+            args.text,
+            spread_type=args.spread_type,
+            output_path=str(args.output) if args.output else None,
+        )
+        console.print(f"[green]多语言维度定义已生成: {output_path}[/green]")
+        if args.no_import:
+            return
+
+        db_target = str(args.db) if args.db else config.DATABASE_PATH
+        console.print(f"[blue]正在导入维度描述至数据库: {db_target}[/blue]")
+
+        result = await asyncio.to_thread(
+            import_multilingual_dimensions_into_db,
+            output_path,
+            db_path=db_target,
+            dry_run=args.dry_run,
+            verbose=True,
+        )
+        status = "Dry run 完成" if result["dry_run"] else "导入完成"
+        console.print(
+            f"[green]{status}[/green] "
+            f"(新增 {result['inserted']} / 更新 {result['updated']} / 翻译 {result['translations']})"
         )
         return
 

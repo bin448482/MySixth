@@ -7,6 +7,7 @@
 ## 🎯 核心功能
 
 - **多语言调试样本**：`debug-sample` 命令随机抽取卡牌 × 维度组合，快速评估中/英等语言的提示词效果。
+- **维度定义生成**：`multilingual` 命令根据问题文本输出多语言维度描述 JSON，支撑 `dimension` / `question` 触发链路。
 - **维度全量生成**：`dimension` 命令一次性为 156 张卡牌生成指定维度的多语言解读，自动断点续传并追踪失败项。
 - **问题驱动生成**：`question` 命令根据问题描述匹配 3 个维度，循环调用 `dimension` 流程输出整套多语言解读。
 - **多模型路由**：按语言配置不同模型、温度、速率限制与并发批大小，自动调用智谱、OpenAI 或 Ollama。
@@ -89,6 +90,15 @@ python main.py debug-sample --count 10 --locales zh-CN en-US
 ```
 - 输出位置：`output/debug_samples/debug_samples_<timestamp>.json`
 - 内容包含卡牌/维度上下文与多语言生成结果，便于比较提示词表现。
+
+### 多语言维度定义（multilingual）
+```bash
+# 基于问题文本生成多语言维度定义 JSON，并写入 dimension 表
+python main.py multilingual --text "她是否喜欢我？" --spread-type three-card
+# 仅生成 JSON：追加 --no-import；仅预览导入：追加 --dry-run
+```
+- 输出位置：默认 `output/multilingual_dimensions.json`，可通过 `--output` 自定义。
+- 命令默认立即写入 `dimension` / `dimension_translation`；如需手动导入，也可使用 `--no-import` 并执行 `import_multilingual_dimensions.py`。
 
 ### 维度全量生成（dimension）
 ```bash
