@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
-  "generated_at": "2025-10-28T01:03:39Z",
-  "source_question": "最近的我的精神状态如何，有什么变化？",
+  "generated_at": "2025-10-28T03:09:21Z",
+  "source_question": "是不是应该分手或者分开一段时间？",
   "spread_type": "three-card",
   "source_locale": "zh-CN",
   "root_dimension_locale": "zh-CN",
@@ -13,82 +13,82 @@
   "dimensions": [
     {
       "dimension_key": {
-        "category": "精神",
-        "aspect": "当前的精神状态",
+        "category": "情感",
+        "aspect": "当前情感状态",
         "aspect_type": 1
       },
       "localizations": [
         {
           "locale": "zh-CN",
-          "name": "精神-当前状态",
-          "category": "精神",
-          "aspect": "当前的精神状态",
+          "name": "情感-关系现状",
+          "category": "情感",
+          "aspect": "当前情感状态",
           "aspect_type": 1,
-          "description": "分析当前的精神状态，包括情绪、思维模式等。",
-          "summary": "了解当前的精神状态，为后续分析提供基础。"
+          "description": "分析当前双方的情感状态，了解情感是否健康稳定。",
+          "summary": "了解当前情感状态，为决策提供依据。"
         },
         {
           "locale": "en-US",
-          "name": "Emotion-mental state",
-          "category": "Emotion",
-          "aspect": "mental state",
+          "name": "Relationship-communication",
+          "category": "Relationship",
+          "aspect": "communication",
           "aspect_type": 1,
-          "description": "Reflects your current emotional well-being and inner state.",
-          "summary": "Your mental state may be influenced by emotional fluctuations."
+          "description": "Focuses on the current level of communication in the relationship.",
+          "summary": "Open and honest communication is key to understanding each other's needs."
         }
       ]
     },
     {
       "dimension_key": {
-        "category": "精神",
-        "aspect": "精神状态的变化趋势",
+        "category": "情感",
+        "aspect": "情感发展趋势",
         "aspect_type": 2
       },
       "localizations": [
         {
           "locale": "zh-CN",
-          "name": "精神-变化趋势",
-          "category": "精神",
-          "aspect": "精神状态的变化趋势",
+          "name": "情感-未来趋势",
+          "category": "情感",
+          "aspect": "情感发展趋势",
           "aspect_type": 2,
-          "description": "观察精神状态的变化，包括积极或消极的变化。",
-          "summary": "识别精神状态的变化趋势，为调整提供方向。"
+          "description": "分析情感的发展趋势，预测未来可能的变化。",
+          "summary": "预测情感发展趋势，为是否分手提供参考。"
         },
         {
           "locale": "en-US",
-          "name": "Emotion-changes",
-          "category": "Emotion",
-          "aspect": "changes",
+          "name": "Relationship-space",
+          "category": "Relationship",
+          "aspect": "space",
           "aspect_type": 2,
-          "description": "Highlights any shifts or developments in your emotional landscape.",
-          "summary": "Changes in your emotions could be impacting your overall well-being."
+          "description": "Explores the need for personal space and boundaries within the relationship.",
+          "summary": "Respecting each other's space can lead to a healthier dynamic."
         }
       ]
     },
     {
       "dimension_key": {
-        "category": "精神",
-        "aspect": "内在驱动力的影响",
+        "category": "情感",
+        "aspect": "内心需求与满足度",
         "aspect_type": 3
       },
       "localizations": [
         {
           "locale": "zh-CN",
-          "name": "精神-内在驱动力",
-          "category": "精神",
-          "aspect": "内在驱动力的影响",
+          "name": "情感-内心需求",
+          "category": "情感",
+          "aspect": "内心需求与满足度",
           "aspect_type": 3,
-          "description": "分析内在驱动力对精神状态的影响，包括动力来源和影响程度。",
-          "summary": "探究内在驱动力，为精神状态的提升提供动力。"
+          "description": "分析双方内心的需求是否得到满足，以及满足度如何。",
+          "summary": "评估内心需求，判断是否需要分手或分开一段时间。"
         },
         {
           "locale": "en-US",
-          "name": "Mindset-awareness",
-          "category": "Mindset",
-          "aspect": "awareness",
+          "name": "Relationship-decision",
+          "category": "Relationship",
+          "aspect": "decision",
           "aspect_type": 3,
-          "description": "Focuses on your level of consciousness and self-awareness.",
-          "summary": "Increasing self-awareness can help navigate emotional changes effectively."
+          "description": "Examines the potential outcomes of breaking up or taking a break.",
+          "summary": "Consider the consequences of each choice before making a decision."
         }
       ]
     }
@@ -96,16 +96,16 @@
   "locales": [
     {
       "locale": "zh-CN",
-      "question": "最近的我的精神状态如何，有什么变化？",
-      "overall_summary": "通过分析当前精神状态、变化趋势和内在驱动力，全面了解精神状态的变化及其原因，为精神健康提供指导。",
+      "question": "是不是应该分手或者分开一段时间？",
+      "overall_summary": "通过分析情感现状、发展趋势和内心需求，综合判断是否应该分手或分开一段时间。",
       "provider": "zhipu",
       "model": "glm-4-flash",
       "prompt_template": "prompts/analyze_three_card.zh.txt"
     },
     {
       "locale": "en-US",
-      "question": "How has my mental state been recently, and what changes have occurred?",
-      "overall_summary": "Your mental state is closely tied to emotional fluctuations and recent changes. Developing self-awareness can aid in understanding and managing these emotional shifts effectively.",
+      "question": "Should we break up or take a break?",
+      "overall_summary": "The three-card spread delves into the importance of communication, personal space, and decision-making in the relationship context. Understanding each other's needs, respecting boundaries, and carefully weighing options are crucial for navigating this situation.",
       "provider": "openai",
       "model": "gpt-3.5-turbo",
       "prompt_template": "prompts/analyze_three_card.en.txt",
