@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
-  "generated_at": "2025-10-27T13:28:24Z",
-  "source_question": " 发生的事情揭示哪些隐喻，对未来有什么影响？",
+  "generated_at": "2025-10-28T01:03:39Z",
+  "source_question": "最近的我的精神状态如何，有什么变化？",
   "spread_type": "three-card",
   "source_locale": "zh-CN",
   "root_dimension_locale": "zh-CN",
@@ -13,82 +13,82 @@
   "dimensions": [
     {
       "dimension_key": {
-        "category": "类比",
-        "aspect": "事件背景中的隐喻解读",
+        "category": "精神",
+        "aspect": "当前的精神状态",
         "aspect_type": 1
       },
       "localizations": [
         {
           "locale": "zh-CN",
-          "name": "隐喻-事件背景",
-          "category": "类比",
-          "aspect": "事件背景中的隐喻解读",
+          "name": "精神-当前状态",
+          "category": "精神",
+          "aspect": "当前的精神状态",
           "aspect_type": 1,
-          "description": "分析事件背景中包含的隐喻，揭示其象征意义。",
-          "summary": "通过隐喻理解事件的深层含义。"
+          "description": "分析当前的精神状态，包括情绪、思维模式等。",
+          "summary": "了解当前的精神状态，为后续分析提供基础。"
         },
         {
           "locale": "en-US",
-          "name": "fortune-metaphorical events",
-          "category": "Fortune",
-          "aspect": "metaphorical events",
+          "name": "Emotion-mental state",
+          "category": "Emotion",
+          "aspect": "mental state",
           "aspect_type": 1,
-          "description": "Interpreting the events symbolically to uncover hidden meanings and messages.",
-          "summary": "The events hold deeper symbolic significance beyond their surface appearance."
+          "description": "Reflects your current emotional well-being and inner state.",
+          "summary": "Your mental state may be influenced by emotional fluctuations."
         }
       ]
     },
     {
       "dimension_key": {
-        "category": "类比",
-        "aspect": "事件对心理层面的影响",
+        "category": "精神",
+        "aspect": "精神状态的变化趋势",
         "aspect_type": 2
       },
       "localizations": [
         {
           "locale": "zh-CN",
-          "name": "影响-心理层面",
-          "category": "类比",
-          "aspect": "事件对心理层面的影响",
+          "name": "精神-变化趋势",
+          "category": "精神",
+          "aspect": "精神状态的变化趋势",
           "aspect_type": 2,
-          "description": "探讨事件如何影响个人的心理状态和情感反应。",
-          "summary": "洞察事件对个人心理的潜在影响。"
+          "description": "观察精神状态的变化，包括积极或消极的变化。",
+          "summary": "识别精神状态的变化趋势，为调整提供方向。"
         },
         {
           "locale": "en-US",
-          "name": "fortune-future impact",
-          "category": "Fortune",
-          "aspect": "future impact",
+          "name": "Emotion-changes",
+          "category": "Emotion",
+          "aspect": "changes",
           "aspect_type": 2,
-          "description": "Predicting the potential consequences and outcomes of the events in the future.",
-          "summary": "Understanding how the events will shape and influence future circumstances."
+          "description": "Highlights any shifts or developments in your emotional landscape.",
+          "summary": "Changes in your emotions could be impacting your overall well-being."
         }
       ]
     },
     {
       "dimension_key": {
-        "category": "类比",
-        "aspect": "事件对未来趋势的启示",
+        "category": "精神",
+        "aspect": "内在驱动力的影响",
         "aspect_type": 3
       },
       "localizations": [
         {
           "locale": "zh-CN",
-          "name": "启示-未来趋势",
-          "category": "类比",
-          "aspect": "事件对未来趋势的启示",
+          "name": "精神-内在驱动力",
+          "category": "精神",
+          "aspect": "内在驱动力的影响",
           "aspect_type": 3,
-          "description": "分析事件对未来可能趋势的预示和影响。",
-          "summary": "预测事件对未来可能带来的影响和趋势。"
+          "description": "分析内在驱动力对精神状态的影响，包括动力来源和影响程度。",
+          "summary": "探究内在驱动力，为精神状态的提升提供动力。"
         },
         {
           "locale": "en-US",
-          "name": "fortune-metaphorical insights",
-          "category": "Fortune",
-          "aspect": "metaphorical insights",
+          "name": "Mindset-awareness",
+          "category": "Mindset",
+          "aspect": "awareness",
           "aspect_type": 3,
-          "description": "Extracting valuable insights and lessons from the metaphorical aspects of the events.",
-          "summary": "Gaining wisdom and guidance by delving into the symbolic meanings revealed by the events."
+          "description": "Focuses on your level of consciousness and self-awareness.",
+          "summary": "Increasing self-awareness can help navigate emotional changes effectively."
         }
       ]
     }
@@ -96,16 +96,16 @@
   "locales": [
     {
       "locale": "zh-CN",
-      "question": " 发生的事情揭示哪些隐喻，对未来有什么影响？",
-      "overall_summary": "通过分析事件背景中的隐喻、事件对心理层面的影响以及事件对未来趋势的启示，全面解读事件的意义及其对未来可能的影响。",
+      "question": "最近的我的精神状态如何，有什么变化？",
+      "overall_summary": "通过分析当前精神状态、变化趋势和内在驱动力，全面了解精神状态的变化及其原因，为精神健康提供指导。",
       "provider": "zhipu",
       "model": "glm-4-flash",
       "prompt_template": "prompts/analyze_three_card.zh.txt"
     },
     {
       "locale": "en-US",
-      "question": "What metaphors do the events reveal, and what impact will they have on the future?",
-      "overall_summary": "By interpreting the events metaphorically, understanding their future impact, and extracting insights, you can uncover hidden meanings, predict outcomes, and gain valuable wisdom for navigating future circumstances.",
+      "question": "How has my mental state been recently, and what changes have occurred?",
+      "overall_summary": "Your mental state is closely tied to emotional fluctuations and recent changes. Developing self-awareness can aid in understanding and managing these emotional shifts effectively.",
       "provider": "openai",
       "model": "gpt-3.5-turbo",
       "prompt_template": "prompts/analyze_three_card.en.txt",
