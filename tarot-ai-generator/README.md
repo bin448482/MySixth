@@ -113,6 +113,8 @@ python main.py question --text "我需要换工作吗？" --question-locale zh-C
 - **导入**：执行 `python scripts/import_dimension_results.py --json output/dimensions/dimension_<id>.json --locales zh-CN en-US --dry-run` 预览写入内容，确认无误后去掉 `--dry-run` 正式写入；必要时先备份数据库。
 - **校验与记录**：使用 `sqlite3 data/tarot_config.db "SELECT interpretation_id, dimension_id, locale FROM card_interpretation_dimension_translation ORDER BY RANDOM() LIMIT 5;"` 抽查导入结果，并记录本次执行的命令、JSON 文件与发现问题，便于团队复现。
 
+python scripts\check_dimension_timestamps.py 检查输出
+
 ## 📥 导入生成结果到 SQLite
 
 - **备份数据库**：`sqlite3 data/tarot_config.db ".backup 'backup/tarot_config_YYYYMMDD.db'"`
