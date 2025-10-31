@@ -3,7 +3,7 @@
 
 -- DELETE FROM dimension_translation WHERE dimension_id IN (101);
 
-DELETE from card_interpretation_dimension where dimension_id >= 107 AND dimension_id <109;
+DELETE from card_interpretation_dimension where dimension_id in (107,108,109,112,113,114,115);
 DELETE from card_interpretation_dimension_translation where dimension_interpretation_id not in (select id from card_interpretation_dimension);
 
 -- DELETE FROM dimension WHERE id >= 95;
