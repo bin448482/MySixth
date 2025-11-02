@@ -112,6 +112,7 @@ export default function TypeSelectionScreen() {
         <Text style={styles.title}>{t('type.title')}</Text>
         <Text style={styles.subtitle}>{t('type.subtitle')}</Text>
       </View>
+      <GuidanceTips />
 
       <View style={styles.optionsContainer}>
         <TouchableOpacity
@@ -214,6 +215,30 @@ export default function TypeSelectionScreen() {
   );
 }
 
+const GuidanceTips: React.FC = () => {
+  const { t } = useTranslation('reading');
+  const guidanceLines = React.useMemo(() => {
+    const lines = t('type.guidance.lines', { returnObjects: true });
+    return Array.isArray(lines) ? (lines as string[]) : [];
+  }, [t]);
+
+  if (!guidanceLines.length) {
+    return null;
+  }
+
+  return (
+    <View style={styles.guidanceContainer}>
+      <Text style={styles.guidanceTitle}>{t('type.guidance.title')}</Text>
+      {guidanceLines.map((line, index) => (
+        <View key={index} style={styles.guidanceItem}>
+          <View style={styles.guidanceBullet} />
+          <Text style={styles.guidanceText}>{line}</Text>
+        </View>
+      ))}
+    </View>
+  );
+};
+
 const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
@@ -240,6 +265,46 @@ const styles = StyleSheet.create({
   },
   optionsContainer: {
     gap: 24,
+  },
+  guidanceContainer: {
+    backgroundColor: 'rgba(22, 33, 62, 0.75)',
+    borderRadius: 16,
+    paddingVertical: 20,
+    paddingHorizontal: 20,
+    marginBottom: 44,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 215, 0, 0.25)',
+    shadowColor: '#000',
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+  },
+  guidanceTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFE597',
+    textAlign: 'center',
+    marginBottom: 16,
+    letterSpacing: 0.5,
+  },
+  guidanceItem: {
+    flexDirection: 'row',
+    gap: 10,
+    alignItems: 'flex-start',
+    marginBottom: 10,
+  },
+  guidanceBullet: {
+    width: 6,
+    height: 6,
+    marginTop: 7,
+    borderRadius: 3,
+    backgroundColor: '#FFD700',
+  },
+  guidanceText: {
+    flex: 1,
+    fontSize: 14,
+    lineHeight: 21,
+    color: '#F6F2FF',
   },
   optionCard: {
     backgroundColor: '#16213E',

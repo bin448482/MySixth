@@ -94,6 +94,14 @@
     },
     "actions": {
       "topUp": "Top up now"
+    },
+    "guidance": {
+      "title": "Reading Tips",
+      "lines": [
+        "Tarot is not about predicting the future—it reflects the energy around you and highlights possible directions.",
+        "Try asking open questions such as “How can I…?” or “What could I do…?” to invite more insightful guidance.",
+        "If you are new, begin with the offline basics, learn the card meanings, then explore AI readings when you feel ready."
+      ]
     }
   },
   "category": {
