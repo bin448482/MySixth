@@ -10,7 +10,7 @@
     expose:
       - "8000"
     ports:
-      - "8000:8000"
+      - "8001:8000"  # 使用 8001 绕过 Windows iphlpsvc 占用的端口 8000
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
       interval: 10s

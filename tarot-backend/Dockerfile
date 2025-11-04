@@ -8,11 +8,22 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 # Install python deps
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt gunicorn
 # Copy app code and static assets
 COPY app ./app
 COPY static ./static
 # Expose service
 EXPOSE 8000
-# Start uvicorn
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]
+# Start with gunicorn + uvicorn worker for production
+# gunicorn manages multiple worker processes for better concurrency
+# uvicorn.workers.UvicornWorker allows each worker to handle async requests efficiently
+CMD ["gunicorn", \
+     "--workers", "2", \
+     "--worker-class", "uvicorn.workers.UvicornWorker", \
+     "--bind", "0.0.0.0:8000", \
+     "--access-logfile", "-", \
+     "--error-logfile", "-", \
+     "--log-level", "debug", \
+     "--timeout", "120", \
+     "--max-requests", "1000", \
+     "app.main:app"]

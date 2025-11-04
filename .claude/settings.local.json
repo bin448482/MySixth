@@ -9,7 +9,20 @@
       "Bash(npx ts-node:*)",
       "Bash(npx tsx:*)",
       "Bash(sqlite3:*)",
-      "Bash(npx expo:*)"
+      "Bash(npx expo:*)",
+      "Bash(docker compose:*)",
+      "Bash(curl:*)",
+      "Bash(docker inspect:*)",
+      "Bash(ip addr:*)",
+      "Bash(docker network:*)",
+      "Bash(echo:*)",
+      "Bash(powershell -Command:*)",
+      "Bash(for ip in 127.0.0.1 172.28.128.1 192.168.71.16)",
+      "Bash(do echo \"Testing $ip:8000\" timeout 3 curl -s -X POST \"http://$ip:8000/api/v1/users/register\" -H \"Content-Type: application/json\" -d '{\"\"\"\"installation_id\"\"\"\":\"\"\"\"test\"\"\"\"}')",
+      "Bash(docker exec:*)",
+      "Bash(netstat:*)",
+      "Bash(taskkill:*)",
+      "Bash(findstr:*)"
     ],
     "deny": [],
     "ask": []
