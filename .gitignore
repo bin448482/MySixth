@@ -9,3 +9,4 @@ tarot-ai-generator/.env.example
 tarot-ai-generator/.env.example
 tarot-ai-generator/.env
 /tarot-ai-generator/config
+/.codex-local
