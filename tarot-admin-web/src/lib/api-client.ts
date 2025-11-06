@@ -11,9 +11,6 @@ class ApiClient {
     this.instance = axios.create({
       baseURL: BASE_URL,
       timeout: 10000,
-      headers: {
-        'Content-Type': 'application/json',
-      },
       withCredentials: false, // 使用 JWT Bearer Token，不需要 Cookie
     });
 

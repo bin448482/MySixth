@@ -89,6 +89,15 @@ class Settings(BaseSettings):
     # Static files
     STATIC_DIR: str = "static"
     CARDS_IMAGE_PATH: str = "static/images"
+    APP_RELEASE_STORAGE_DIR: str = "static/app-releases"
+    APP_RELEASE_BASE_URL: str = "/static/app-releases"
+    APP_RELEASE_MAX_SIZE_MB: int = 300
+    APP_RELEASE_ALLOWED_EXTENSIONS: list[str] = [".apk"]
+    APP_RELEASE_ALLOWED_MIME_TYPES: list[str] = [
+        "application/vnd.android.package-archive",
+        "application/octet-stream",
+        "binary/octet-stream",
+    ]
 
     class Config:
         env_file = ".env"

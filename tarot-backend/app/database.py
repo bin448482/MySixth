@@ -47,6 +47,7 @@ def create_tables():
         CreditTransaction,
         EmailVerification,
         ReadingAnalyzeLog,
+        AppRelease,
     )  # noqa: WPS433
 
     tables_to_create = [
@@ -57,6 +58,7 @@ def create_tables():
         CreditTransaction.__table__,
         EmailVerification.__table__,
         ReadingAnalyzeLog.__table__,
+        AppRelease.__table__,
     ]
     Base.metadata.create_all(bind=engine, tables=tables_to_create)
 
@@ -71,6 +73,7 @@ def drop_tables():
         CreditTransaction,
         EmailVerification,
         ReadingAnalyzeLog,
+        AppRelease,
     )  # noqa: WPS433
 
     tables_to_drop = [
@@ -81,5 +84,6 @@ def drop_tables():
         CreditTransaction.__table__,
         EmailVerification.__table__,
         ReadingAnalyzeLog.__table__,
+        AppRelease.__table__,
     ]
     Base.metadata.drop_all(bind=engine, tables=tables_to_drop)

@@ -16,6 +16,12 @@ bun dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
+## Client APK Portal
+
+- Latest Android build downloads live at the admin domain under `/client-portal`.
+- In local development the portal URL is `http://localhost:3000/client-portal`.
+- In production replace the hostname with your deployed admin domain, for example `https://admin.example.com/client-portal`.
+
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
