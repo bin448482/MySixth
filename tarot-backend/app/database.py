@@ -2,6 +2,7 @@
 Database configuration and session management.
 """
 from sqlalchemy import create_engine
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 from typing import Generator
@@ -60,7 +61,13 @@ def create_tables():
         ReadingAnalyzeLog.__table__,
         AppRelease.__table__,
     ]
-    Base.metadata.create_all(bind=engine, tables=tables_to_create)
+    try:
+        Base.metadata.create_all(bind=engine, tables=tables_to_create)
+    except OperationalError as error:
+        # When multiple workers initialise concurrently SQLite may raise
+        # "table already exists" even with checkfirst; treat it as benign.
+        if "already exists" not in str(error).lower():
+            raise
 
 
 def drop_tables():

@@ -301,7 +301,14 @@ export const appReleaseApi = {
   uploadRelease: async (formData: FormData): Promise<AppReleaseResponse> => {
     return apiClient.post<AppReleaseResponse>(
       '/api/v1/admin/app-release',
-      formData
+      formData,
+      {
+        // 大文件上传可能超过默认 10s 限制，显式延长超时时间
+        timeout: 5 * 60 * 1000,
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      }
     );
   },
 };
