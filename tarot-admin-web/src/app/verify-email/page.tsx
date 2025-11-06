@@ -235,10 +235,6 @@ function VerifyEmailContent() {
               message="无法获取邮箱状态"
               description={statusError || '请稍后重试或联系客服支持'}
             />
-            <Space direction="vertical" size={4}>
-              <Text strong>安装ID</Text>
-              <Text code>{installationId}</Text>
-            </Space>
             <Button icon={<ReloadOutlined />} type="primary" onClick={refreshStatus}>
               重新获取状态
             </Button>
@@ -284,12 +280,6 @@ function VerifyEmailContent() {
                 完成邮箱验证即可保障占卜记录安全，并解锁积分兑换功能。
               </Text>
             </Space>
-
-            <Space direction="vertical" size={12} style={{ width: '100%' }}>
-              <Text strong>安装ID</Text>
-              <Text code>{installationId}</Text>
-            </Space>
-
             <Form<EmailFormValues>
               layout="vertical"
               form={emailForm}
@@ -402,14 +392,6 @@ function VerifyEmailContent() {
               现在可以输入兑换码为账户充值积分，或前往购买新的积分套餐。
             </Text>
           </Space>
-
-          <Alert
-            type="success"
-            showIcon
-            message="安装ID"
-            description={<Text code>{installationId}</Text>}
-          />
-
           <Form<RedeemFormValues>
             layout="vertical"
             form={redeemForm}
