@@ -9,6 +9,12 @@ from .reading import (
     BasicInterpretationRequest, BasicInterpretationResponse,
     DimensionInfo
 )
+from .app_release import (
+    AppReleaseResponse,
+    AppReleaseLatestResponse,
+    AppReleaseUploadResponse,
+    AppReleaseHistoryResponse,
+)
 
 __all__ = [
     "AnonymousUserResponse",
@@ -23,5 +29,9 @@ __all__ = [
     "GenerateResponse",
     "BasicInterpretationRequest",
     "BasicInterpretationResponse",
-    "DimensionInfo"
+    "DimensionInfo",
+    "AppReleaseResponse",
+    "AppReleaseLatestResponse",
+    "AppReleaseUploadResponse",
+    "AppReleaseHistoryResponse",
 ]

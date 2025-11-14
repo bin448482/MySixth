@@ -15,6 +15,8 @@ import {
   EmailStatusResponse,
   AnonymousRedeemRequest,
   AnonymousRedeemResponse,
+  AppRelease,
+  AppReleaseResponse,
 } from '@/types';
 
 // 管理员认证API
@@ -186,7 +188,6 @@ export const dashboardApi = {
     try {
       // 获取基本统计数据 - 只获取第一页来获取total计数和部分数据
       const usersData = await usersApi.getUsers({ page: 1, size: 100 });
-      const redeemCodesData = await redeemCodesApi.getRedeemCodes({ page: 1, size: 100 });
 
       // 基本指标计算（基于可用数据的近似值）
       const totalUsers = usersData.total || 0;
@@ -277,5 +278,37 @@ export const dashboardApi = {
         },
       ];
     }
+  },
+};
+
+// 应用发布管理API
+export const appReleaseApi = {
+  // 获取最新应用发布信息
+  getLatestRelease: async (): Promise<AppRelease | null> => {
+    try {
+      const response = await apiClient.get<AppReleaseResponse>('/api/v1/admin/app-release/latest');
+      const payload = response as AppReleaseResponse & { data?: AppRelease };
+      if (payload?.release) return payload.release;
+      if (payload?.data) return payload.data;
+      return null;
+    } catch (error) {
+      console.warn('获取最新应用发布信息失败:', error);
+      return null;
+    }
+  },
+
+  // 上传新的应用发布
+  uploadRelease: async (formData: FormData): Promise<AppReleaseResponse> => {
+    return apiClient.post<AppReleaseResponse>(
+      '/api/v1/admin/app-release',
+      formData,
+      {
+        // 大文件上传可能超过默认 10s 限制，显式延长超时时间
+        timeout: 5 * 60 * 1000,
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      }
+    );
   },
 };

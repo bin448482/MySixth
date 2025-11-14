@@ -36,6 +36,15 @@
 | GET  | `/api/v1/me/balance` | 查询用户余额                | 🔄 待实现 |
 | POST | `/api/v1/redeem`     | 兑换码验证兑换               | 🔄 待实现 |
 
+### 应用发布接口
+
+| 方法 | 路径 | 说明 | 状态 |
+| ---- | ---- | ---- | ---- |
+| GET | `/api/v1/app-release/latest` | 公开查询当前上线的 APK 版本信息 | ✅ 新增 |
+| GET | `/api/v1/admin/app-release/latest` | 管理后台查询最新版本信息 | ✅ 新增 |
+| POST | `/api/v1/admin/app-release` | 管理员上传 APK 并发布新版本 | ✅ 新增 |
+| GET | `/api/v1/admin/app-release/history` | （可选）查看历史发布记录 | ✅ 新增 |
+
 ### 解读API流程（分两步 + 积分扣费）
 1. **分析阶段** (`/readings/analyze`)：用户输入描述 → 检查积分 → LLM分析 → 返回推荐维度 → 扣除1积分
 2. **生成阶段** (`/readings/generate`)：选择维度和卡牌 → 检查积分 → LLM生成 → 返回详细解读 → 扣除1积分
@@ -65,6 +74,7 @@
 7. **redeem_codes** - 兑换码管理
 8. **user_settings** - 用户偏好（现包含 `locale`，用于多端同步）
 9. **user_history.locale** - 新增列存储记录生成时的语言，便于过滤与重放
+10. **app_releases** - 应用发布记录（APK 元数据与下载链接）
 
 ## 🚨 常见问题解决方案
 

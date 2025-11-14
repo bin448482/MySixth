@@ -2,6 +2,7 @@
 Database configuration and session management.
 """
 from sqlalchemy import create_engine
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 from typing import Generator
@@ -47,6 +48,7 @@ def create_tables():
         CreditTransaction,
         EmailVerification,
         ReadingAnalyzeLog,
+        AppRelease,
     )  # noqa: WPS433
 
     tables_to_create = [
@@ -57,8 +59,15 @@ def create_tables():
         CreditTransaction.__table__,
         EmailVerification.__table__,
         ReadingAnalyzeLog.__table__,
+        AppRelease.__table__,
     ]
-    Base.metadata.create_all(bind=engine, tables=tables_to_create)
+    try:
+        Base.metadata.create_all(bind=engine, tables=tables_to_create)
+    except OperationalError as error:
+        # When multiple workers initialise concurrently SQLite may raise
+        # "table already exists" even with checkfirst; treat it as benign.
+        if "already exists" not in str(error).lower():
+            raise
 
 
 def drop_tables():
@@ -71,6 +80,7 @@ def drop_tables():
         CreditTransaction,
         EmailVerification,
         ReadingAnalyzeLog,
+        AppRelease,
     )  # noqa: WPS433
 
     tables_to_drop = [
@@ -81,5 +91,6 @@ def drop_tables():
         CreditTransaction.__table__,
         EmailVerification.__table__,
         ReadingAnalyzeLog.__table__,
+        AppRelease.__table__,
     ]
     Base.metadata.drop_all(bind=engine, tables=tables_to_drop)

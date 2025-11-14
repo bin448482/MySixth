@@ -43,6 +43,7 @@ email_credentials.txt
 *.db
 *.sqlite
 *.sqlite3
+static/app-releases/
 
 # 日志文件
 *.log

@@ -182,3 +182,24 @@ export interface AnonymousRedeemResponse {
   message?: string;
   transaction_id?: number | null;
 }
+
+// 应用发布信息
+export interface AppRelease {
+  id: number;
+  version: string;
+  build_number?: string;
+  release_notes?: string;
+  notes_url?: string;
+  download_url: string;
+  file_size?: number;
+  checksum?: string;
+  uploaded_by?: string;
+  uploaded_at: string;
+}
+
+export interface AppReleaseResponse {
+  success: boolean;
+  data?: AppRelease | null;
+  release?: AppRelease | null;
+  message?: string;
+}

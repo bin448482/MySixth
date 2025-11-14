@@ -11,6 +11,7 @@ import {
   MenuUnfoldOutlined,
   LogoutOutlined,
   SettingOutlined,
+  CloudUploadOutlined,
 } from '@ant-design/icons';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -27,7 +28,6 @@ interface AdminLayoutProps {
 const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   const [collapsed, setCollapsed] = useState(false);
   const [checking, setChecking] = useState(true);
-  const [logoutLoading, setLogoutLoading] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
   const { message } = App.useApp();
@@ -58,7 +58,6 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
 
   // 退出登录处理
   const handleLogout = async () => {
-    setLogoutLoading(true);
     try {
       await authApi.logout();
       message.success('退出登录成功');
@@ -68,8 +67,6 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
       // 即使API调用失败，也要清除本地token并跳转
       localStorage.removeItem('admin_token');
       router.replace('/login');
-    } finally {
-      setLogoutLoading(false);
     }
   };
 
@@ -110,6 +107,11 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
       key: '/orders',
       icon: <ShoppingCartOutlined />,
       label: <Link href="/orders">订单管理</Link>,
+    },
+    {
+      key: '/app-release',
+      icon: <CloudUploadOutlined />,
+      label: <Link href="/app-release">应用发布</Link>,
     },
   ];
 

@@ -20,6 +20,7 @@ from app.models import (
     RedeemCode,
     Purchase,
     CreditTransaction,
+    AppRelease,
 )
 
 # this is the Alembic Config object, which provides
