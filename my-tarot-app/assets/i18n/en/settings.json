@@ -207,6 +207,22 @@
         "other": "Other"
       },
       "creditChange": "{{sign}}{{value}} credits"
+    },
+    "iap": {
+      "title": "Buy credits (via Google Play)",
+      "loading": "Loading products…",
+      "retry": "Retry loading",
+      "unavailable": "The store is unavailable. Please try again later or use a redeem code.",
+      "popular": "Popular",
+      "bestValue": "Best value",
+      "buy": "Buy",
+      "success": "Successfully added {{credits}} credits",
+      "verifying": "Verifying your purchase…",
+      "error": {
+        "cancelled": "Purchase cancelled",
+        "failed": "Purchase failed: {{message}}",
+        "verify": "Verification failed. Please try again later or use a redeem code."
+      }
     }
   }
 }

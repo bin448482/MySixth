@@ -39,7 +39,8 @@
             "backgroundColor": "#5B4A8A"
           }
         }
-      ]
+      ],
+      "react-native-iap"
     ],
     "experiments": {
       "typedRoutes": true,

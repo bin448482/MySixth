@@ -207,6 +207,22 @@
         "other": "其他"
       },
       "creditChange": "{{sign}}{{value}} 积分"
+    },
+    "iap": {
+      "title": "购买积分（通过 Google Play）",
+      "loading": "正在加载商品…",
+      "retry": "重试加载商品",
+      "unavailable": "商店暂不可用，请稍后再试或使用兑换码",
+      "popular": "最受欢迎",
+      "bestValue": "超值",
+      "buy": "购买",
+      "success": "已成功充值 {{credits}} 积分",
+      "verifying": "正在确认订单…",
+      "error": {
+        "cancelled": "购买已取消",
+        "failed": "购买失败：{{message}}",
+        "verify": "订单校验失败，请稍后重试或使用兑换码"
+      }
     }
   }
 }

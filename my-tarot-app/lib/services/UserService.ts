@@ -249,6 +249,53 @@ class UserService {
   }
 
   /**
+   * 校验 Google Play 购买并入账
+   */
+  async verifyGooglePurchase(payload: {
+    installation_id: string;
+    product_id: string;
+    purchase_token: string;
+  }): Promise<{ success: boolean; credits_awarded?: number; new_balance?: number } | null> {
+    console.log('🧾 === UserService.verifyGooglePurchase() 开始 ===');
+    try {
+      const authHeaders = await this.authService.getAuthHeaders();
+      if (!authHeaders.Authorization) {
+        console.log('❌ No authorization token available');
+        return null;
+      }
+
+      const apiUrl = buildApiUrl('/api/v1/payments/google/verify');
+      console.log('🔗 Request URL:', apiUrl);
+
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          ...authHeaders,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      console.log('📡 Response received:', {
+        status: response.status,
+        ok: response.ok,
+      });
+
+      if (!response.ok) {
+        // 4xx/5xx 返回 null，让前端显示兜底提示
+        return null;
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('❌ Failed to verify Google purchase:', error);
+      return null;
+    }
+  }
+
+  /**
    * 获取用户完整信息（档案 + 余额 + 统计数据）
    */
   async getUserInfo(): Promise<{ profile: UserInfo | null; balance: BalanceResponse | null; stats: UserStatsResponse | null; transactions: UserTransaction[] }> {
