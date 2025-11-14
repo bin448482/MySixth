@@ -31,8 +31,11 @@ module.exports = ({ config }) => {
     },
     android: {
       ...config.android,
-      // 使用环境变量可覆盖，默认使用原生工程中的包名
-      package: process.env.ANDROID_PACKAGE || 'com.biiinnn.mytarotapp',
+      // 优先使用 app.json 中声明的包名；否则允许用环境变量覆盖；再否则使用默认值
+      package:
+        (config.android && config.android.package) ||
+        process.env.ANDROID_PACKAGE ||
+        'com.mysixth.tarot',
     },
   };
 
