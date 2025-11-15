@@ -373,6 +373,94 @@ userInfoCard: {
 - **错误处理**: 友好的错误信息和重试按钮
 - **性能**: 避免不必要的重新渲染
 
+## 🛒 Android IAP 实施说明（前端）
+
+本节聚焦 RechargeSection 的 Google Play 内购集成（Android 首版）。
+
+### 功能入口与布局
+- 入口：设置 → 积分管理（RechargeSection）
+- 结构：余额卡片 → IAP 商品网格（最多 6 个）→ 兑换码充值入口（兜底）
+- 平台：仅 Android 显示 IAP 区块；iOS 暂隐藏，仅保留兑换码入口
+
+### 依赖与构建
+- 依赖：`react-native-iap`（动态导入，避免未安装时报错）
+- 构建：需原生运行（EAS 或 `npx expo prebuild && expo run:android`）；Expo Go 不支持 IAP
+
+### 商品与后端映射
+- 商品 ID（需与后端一致）：`com.mysixth.tarot.credits_5|10|20|50|100`
+- 校验接口：`POST /api/v1/payments/google/verify`，请求体包含：
+  - `installation_id`、`product_id`、`purchase_token`
+- 返回：`{ success, credits_awarded, new_balance }`，后端按 `purchase_token` 幂等
+
+### 组件状态与 Props
+- 新增状态：`isIapReady`、`loadingProducts`、`products`、`purchasingProductId`、`verifying`、`iapError`、`iapSuccess`
+- 新增 Prop：`onRefresh?: () => void`（购买校验成功后，触发父组件刷新余额/交易）
+
+### 集成流程（简化代码示例）
+```ts
+// 1) 初始化与加载商品（Android）
+useEffect(() => {
+  let mounted = true;
+  (async () => {
+    if (Platform.OS !== 'android') return;
+    const RNIap = await import('react-native-iap').catch(() => null as any);
+    if (!RNIap) return;
+    const ok = await RNIap.initConnection();
+    if (!ok) return;
+    purchaseUpdateSub.current = RNIap.purchaseUpdatedListener(async (purchase: any) => {
+      const token = purchase?.purchaseToken || purchase?.transactionReceipt;
+      const productId = purchase?.productId || purchasingProductId;
+      if (!token || !productId) return;
+      setVerifying(true);
+      const installation_id = Application.androidId || Device.modelName || 'unknown';
+      const res = await UserService.getInstance().verifyGooglePurchase({ installation_id, product_id: productId, purchase_token: token });
+      if (res?.success) {
+        setIapSuccess(t('recharge.iap.success', { credits: res.credits_awarded }));
+        onRefresh?.();
+      } else {
+        setIapError(t('recharge.iap.error.verify'));
+      }
+      await RNIap.finishTransaction(purchase, true);
+      setVerifying(false);
+      setPurchasingProductId(null);
+    });
+    purchaseErrorSub.current = RNIap.purchaseErrorListener((err: any) => {
+      setPurchasingProductId(null);
+      setIapError(err?.code === 'E_USER_CANCELLED'
+        ? t('recharge.iap.error.cancelled')
+        : t('recharge.iap.error.failed', { message: err?.message || 'unknown' }));
+    });
+    const list = await RNIap.getProducts(productIds);
+    if (mounted) {
+      setProducts(list.map((p: any) => ({ productId: p.productId || p.sku, title: p.title?.split(' (')[0] || p.productId, price: p.localizedPrice || p.price })));
+      setIsIapReady(list?.length > 0);
+      setLoadingProducts(false);
+    }
+  })();
+  return () => {
+    purchaseUpdateSub.current?.remove?.();
+    purchaseErrorSub.current?.remove?.();
+    iapRef.current?.endConnection?.();
+    mounted = false;
+  };
+}, []);
+
+// 2) 购买触发
+const handlePurchase = async (productId: string) => {
+  setIapError(null); setIapSuccess(null); setPurchasingProductId(productId);
+  await iapRef.current.requestPurchase({ sku: productId });
+};
+```
+
+### 文案与 i18n
+- 命名空间：`settings.recharge.iap`
+- 关键键值：`title`、`loading`、`retry`、`unavailable`、`popular`、`bestValue`、`buy`、`success`、`verifying`、`error.cancelled`、`error.failed`、`error.verify`
+
+### 异常与兜底
+- 商店不可用/商品为空：隐藏商品网格，显示“商店不可用 + 重试”提示，保留兑换码入口
+- 购买取消：展示“购买已取消”
+- 验证失败：展示“订单校验失败”，用户可重试或使用兑换码
+
 ## 📋 使用指南
 
 ### 页面集成

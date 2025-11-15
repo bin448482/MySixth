@@ -77,6 +77,13 @@ my-tarot-app/
 - **帮助支持**：联系方式、用户反馈、版本检查
 - **详细设计**: 参考 `components/settings/CLAUDE.md`
 
+### Android 内购（Google Play）首版
+- 入口位置：设置 → 积分管理。展示商品网格（最多 6 个），保留“兑换码充值”兜底。
+- 购买流程：`initConnection → getProducts → requestPurchase → purchaseUpdatedListener → POST /api/v1/payments/google/verify → finishTransaction`；验证成功后刷新 `/api/v1/me/balance` 与最近交易。
+- 依赖：`react-native-iap`（需原生构建：EAS 或 `npx expo prebuild && expo run:android`；Expo Go 不支持）。
+- 文案键：`settings.recharge.iap.*`（标题、加载/重试、商店不可用、购买按钮、验证中、成功、失败/取消/校验失败）。
+- 平台：仅 Android 显示 IAP 区块；iOS 暂隐藏，仅保留兑换码入口。
+
 ## 🔄 数据管理架构
 
 ### 双数据库设计
@@ -126,6 +133,7 @@ lib/contexts/
 | `POST /readings/analyze` | AI问题分析 | ✅ 已集成 |
 | `POST /readings/generate` | AI解读生成 | ✅ 已集成 |
 | `POST /payments/checkout` | 支付会话创建 | 🔄 待集成 |
+| `POST /api/v1/payments/google/verify` | Google Play 验证与入账 | ✅ Android 首版已接入（客户端调用） |
 
 ### API调用模式 (✅ 已实现统一认证)
 - **自动JWT认证**：所有AI API调用自动携带JWT token
@@ -167,10 +175,10 @@ lib/contexts/
 ## 🎯 开发重点
 
 ### 当前开发优先级
-1. **系统说明模块**：应用信息、充值管理、使用声明、隐私政策
+1. **系统说明模块**：应用信息、充值管理（Android IAP 首版已上线）、使用声明、隐私政策
 2. **占卜流程完善**：AI占卜功能集成和优化
 3. **历史记录功能**：完整的历史管理和同步机制
-4. **支付集成**：Stripe支付流程集成
+4. **支付集成**：Stripe 支付流程集成；iOS IAP 待实现
 5. **性能优化**：图片加载、动画性能、内存管理
 
 ### 关键技术要点

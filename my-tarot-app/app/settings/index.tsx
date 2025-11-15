@@ -78,6 +78,7 @@ export default function SettingsScreen() {
             currentCredits={userBalance?.credits || 0}
             userEmail={userProfile?.email}
             rechargeHistory={transactions}
+            onRefresh={loadUserData}
           />
           <AppInfoSection />
           <DisclaimerSection />

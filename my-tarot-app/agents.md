@@ -79,6 +79,14 @@ my-tarot-app/
 - **帮助支持**：联系方式、用户反馈、版本检查
 - **详细设计**: 参考 `components/settings/CLAUDE.md`
 
+## 🔔 更新摘要（Android IAP）
+- 新增 Android 内购（Google Play）入口：设置 → 积分管理 显示商品网格（最多 6 个套餐），保留兑换码充值作为兜底。
+- 集成 `react-native-iap`（动态导入）：`initConnection → getProducts → requestPurchase → purchaseUpdatedListener → /api/v1/payments/google/verify → finishTransaction`，验证成功后自动刷新余额/交易记录。
+- 新增文案键：`settings.recharge.iap.*`（标题、加载/重试、商店不可用、购买按钮、验证中、成功、失败/取消/校验失败）。
+- 新增前端服务方法：`UserService.verifyGooglePurchase()`；调用后端 `POST /api/v1/payments/google/verify` 并处理幂等（由后端按 `purchase_token` 去重）。
+- 依赖变更：`react-native-iap`（需要原生构建，Expo Go 不支持）；Android 首版，iOS 暂不展示 IAP 区块。
+- 失败与兜底：商店不可用/验证失败时显示提示并保留“兑换码充值”入口；用户取消有明确反馈。
+
 ## 🔄 数据管理架构
 
 ### 双数据库设计
