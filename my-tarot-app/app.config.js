@@ -39,6 +39,36 @@ module.exports = ({ config }) => {
     },
   };
 
+  // 确保启用 R8/ProGuard 并写入常见的 keep 规则，以便生成 mapping.txt 上传到 Play Console
+  // 使用 expo-build-properties 插件注入到原生构建配置
+  const buildPropsPlugin = [
+    'expo-build-properties',
+    {
+      android: {
+        gradleProperties: {
+          enableProguardInReleaseBuilds: 'true',
+        },
+        // 以换行拼接为单个字符串（插件要求）
+        extraProguardRules: [
+          '-keep class com.facebook.react.** { *; }',
+          '-keep class com.facebook.hermes.** { *; }',
+          '-keep class com.swmansion.gesturehandler.** { *; }',
+          '-keep class com.swmansion.reanimated.** { *; }',
+          '-keep class expo.modules.** { *; }',
+          '-keep class com.google.android.gms.** { *; }',
+        ].join('\\n'),
+      },
+    },
+  ];
+  const existingPlugins = Array.isArray(config.plugins) ? [...config.plugins] : [];
+  const hasBuildProps = existingPlugins.some((p) =>
+    (Array.isArray(p) ? p[0] : p) === 'expo-build-properties'
+  );
+  if (!hasBuildProps) {
+    existingPlugins.push(buildPropsPlugin);
+  }
+  appConfig.plugins = existingPlugins;
+
   appConfig = withAndroidManifest(appConfig, (manifestConfig) => {
     const application = manifestConfig.modResults.manifest.application ?? [];
     if (application.length > 0) {

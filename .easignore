@@ -2,6 +2,16 @@
 # Uses .gitignore-style patterns. These paths are relative to the repo root.
 # Goal: keep upload small by excluding caches, build outputs, and local artifacts.
 
+# --- Monorepo guard: include ONLY my-tarot-app in the archive ---
+/*
+!.easignore
+!/my-tarot-app
+!/my-tarot-app/**
+
+# (The lines above ensure EAS does not traverse unrelated folders like
+# .git, .codex-local, deploy, release, tarot-backend, etc., eliminating
+# permission errors like EACCES on .codex-local.)
+
 # --- my-tarot-app: dependencies & caches ---
 my-tarot-app/node_modules/
 my-tarot-app/.pnp/
@@ -67,4 +77,3 @@ my-tarot-app/ios/*.xcodeproj/xcuserdata
 my-tarot-app/.idea/
 my-tarot-app/*.iml
 my-tarot-app/.vscode/
-
